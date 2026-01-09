@@ -19,17 +19,40 @@ type ExplainInput struct {
 }
 
 // registerExplainTool adds the trino_explain tool to the server.
-func (t *Toolkit) registerExplainTool(server *mcp.Server) {
+//
+//nolint:dupl // Each tool registration requires distinct types for type-safe handlers.
+func (t *Toolkit) registerExplainTool(server *mcp.Server, cfg *toolConfig) {
+	// Create the base handler
+	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
+		explainInput, ok := input.(ExplainInput)
+		if !ok {
+			return ErrorResult("internal error: invalid input type"), nil, nil
+		}
+		return t.handleExplain(ctx, req, explainInput)
+	}
+
+	// Wrap with middleware if configured
+	wrappedHandler := t.wrapHandler(ToolExplain, baseHandler, cfg)
+
+	// Register with MCP using typed handler that calls wrapped handler
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "trino_explain",
 		Description: "Get the execution plan for a SQL query. " +
 			"Use this to understand how Trino will execute a query and identify potential performance issues.",
-	}, t.handleExplain)
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input ExplainInput) (*mcp.CallToolResult, any, error) {
+		return wrappedHandler(ctx, req, input)
+	})
 }
 
 func (t *Toolkit) handleExplain(ctx context.Context, _ *mcp.CallToolRequest, input ExplainInput) (*mcp.CallToolResult, any, error) {
 	if input.SQL == "" {
-		return errorResult("sql parameter is required"), nil, nil
+		return ErrorResult("sql parameter is required"), nil, nil
+	}
+
+	// Apply query interceptors
+	sql, err := t.InterceptSQL(ctx, input.SQL, ToolExplain)
+	if err != nil {
+		return ErrorResult(fmt.Sprintf("Query rejected: %v", err)), nil, nil
 	}
 
 	// Map type string to ExplainType
@@ -45,9 +68,9 @@ func (t *Toolkit) handleExplain(ctx context.Context, _ *mcp.CallToolRequest, inp
 		explainType = client.ExplainLogical
 	}
 
-	result, err := t.client.Explain(ctx, input.SQL, explainType)
+	result, err := t.client.Explain(ctx, sql, explainType)
 	if err != nil {
-		return errorResult(fmt.Sprintf("Explain failed: %v", err)), nil, nil
+		return ErrorResult(fmt.Sprintf("Explain failed: %v", err)), nil, nil
 	}
 
 	output := fmt.Sprintf("## Execution Plan (%s)\n\n```\n%s\n```", result.Type, result.Plan)
