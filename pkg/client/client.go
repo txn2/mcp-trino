@@ -203,8 +203,8 @@ type ExplainType string
 const (
 	ExplainLogical     ExplainType = "LOGICAL"
 	ExplainDistributed ExplainType = "DISTRIBUTED"
-	ExplainIO          ExplainType = "(TYPE IO)"
-	ExplainValidate    ExplainType = "(TYPE VALIDATE)"
+	ExplainIO          ExplainType = "IO"
+	ExplainValidate    ExplainType = "VALIDATE"
 )
 
 // ExplainResult holds the output of an EXPLAIN query.
@@ -219,13 +219,8 @@ func (c *Client) Explain(ctx context.Context, sqlQuery string, explainType Expla
 		explainType = ExplainLogical
 	}
 
-	var explainSQL string
-	switch explainType {
-	case ExplainIO, ExplainValidate:
-		explainSQL = fmt.Sprintf("EXPLAIN %s %s", explainType, sqlQuery) // #nosec G201 -- explainType is from enum, sqlQuery is validated
-	default:
-		explainSQL = fmt.Sprintf("EXPLAIN (%s) %s", explainType, sqlQuery) // #nosec G201 -- explainType is from enum, sqlQuery is validated
-	}
+	// Trino EXPLAIN syntax: EXPLAIN (TYPE <type>) <statement>
+	explainSQL := fmt.Sprintf("EXPLAIN (TYPE %s) %s", explainType, sqlQuery) // #nosec G201 -- explainType is from enum, sqlQuery is validated
 
 	rows, err := c.db.QueryContext(ctx, explainSQL)
 	if err != nil {

@@ -103,8 +103,8 @@ func TestExplainType_Constants(t *testing.T) {
 	}{
 		{ExplainLogical, "LOGICAL"},
 		{ExplainDistributed, "DISTRIBUTED"},
-		{ExplainIO, "(TYPE IO)"},
-		{ExplainValidate, "(TYPE VALIDATE)"},
+		{ExplainIO, "IO"},
+		{ExplainValidate, "VALIDATE"},
 	}
 
 	for _, tt := range tests {

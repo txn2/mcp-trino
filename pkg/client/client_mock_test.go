@@ -178,7 +178,7 @@ func TestClient_Explain(t *testing.T) {
 			AddRow("- Output").
 			AddRow("  - TableScan")
 
-		mock.ExpectQuery("EXPLAIN \\(LOGICAL\\)").WillReturnRows(rows)
+		mock.ExpectQuery("EXPLAIN \\(TYPE LOGICAL\\)").WillReturnRows(rows)
 
 		result, err := client.Explain(context.Background(), "SELECT 1", ExplainLogical)
 		if err != nil {
@@ -195,7 +195,7 @@ func TestClient_Explain(t *testing.T) {
 
 	t.Run("distributed explain", func(t *testing.T) {
 		rows := sqlmock.NewRows([]string{"plan"}).AddRow("Fragment 0")
-		mock.ExpectQuery("EXPLAIN \\(DISTRIBUTED\\)").WillReturnRows(rows)
+		mock.ExpectQuery("EXPLAIN \\(TYPE DISTRIBUTED\\)").WillReturnRows(rows)
 
 		result, err := client.Explain(context.Background(), "SELECT 1", ExplainDistributed)
 		if err != nil {
@@ -237,7 +237,7 @@ func TestClient_Explain(t *testing.T) {
 
 	t.Run("default to logical", func(t *testing.T) {
 		rows := sqlmock.NewRows([]string{"plan"}).AddRow("Plan")
-		mock.ExpectQuery("EXPLAIN \\(LOGICAL\\)").WillReturnRows(rows)
+		mock.ExpectQuery("EXPLAIN \\(TYPE LOGICAL\\)").WillReturnRows(rows)
 
 		result, err := client.Explain(context.Background(), "SELECT 1", "")
 		if err != nil {
