@@ -120,11 +120,11 @@ func TestExplainTypes_Constants(t *testing.T) {
 	if string(client.ExplainDistributed) != "DISTRIBUTED" {
 		t.Errorf("ExplainDistributed should be 'DISTRIBUTED', got %q", client.ExplainDistributed)
 	}
-	if string(client.ExplainIO) != "(TYPE IO)" {
-		t.Errorf("ExplainIO should be '(TYPE IO)', got %q", client.ExplainIO)
+	if string(client.ExplainIO) != "IO" {
+		t.Errorf("ExplainIO should be 'IO', got %q", client.ExplainIO)
 	}
-	if string(client.ExplainValidate) != "(TYPE VALIDATE)" {
-		t.Errorf("ExplainValidate should be '(TYPE VALIDATE)', got %q", client.ExplainValidate)
+	if string(client.ExplainValidate) != "VALIDATE" {
+		t.Errorf("ExplainValidate should be 'VALIDATE', got %q", client.ExplainValidate)
 	}
 }
 
