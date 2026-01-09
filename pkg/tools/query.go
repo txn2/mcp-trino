@@ -27,18 +27,41 @@ type QueryInput struct {
 }
 
 // registerQueryTool adds the trino_query tool to the server.
-func (t *Toolkit) registerQueryTool(server *mcp.Server) {
+//
+//nolint:dupl // Each tool registration requires distinct types for type-safe handlers.
+func (t *Toolkit) registerQueryTool(server *mcp.Server, cfg *toolConfig) {
+	// Create the base handler
+	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
+		queryInput, ok := input.(QueryInput)
+		if !ok {
+			return ErrorResult("internal error: invalid input type"), nil, nil
+		}
+		return t.handleQuery(ctx, req, queryInput)
+	}
+
+	// Wrap with middleware if configured
+	wrappedHandler := t.wrapHandler(ToolQuery, baseHandler, cfg)
+
+	// Register with MCP using typed handler that calls wrapped handler
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "trino_query",
 		Description: "Execute a SQL query against Trino and return results. " +
 			"Supports SELECT queries only. Results are limited to prevent excessive data transfer.",
-	}, t.handleQuery)
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input QueryInput) (*mcp.CallToolResult, any, error) {
+		return wrappedHandler(ctx, req, input)
+	})
 }
 
 func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input QueryInput) (*mcp.CallToolResult, any, error) {
 	// Validate SQL is provided
 	if input.SQL == "" {
-		return errorResult("sql parameter is required"), nil, nil
+		return ErrorResult("sql parameter is required"), nil, nil
+	}
+
+	// Apply query interceptors
+	sql, err := t.InterceptSQL(ctx, input.SQL, ToolQuery)
+	if err != nil {
+		return ErrorResult(fmt.Sprintf("Query rejected: %v", err)), nil, nil
 	}
 
 	// Apply limits
@@ -65,9 +88,9 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 		Timeout: timeout,
 	}
 
-	result, err := t.client.Query(ctx, input.SQL, opts)
+	result, err := t.client.Query(ctx, sql, opts)
 	if err != nil {
-		return errorResult(fmt.Sprintf("Query failed: %v", err)), nil, nil
+		return ErrorResult(fmt.Sprintf("Query failed: %v", err)), nil, nil
 	}
 
 	// Format output
@@ -85,7 +108,7 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 	default:
 		data, err := json.MarshalIndent(result, "", "  ")
 		if err != nil {
-			return errorResult(fmt.Sprintf("Failed to marshal result: %v", err)), nil, nil
+			return ErrorResult(fmt.Sprintf("Failed to marshal result: %v", err)), nil, nil
 		}
 		output = string(data)
 	}
@@ -205,14 +228,4 @@ func escapeCSV(s string) string {
 	}
 	result += "\""
 	return result
-}
-
-// errorResult creates an error CallToolResult.
-func errorResult(msg string) *mcp.CallToolResult {
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			&mcp.TextContent{Text: msg},
-		},
-		IsError: true,
-	}
 }

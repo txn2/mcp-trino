@@ -239,7 +239,7 @@ func TestEscapeCSV(t *testing.T) {
 
 func TestErrorResult(t *testing.T) {
 	msg := "test error message"
-	result := errorResult(msg)
+	result := ErrorResult(msg)
 
 	if !result.IsError {
 		t.Error("expected IsError to be true")

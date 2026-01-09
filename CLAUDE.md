@@ -11,6 +11,22 @@ This file provides guidance to Claude Code when working with this project.
 - Generic: No domain-specific logic; suitable for any Trino deployment
 - Secure: Configurable limits and timeouts to prevent abuse
 
+## Code Standards
+
+1. **Idiomatic Go**: All code must follow idiomatic Go patterns and conventions. Use `gofmt`, follow Effective Go guidelines, and adhere to Go Code Review Comments.
+
+2. **Test Coverage**: Project must maintain >80% unit test coverage. Build mocks where necessary to achieve this. Use table-driven tests where appropriate.
+
+3. **Testing Definition**: When asked to "test" or "testing" the code, this means running the full CI test suite:
+   - Unit tests with race detection (`go test -race`)
+   - Linting (`make lint` / golangci-lint)
+   - Vulnerability scanning
+   - All checks that typically run in CI
+
+4. **Human Review Required**: A human must review and approve every line of code before it is committed. Therefore, commits are always performed by a human, not by Claude.
+
+5. **Go Report Card**: The project MUST always maintain 100% across all categories on [Go Report Card](https://goreportcard.com/).
+
 ## Project Structure
 
 ```
