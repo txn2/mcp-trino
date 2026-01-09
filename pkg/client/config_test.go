@@ -306,6 +306,21 @@ func TestConfig_DSN(t *testing.T) {
 			expected: "https://admin@trino.example.com:443/hive/default?source=test&sslVerify=false",
 		},
 		{
+			name: "HTTPS with password",
+			config: Config{
+				Host:      "trino.example.com",
+				Port:      443,
+				User:      "admin",
+				Password:  "secret123",
+				SSL:       true,
+				SSLVerify: true,
+				Source:    "test",
+				Catalog:   "hive",
+				Schema:    "default",
+			},
+			expected: "https://admin:secret123@trino.example.com:443/hive/default?source=test",
+		},
+		{
 			name: "catalog only, no schema",
 			config: Config{
 				Host:    "localhost",

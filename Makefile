@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean coverage security help
+.PHONY: all build test test-short test-integration lint clean coverage security help
 
 # Go parameters
 GOCMD=go
@@ -33,6 +33,9 @@ test: ## Run tests
 
 test-short: ## Run tests (short mode)
 	$(GOTEST) -v -short ./...
+
+test-integration: ## Run integration tests (requires Trino: make docker-trino)
+	$(GOTEST) -v -tags=integration ./pkg/client/...
 
 coverage: ## Run tests with coverage
 	$(GOTEST) -v -race -coverprofile=$(COVERAGE_FILE) -covermode=atomic ./...

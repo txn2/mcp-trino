@@ -129,24 +129,26 @@ func (c Config) DSN() string {
 		scheme = "https"
 	}
 
-	// Build basic DSN
-	dsn := fmt.Sprintf("%s://%s@%s:%d", scheme, c.User, c.Host, c.Port)
+	auth := c.User
+	if c.Password != "" {
+		auth = c.User + ":" + c.Password
+	}
 
-	// Add catalog and schema if set
+	dsn := fmt.Sprintf("%s://%s@%s:%d", scheme, auth, c.Host, c.Port)
+
 	if c.Catalog != "" {
 		dsn += "/" + c.Catalog
-		if c.Schema != "" {
-			dsn += "/" + c.Schema
-		}
+	}
+	if c.Schema != "" && c.Catalog != "" {
+		dsn += "/" + c.Schema
 	}
 
-	// Add query parameters
-	params := fmt.Sprintf("?source=%s", c.Source)
-	if !c.SSLVerify && c.SSL {
-		params += "&sslVerify=false"
+	dsn += "?source=" + c.Source
+	if c.SSL && !c.SSLVerify {
+		dsn += "&sslVerify=false"
 	}
 
-	return dsn + params
+	return dsn
 }
 
 // Validate checks if the configuration is valid.

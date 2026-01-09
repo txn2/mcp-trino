@@ -47,6 +47,63 @@ export TRINO_SCHEMA=default
 mcp-trino
 ```
 
+### Claude Code CLI
+
+1. **Clone and build the binary:**
+
+```bash
+git clone https://github.com/txn2/mcp-trino.git ~/mcp-trino
+cd ~/mcp-trino
+go build -o mcp-trino ./cmd/mcp-trino
+```
+
+2. **Add the MCP server to Claude Code:**
+
+```bash
+claude mcp add trino \
+  -e TRINO_HOST=trino.example.com \
+  -e TRINO_PORT=443 \
+  -e TRINO_SSL=true \
+  -e TRINO_USER=your_username \
+  -e TRINO_PASSWORD=your_password \
+  -e TRINO_CATALOG=hive \
+  -e TRINO_SCHEMA=default \
+  -- ~/mcp-trino/mcp-trino
+```
+
+3. **Restart Claude Code** to load the new MCP server.
+
+4. **Verify the tools are available** by asking Claude to list your Trino catalogs.
+
+**Multiple Trino Servers:**
+
+You can add multiple Trino instances with different names:
+
+```bash
+# Production
+claude mcp add trino-prod \
+  -e TRINO_HOST=trino.prod.example.com \
+  -e TRINO_USER=prod_user \
+  -e TRINO_PASSWORD=prod_pass \
+  -- ~/mcp-trino/mcp-trino
+
+# Staging
+claude mcp add trino-staging \
+  -e TRINO_HOST=trino.staging.example.com \
+  -e TRINO_USER=staging_user \
+  -e TRINO_PASSWORD=staging_pass \
+  -- ~/mcp-trino/mcp-trino
+```
+
+Each server gets its own set of tools (e.g., `trino-prod_query`, `trino-staging_query`).
+
+**Update or remove a configuration:**
+
+```bash
+claude mcp remove trino
+claude mcp add trino -e TRINO_HOST=... -- ~/mcp-trino/mcp-trino
+```
+
 ### Claude Desktop Configuration
 
 Add to your Claude Desktop `claude_desktop_config.json`:
@@ -55,7 +112,7 @@ Add to your Claude Desktop `claude_desktop_config.json`:
 {
   "mcpServers": {
     "trino": {
-      "command": "/path/to/mcp-trino",
+      "command": "/Users/you/mcp-trino/mcp-trino",
       "env": {
         "TRINO_HOST": "trino.example.com",
         "TRINO_USER": "your_user",
