@@ -1,28 +1,21 @@
+version: "2"
 run:
-  timeout: 5m
   modules-download-mode: readonly
-
 linters:
   enable:
     - bodyclose
+    - copyloopvar
     - dogsled
     - dupl
-    - errcheck
     - errorlint
     - exhaustive
-    - copyloopvar
     - gochecknoinits
     - goconst
     - gocritic
     - gocyclo
     - godot
-    - gofmt
-    - goimports
     - goprintffuncname
     - gosec
-    - gosimple
-    - govet
-    - ineffassign
     - lll
     - misspell
     - nakedret
@@ -31,130 +24,124 @@ linters:
     - prealloc
     - revive
     - staticcheck
-    - stylecheck
-    - typecheck
     - unconvert
     - unparam
-    - unused
     - whitespace
-
-linters-settings:
-  dupl:
-    threshold: 100
-
-  errcheck:
-    check-type-assertions: true
-    check-blank: true
-
-  errorlint:
-    errorf: true
-
-  exhaustive:
-    default-signifies-exhaustive: true
-
-  goconst:
-    min-len: 3
-    min-occurrences: 3
-
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - performance
-      - style
-    disabled-checks:
-      - dupImport
-      - hugeParam       # Config structs are intentionally passed by value for immutability
-      - exitAfterDefer  # Acceptable in main() for CLI tools
-
-  gocyclo:
-    min-complexity: 20  # Slightly higher to accommodate configuration parsing
-
-  godot:
-    scope: declarations
-    capital: true
-
-  gofmt:
-    simplify: true
-
-  goimports:
-    local-prefixes: github.com/txn2/mcp-trino
-
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment
-
-  lll:
-    line-length: 140
-
-  misspell:
-    locale: US
-
-  nakedret:
-    max-func-lines: 30
-
-  nolintlint:
-    require-explanation: true
-    require-specific: true
-
-  prealloc:
-    simple: true
-    range-loops: true
-
-  revive:
+  settings:
+    dupl:
+      threshold: 100
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    errorlint:
+      errorf: true
+    exhaustive:
+      default-signifies-exhaustive: true
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+    gocritic:
+      disabled-checks:
+        - dupImport
+        - hugeParam
+        - exitAfterDefer
+      enabled-tags:
+        - diagnostic
+        - performance
+        - style
+    gocyclo:
+      min-complexity: 20
+    godot:
+      scope: declarations
+      capital: true
+    govet:
+      disable:
+        - fieldalignment
+      enable-all: true
+    lll:
+      line-length: 140
+    misspell:
+      locale: US
+    nakedret:
+      max-func-lines: 30
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    prealloc:
+      simple: true
+      range-loops: true
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: if-return
+        - name: increment-decrement
+        - name: var-naming
+        - name: var-declaration
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: empty-block
+        - name: superfluous-else
+        - name: unused-parameter
+        - name: unreachable-code
+        - name: redefines-builtin-id
+    staticcheck:
+      checks:
+        - all
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
     rules:
-      - name: blank-imports
-      - name: context-as-argument
-      - name: context-keys-type
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-      - name: if-return
-      - name: increment-decrement
-      - name: var-naming
-      - name: var-declaration
-      - name: package-comments
-      - name: range
-      - name: receiver-naming
-      - name: time-naming
-      - name: unexported-return
-      - name: indent-error-flow
-      - name: errorf
-      - name: empty-block
-      - name: superfluous-else
-      - name: unused-parameter
-      - name: unreachable-code
-      - name: redefines-builtin-id
-
-  stylecheck:
-    checks:
-      - all
-
+      - linters:
+          - dupl
+          - errcheck
+          - goconst
+          - gocyclo
+          - gosec
+        path: _test\.go
+      - linters:
+          - goconst
+        path: pkg/client/config\.go
+      - linters:
+          - goconst
+        path: pkg/tools/explain\.go
+      - path: (.+)\.go$
+        text: 'unusedwrite: unused write to field'
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - dupl
-        - errcheck
-        - gosec
-        - goconst
-        - gocyclo
-
-    # Allow localhost comparison without creating a const
-    - path: pkg/client/config\.go
-      linters:
-        - goconst
-
-    # Switch case string literals don't need constants
-    - path: pkg/tools/explain\.go
-      linters:
-        - goconst
-
-  exclude:
-    # Ignore unusedwrite in tests (struct creation for validation tests)
-    - "unusedwrite: unused write to field"
-
   max-issues-per-linter: 0
   max-same-issues: 0
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      simplify: true
+    goimports:
+      local-prefixes:
+        - github.com/txn2/mcp-trino
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
