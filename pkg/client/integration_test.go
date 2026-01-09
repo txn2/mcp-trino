@@ -123,13 +123,13 @@ func TestExplainSQL(t *testing.T) {
 			name:        "logical explain",
 			explainType: ExplainLogical,
 			query:       "SELECT 1",
-			expected:    "EXPLAIN (LOGICAL) SELECT 1",
+			expected:    "EXPLAIN (TYPE LOGICAL) SELECT 1",
 		},
 		{
 			name:        "distributed explain",
 			explainType: ExplainDistributed,
 			query:       "SELECT 1",
-			expected:    "EXPLAIN (DISTRIBUTED) SELECT 1",
+			expected:    "EXPLAIN (TYPE DISTRIBUTED) SELECT 1",
 		},
 		{
 			name:        "io explain",
@@ -147,13 +147,8 @@ func TestExplainSQL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var explainSQL string
-			switch tt.explainType {
-			case ExplainIO, ExplainValidate:
-				explainSQL = "EXPLAIN " + string(tt.explainType) + " " + tt.query
-			default:
-				explainSQL = "EXPLAIN (" + string(tt.explainType) + ") " + tt.query
-			}
+			// All explain types use the same format: EXPLAIN (TYPE X) query
+			explainSQL := "EXPLAIN (TYPE " + string(tt.explainType) + ") " + tt.query
 
 			if explainSQL != tt.expected {
 				t.Errorf("expected %q, got %q", tt.expected, explainSQL)
