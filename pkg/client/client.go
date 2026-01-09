@@ -108,7 +108,7 @@ func DefaultQueryOptions() QueryOptions {
 }
 
 // Query executes a SQL query and returns the results.
-func (c *Client) Query(ctx context.Context, sql string, opts QueryOptions) (*QueryResult, error) {
+func (c *Client) Query(ctx context.Context, sqlQuery string, opts QueryOptions) (*QueryResult, error) {
 	start := time.Now()
 
 	// Apply timeout
@@ -126,11 +126,11 @@ func (c *Client) Query(ctx context.Context, sql string, opts QueryOptions) (*Que
 	}
 
 	// Execute query
-	rows, err := c.db.QueryContext(ctx, sql)
+	rows, err := c.db.QueryContext(ctx, sqlQuery)
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	// Get column info
 	columnTypes, err := rows.ColumnTypes()
@@ -214,7 +214,7 @@ type ExplainResult struct {
 }
 
 // Explain returns the execution plan for a query.
-func (c *Client) Explain(ctx context.Context, sql string, explainType ExplainType) (*ExplainResult, error) {
+func (c *Client) Explain(ctx context.Context, sqlQuery string, explainType ExplainType) (*ExplainResult, error) {
 	if explainType == "" {
 		explainType = ExplainLogical
 	}
@@ -222,16 +222,16 @@ func (c *Client) Explain(ctx context.Context, sql string, explainType ExplainTyp
 	var explainSQL string
 	switch explainType {
 	case ExplainIO, ExplainValidate:
-		explainSQL = fmt.Sprintf("EXPLAIN %s %s", explainType, sql) // #nosec G201 -- explainType is from enum, sql is validated
+		explainSQL = fmt.Sprintf("EXPLAIN %s %s", explainType, sqlQuery) // #nosec G201 -- explainType is from enum, sqlQuery is validated
 	default:
-		explainSQL = fmt.Sprintf("EXPLAIN (%s) %s", explainType, sql) // #nosec G201 -- explainType is from enum, sql is validated
+		explainSQL = fmt.Sprintf("EXPLAIN (%s) %s", explainType, sqlQuery) // #nosec G201 -- explainType is from enum, sqlQuery is validated
 	}
 
 	rows, err := c.db.QueryContext(ctx, explainSQL)
 	if err != nil {
 		return nil, fmt.Errorf("explain failed: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var planLines []string
 	for rows.Next() {
@@ -271,7 +271,7 @@ func (c *Client) ListCatalogs(ctx context.Context) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to list catalogs: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var catalogs []string
 	for rows.Next() {
@@ -295,7 +295,7 @@ func (c *Client) ListSchemas(ctx context.Context, catalog string) ([]string, err
 	if err != nil {
 		return nil, fmt.Errorf("failed to list schemas: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var schemas []string
 	for rows.Next() {
@@ -322,7 +322,7 @@ func (c *Client) ListTables(ctx context.Context, catalog, schema string) ([]Tabl
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tables: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var tables []TableInfo
 	for rows.Next() {
@@ -354,7 +354,7 @@ func (c *Client) DescribeTable(ctx context.Context, catalog, schema, table strin
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe table: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	info := &TableInfo{
 		Catalog: catalog,
