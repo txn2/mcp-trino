@@ -17,17 +17,34 @@ type ListCatalogsInput struct {
 }
 
 // registerListCatalogsTool adds the trino_list_catalogs tool to the server.
-func (t *Toolkit) registerListCatalogsTool(server *mcp.Server) {
+//
+//nolint:dupl // Each tool registration requires distinct types for type-safe handlers.
+func (t *Toolkit) registerListCatalogsTool(server *mcp.Server, cfg *toolConfig) {
+	// Create the base handler
+	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
+		listInput, ok := input.(ListCatalogsInput)
+		if !ok {
+			return ErrorResult("internal error: invalid input type"), nil, nil
+		}
+		return t.handleListCatalogs(ctx, req, listInput)
+	}
+
+	// Wrap with middleware if configured
+	wrappedHandler := t.wrapHandler(ToolListCatalogs, baseHandler, cfg)
+
+	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "trino_list_catalogs",
 		Description: "List all available catalogs in the Trino cluster. Catalogs are the top-level containers for schemas and tables.",
-	}, t.handleListCatalogs)
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListCatalogsInput) (*mcp.CallToolResult, any, error) {
+		return wrappedHandler(ctx, req, input)
+	})
 }
 
 func (t *Toolkit) handleListCatalogs(ctx context.Context, _ *mcp.CallToolRequest, _ ListCatalogsInput) (*mcp.CallToolResult, any, error) {
 	catalogs, err := t.client.ListCatalogs(ctx)
 	if err != nil {
-		return errorResult(fmt.Sprintf("Failed to list catalogs: %v", err)), nil, nil
+		return ErrorResult(fmt.Sprintf("Failed to list catalogs: %v", err)), nil, nil
 	}
 
 	output := "## Available Catalogs\n\n"
@@ -50,21 +67,38 @@ type ListSchemasInput struct {
 }
 
 // registerListSchemasTool adds the trino_list_schemas tool to the server.
-func (t *Toolkit) registerListSchemasTool(server *mcp.Server) {
+//
+//nolint:dupl // Each tool registration requires distinct types for type-safe handlers.
+func (t *Toolkit) registerListSchemasTool(server *mcp.Server, cfg *toolConfig) {
+	// Create the base handler
+	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
+		schemaInput, ok := input.(ListSchemasInput)
+		if !ok {
+			return ErrorResult("internal error: invalid input type"), nil, nil
+		}
+		return t.handleListSchemas(ctx, req, schemaInput)
+	}
+
+	// Wrap with middleware if configured
+	wrappedHandler := t.wrapHandler(ToolListSchemas, baseHandler, cfg)
+
+	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "trino_list_schemas",
 		Description: "List all schemas in a catalog. Schemas are containers for tables within a catalog.",
-	}, t.handleListSchemas)
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListSchemasInput) (*mcp.CallToolResult, any, error) {
+		return wrappedHandler(ctx, req, input)
+	})
 }
 
 func (t *Toolkit) handleListSchemas(ctx context.Context, _ *mcp.CallToolRequest, input ListSchemasInput) (*mcp.CallToolResult, any, error) {
 	if input.Catalog == "" {
-		return errorResult("catalog parameter is required"), nil, nil
+		return ErrorResult("catalog parameter is required"), nil, nil
 	}
 
 	schemas, err := t.client.ListSchemas(ctx, input.Catalog)
 	if err != nil {
-		return errorResult(fmt.Sprintf("Failed to list schemas: %v", err)), nil, nil
+		return ErrorResult(fmt.Sprintf("Failed to list schemas: %v", err)), nil, nil
 	}
 
 	output := fmt.Sprintf("## Schemas in `%s`\n\n", input.Catalog)
@@ -93,24 +127,41 @@ type ListTablesInput struct {
 }
 
 // registerListTablesTool adds the trino_list_tables tool to the server.
-func (t *Toolkit) registerListTablesTool(server *mcp.Server) {
+//
+//nolint:dupl // Each tool registration requires distinct types for type-safe handlers.
+func (t *Toolkit) registerListTablesTool(server *mcp.Server, cfg *toolConfig) {
+	// Create the base handler
+	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
+		tablesInput, ok := input.(ListTablesInput)
+		if !ok {
+			return ErrorResult("internal error: invalid input type"), nil, nil
+		}
+		return t.handleListTables(ctx, req, tablesInput)
+	}
+
+	// Wrap with middleware if configured
+	wrappedHandler := t.wrapHandler(ToolListTables, baseHandler, cfg)
+
+	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "trino_list_tables",
 		Description: "List all tables in a schema. Optionally filter by a LIKE pattern.",
-	}, t.handleListTables)
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListTablesInput) (*mcp.CallToolResult, any, error) {
+		return wrappedHandler(ctx, req, input)
+	})
 }
 
 func (t *Toolkit) handleListTables(ctx context.Context, _ *mcp.CallToolRequest, input ListTablesInput) (*mcp.CallToolResult, any, error) {
 	if input.Catalog == "" {
-		return errorResult("catalog parameter is required"), nil, nil
+		return ErrorResult("catalog parameter is required"), nil, nil
 	}
 	if input.Schema == "" {
-		return errorResult("schema parameter is required"), nil, nil
+		return ErrorResult("schema parameter is required"), nil, nil
 	}
 
 	tables, err := t.client.ListTables(ctx, input.Catalog, input.Schema)
 	if err != nil {
-		return errorResult(fmt.Sprintf("Failed to list tables: %v", err)), nil, nil
+		return ErrorResult(fmt.Sprintf("Failed to list tables: %v", err)), nil, nil
 	}
 
 	// Filter by pattern if provided
@@ -164,29 +215,46 @@ type DescribeTableInput struct {
 }
 
 // registerDescribeTableTool adds the trino_describe_table tool to the server.
-func (t *Toolkit) registerDescribeTableTool(server *mcp.Server) {
+//
+//nolint:dupl // Each tool registration requires distinct types for type-safe handlers.
+func (t *Toolkit) registerDescribeTableTool(server *mcp.Server, cfg *toolConfig) {
+	// Create the base handler
+	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
+		describeInput, ok := input.(DescribeTableInput)
+		if !ok {
+			return ErrorResult("internal error: invalid input type"), nil, nil
+		}
+		return t.handleDescribeTable(ctx, req, describeInput)
+	}
+
+	// Wrap with middleware if configured
+	wrappedHandler := t.wrapHandler(ToolDescribeTable, baseHandler, cfg)
+
+	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        "trino_describe_table",
 		Description: "Get detailed information about a table including column names, types, and optionally a sample of data.",
-	}, t.handleDescribeTable)
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input DescribeTableInput) (*mcp.CallToolResult, any, error) {
+		return wrappedHandler(ctx, req, input)
+	})
 }
 
 func (t *Toolkit) handleDescribeTable(
 	ctx context.Context, _ *mcp.CallToolRequest, input DescribeTableInput,
 ) (*mcp.CallToolResult, any, error) {
 	if input.Catalog == "" {
-		return errorResult("catalog parameter is required"), nil, nil
+		return ErrorResult("catalog parameter is required"), nil, nil
 	}
 	if input.Schema == "" {
-		return errorResult("schema parameter is required"), nil, nil
+		return ErrorResult("schema parameter is required"), nil, nil
 	}
 	if input.Table == "" {
-		return errorResult("table parameter is required"), nil, nil
+		return ErrorResult("table parameter is required"), nil, nil
 	}
 
 	info, err := t.client.DescribeTable(ctx, input.Catalog, input.Schema, input.Table)
 	if err != nil {
-		return errorResult(fmt.Sprintf("Failed to describe table: %v", err)), nil, nil
+		return ErrorResult(fmt.Sprintf("Failed to describe table: %v", err)), nil, nil
 	}
 
 	output := fmt.Sprintf("## Table: `%s.%s.%s`\n\n", info.Catalog, info.Schema, info.Name)
@@ -219,7 +287,7 @@ func (t *Toolkit) handleDescribeTable(
 			output += "\n\n### Sample Data\n\n"
 			sampleJSON, err := json.MarshalIndent(sample.Rows, "", "  ")
 			if err != nil {
-				return errorResult(fmt.Sprintf("Failed to marshal sample: %v", err)), nil, nil
+				return ErrorResult(fmt.Sprintf("Failed to marshal sample: %v", err)), nil, nil
 			}
 			output += "```json\n" + string(sampleJSON) + "\n```"
 		}

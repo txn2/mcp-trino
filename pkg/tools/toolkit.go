@@ -2,6 +2,8 @@
 package tools
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -39,10 +41,21 @@ func DefaultConfig() Config {
 type Toolkit struct {
 	client *client.Client
 	config Config
+
+	// Extensibility hooks (all optional, zero-value = no overhead)
+	middlewares     []ToolMiddleware              // Global middleware
+	interceptors    []QueryInterceptor            // SQL interceptors
+	transformers    []ResultTransformer           // Result transformers
+	toolMiddlewares map[ToolName][]ToolMiddleware // Per-tool middleware
+
+	// Internal tracking
+	registeredTools map[ToolName]bool
 }
 
 // NewToolkit creates a new Trino toolkit.
-func NewToolkit(c *client.Client, cfg Config) *Toolkit {
+// Accepts optional ToolkitOption arguments for middleware, interceptors, etc.
+// Maintains backwards compatibility - existing code works unchanged.
+func NewToolkit(c *client.Client, cfg Config, opts ...ToolkitOption) *Toolkit {
 	if cfg.DefaultLimit <= 0 {
 		cfg.DefaultLimit = 1000
 	}
@@ -56,22 +69,159 @@ func NewToolkit(c *client.Client, cfg Config) *Toolkit {
 		cfg.MaxTimeout = 300 * time.Second
 	}
 
-	return &Toolkit{
-		client: c,
-		config: cfg,
+	t := &Toolkit{
+		client:          c,
+		config:          cfg,
+		toolMiddlewares: make(map[ToolName][]ToolMiddleware),
+		registeredTools: make(map[ToolName]bool),
 	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(t)
+	}
+
+	return t
 }
 
 // RegisterAll adds all Trino tools to the given MCP server.
 // This is the primary composition method - use it to add Trino capabilities
 // to your own MCP server.
 func (t *Toolkit) RegisterAll(server *mcp.Server) {
-	t.registerQueryTool(server)
-	t.registerExplainTool(server)
-	t.registerListCatalogsTool(server)
-	t.registerListSchemasTool(server)
-	t.registerListTablesTool(server)
-	t.registerDescribeTableTool(server)
+	t.Register(server, AllTools()...)
+}
+
+// Register adds specific tools to the server.
+// Use this for selective tool registration instead of RegisterAll.
+//
+// Example:
+//
+//	toolkit.Register(server, tools.ToolQuery, tools.ToolExplain)
+func (t *Toolkit) Register(server *mcp.Server, names ...ToolName) {
+	for _, name := range names {
+		t.registerTool(server, name, nil)
+	}
+}
+
+// RegisterWith adds a tool with additional per-registration options.
+//
+// Example:
+//
+//	toolkit.RegisterWith(server, tools.ToolQuery,
+//	    tools.WithPerToolMiddleware(rateLimiter),
+//	)
+func (t *Toolkit) RegisterWith(server *mcp.Server, name ToolName, opts ...ToolOption) {
+	cfg := &toolConfig{}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+	t.registerTool(server, name, cfg)
+}
+
+// registerTool is the internal registration method.
+func (t *Toolkit) registerTool(server *mcp.Server, name ToolName, cfg *toolConfig) {
+	if t.registeredTools[name] {
+		return // Already registered
+	}
+
+	switch name {
+	case ToolQuery:
+		t.registerQueryTool(server, cfg)
+	case ToolExplain:
+		t.registerExplainTool(server, cfg)
+	case ToolListCatalogs:
+		t.registerListCatalogsTool(server, cfg)
+	case ToolListSchemas:
+		t.registerListSchemasTool(server, cfg)
+	case ToolListTables:
+		t.registerListTablesTool(server, cfg)
+	case ToolDescribeTable:
+		t.registerDescribeTableTool(server, cfg)
+	}
+
+	t.registeredTools[name] = true
+}
+
+// InterceptSQL applies all registered interceptors to a SQL query.
+// Call this from custom tool handlers that execute SQL.
+//
+// Example:
+//
+//	func myHandler(ctx context.Context, req *mcp.CallToolRequest, input MyInput) (*mcp.CallToolResult, any, error) {
+//	    sql, err := toolkit.InterceptSQL(ctx, input.SQL, "my_custom_query")
+//	    if err != nil {
+//	        return ErrorResult(err.Error()), nil, nil
+//	    }
+//	    // Execute sql...
+//	}
+func (t *Toolkit) InterceptSQL(ctx context.Context, sql string, toolName ToolName) (string, error) {
+	if len(t.interceptors) == 0 {
+		return sql, nil
+	}
+
+	var err error
+	for _, i := range t.interceptors {
+		sql, err = i.Intercept(ctx, sql, toolName)
+		if err != nil {
+			return "", err
+		}
+	}
+	return sql, nil
+}
+
+// wrapHandler wraps a handler with middleware and transformer support.
+// Returns the original handler if no middleware is configured (zero overhead).
+func (t *Toolkit) wrapHandler(
+	name ToolName,
+	handler func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error),
+	cfg *toolConfig,
+) func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
+	// Collect all applicable middlewares
+	var allMiddlewares []ToolMiddleware
+	allMiddlewares = append(allMiddlewares, t.middlewares...)           // Global
+	allMiddlewares = append(allMiddlewares, t.toolMiddlewares[name]...) // Per-tool
+	if cfg != nil {
+		allMiddlewares = append(allMiddlewares, cfg.middlewares...) // Per-registration
+	}
+
+	// If no middleware or transformers configured, return handler unchanged
+	if len(allMiddlewares) == 0 && len(t.transformers) == 0 {
+		return handler
+	}
+
+	return func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
+		tc := NewToolContext(name, input)
+
+		// Run Before hooks
+		var err error
+		for _, m := range allMiddlewares {
+			ctx, err = m.Before(ctx, tc)
+			if err != nil {
+				return ErrorResult(fmt.Sprintf("middleware error: %v", err)), nil, nil
+			}
+		}
+
+		// Execute handler
+		result, extra, handlerErr := handler(ctx, req, input)
+
+		// Run After hooks (reverse order)
+		for i := len(allMiddlewares) - 1; i >= 0; i-- {
+			result, err = allMiddlewares[i].After(ctx, tc, result, handlerErr)
+			if err != nil {
+				return ErrorResult(fmt.Sprintf("middleware error: %v", err)), nil, nil
+			}
+		}
+
+		// Run transformers
+		for _, tr := range t.transformers {
+			result, err = tr.Transform(ctx, name, result)
+			if err != nil {
+				return ErrorResult(fmt.Sprintf("transformer error: %v", err)), nil, nil
+			}
+		}
+
+		return result, extra, nil
+	}
 }
 
 // Client returns the underlying Trino client.
@@ -82,4 +232,27 @@ func (t *Toolkit) Client() *client.Client {
 // Config returns the toolkit configuration.
 func (t *Toolkit) Config() Config {
 	return t.config
+}
+
+// HasMiddleware returns true if any middleware is configured.
+func (t *Toolkit) HasMiddleware() bool {
+	if len(t.middlewares) > 0 {
+		return true
+	}
+	for _, mws := range t.toolMiddlewares {
+		if len(mws) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// HasInterceptors returns true if any query interceptors are configured.
+func (t *Toolkit) HasInterceptors() bool {
+	return len(t.interceptors) > 0
+}
+
+// HasTransformers returns true if any result transformers are configured.
+func (t *Toolkit) HasTransformers() bool {
+	return len(t.transformers) > 0
 }
