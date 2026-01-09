@@ -1,0 +1,185 @@
+# mcp-trino
+
+A Model Context Protocol (MCP) server for [Trino](https://trino.io/), enabling AI assistants like Claude to query and explore data warehouses.
+
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Go Reference](https://pkg.go.dev/badge/github.com/txn2/mcp-trino.svg)](https://pkg.go.dev/github.com/txn2/mcp-trino)
+
+## Features
+
+- **SQL Query Execution**: Execute queries with configurable limits and timeouts
+- **Execution Plans**: Analyze query plans (logical, distributed, IO)
+- **Schema Discovery**: List catalogs, schemas, and tables
+- **Table Inspection**: Describe columns and sample data
+- **Composable Design**: Import as a Go package to build custom MCP servers
+
+## Installation
+
+### As a standalone server
+
+```bash
+go install github.com/txn2/mcp-trino/cmd/mcp-trino@latest
+```
+
+### As a library
+
+```bash
+go get github.com/txn2/mcp-trino
+```
+
+## Quick Start
+
+### Standalone Server
+
+```bash
+# Set environment variables
+export TRINO_HOST=trino.example.com
+export TRINO_USER=your_user
+export TRINO_PASSWORD=your_password
+export TRINO_CATALOG=hive
+export TRINO_SCHEMA=default
+
+# Run the server
+mcp-trino
+```
+
+### Claude Desktop Configuration
+
+Add to your Claude Desktop `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "trino": {
+      "command": "/path/to/mcp-trino",
+      "env": {
+        "TRINO_HOST": "trino.example.com",
+        "TRINO_USER": "your_user",
+        "TRINO_PASSWORD": "your_password",
+        "TRINO_CATALOG": "hive",
+        "TRINO_SCHEMA": "default"
+      }
+    }
+  }
+}
+```
+
+## Tools
+
+| Tool | Description |
+|------|-------------|
+| `trino_query` | Execute SQL queries with limit/timeout control |
+| `trino_explain` | Get execution plans (logical/distributed/io/validate) |
+| `trino_list_catalogs` | List available catalogs |
+| `trino_list_schemas` | List schemas in a catalog |
+| `trino_list_tables` | List tables in a schema |
+| `trino_describe_table` | Get table columns and sample data |
+
+## Configuration
+
+| Environment Variable | Description | Default |
+|---------------------|-------------|---------|
+| `TRINO_HOST` | Trino server hostname | `localhost` |
+| `TRINO_PORT` | Trino server port | `443` (SSL) / `8080` |
+| `TRINO_USER` | Authentication username | (required) |
+| `TRINO_PASSWORD` | Authentication password | (optional) |
+| `TRINO_CATALOG` | Default catalog | `memory` |
+| `TRINO_SCHEMA` | Default schema | `default` |
+| `TRINO_SSL` | Enable HTTPS | `true` for remote hosts |
+| `TRINO_SSL_VERIFY` | Verify SSL certificates | `true` |
+| `TRINO_TIMEOUT` | Query timeout (seconds) | `120` |
+| `TRINO_SOURCE` | Client identifier | `mcp-trino` |
+
+## Using as a Library
+
+mcp-trino is designed to be composable. You can import its tools into your own MCP server:
+
+```go
+package main
+
+import (
+    "context"
+    "log"
+
+    "github.com/modelcontextprotocol/go-sdk/mcp"
+    "github.com/txn2/mcp-trino/pkg/client"
+    "github.com/txn2/mcp-trino/pkg/tools"
+)
+
+func main() {
+    // Create your MCP server
+    server := mcp.NewServer(&mcp.Implementation{
+        Name:    "my-data-server",
+        Version: "1.0.0",
+    }, nil)
+
+    // Create Trino client
+    trinoClient, err := client.New(client.Config{
+        Host:    "trino.example.com",
+        Port:    443,
+        User:    "service_user",
+        SSL:     true,
+        Catalog: "hive",
+        Schema:  "analytics",
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer trinoClient.Close()
+
+    // Add Trino tools to your server
+    toolkit := tools.NewToolkit(trinoClient, tools.Config{
+        DefaultLimit: 1000,
+        MaxLimit:     10000,
+    })
+    toolkit.RegisterAll(server)
+
+    // Add your own custom tools here...
+    // mcp.AddTool(server, &mcp.Tool{...}, handler)
+
+    // Run the server
+    if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+## Security Considerations
+
+- **Credentials**: Store passwords in environment variables or secret managers
+- **Query Limits**: Default 1000 rows, max 10000 to prevent data exfiltration
+- **Timeouts**: Default 120s timeout prevents runaway queries
+- **Read-Only**: The server only executes SELECT queries; it does not modify data
+- **Access Control**: Configure Trino roles and catalog access for defense in depth
+
+## Development
+
+```bash
+# Clone the repository
+git clone https://github.com/txn2/mcp-trino.git
+cd mcp-trino
+
+# Build
+go build -o mcp-trino ./cmd/mcp-trino
+
+# Test
+go test ./...
+
+# Run with a local Trino (e.g., via Docker)
+docker run -d -p 8080:8080 --name trino trinodb/trino
+export TRINO_HOST=localhost
+export TRINO_PORT=8080
+export TRINO_USER=admin
+export TRINO_SSL=false
+./mcp-trino
+```
+
+## License
+
+Apache 2.0 - See [LICENSE](LICENSE) for details.
+
+## Related Projects
+
+- [Model Context Protocol](https://modelcontextprotocol.io/) - The MCP specification
+- [Trino](https://trino.io/) - Distributed SQL query engine
+- [Official Go MCP SDK](https://github.com/modelcontextprotocol/go-sdk) - Go SDK for MCP

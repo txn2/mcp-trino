@@ -1,0 +1,97 @@
+version: 2
+
+project_name: mcp-trino
+
+before:
+  hooks:
+    - go mod tidy
+    - go mod verify
+
+builds:
+  - id: mcp-trino
+    main: ./cmd/mcp-trino
+    binary: mcp-trino
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/txn2/mcp-trino/internal/server.Version={{.Version}}
+
+archives:
+  - id: default
+    formats:
+      - tar.gz
+      - zip
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  use: github
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - Merge pull request
+      - Merge branch
+  groups:
+    - title: Features
+      regexp: '^feat'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^fix'
+      order: 1
+    - title: Security
+      regexp: '^security'
+      order: 2
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: txn2
+    name: mcp-trino
+  prerelease: auto
+  mode: append
+  footer: |
+    ## Docker
+
+    ```bash
+    # Pull and run
+    docker pull ghcr.io/txn2/mcp-trino:{{ .Tag }}
+    ```
+
+    ## Verification
+
+    All release artifacts are signed with SLSA provenance. Verify with:
+
+    ```bash
+    slsa-verifier verify-artifact mcp-trino_{{ .Version }}_linux_amd64.tar.gz \
+      --provenance-path multiple.intoto.jsonl \
+      --source-uri github.com/txn2/mcp-trino
+    ```
