@@ -2,8 +2,12 @@
 
 A Model Context Protocol (MCP) server for [Trino](https://trino.io/), enabling AI assistants like Claude to query and explore data warehouses.
 
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![GitHub license](https://img.shields.io/github/license/txn2/mcp-trino.svg)](https://github.com/txn2/mcp-trino/blob/main/LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/txn2/mcp-trino.svg)](https://pkg.go.dev/github.com/txn2/mcp-trino)
+[![Go Report Card](https://goreportcard.com/badge/github.com/txn2/mcp-trino)](https://goreportcard.com/report/github.com/txn2/mcp-trino)
+[![codecov](https://codecov.io/gh/txn2/mcp-trino/branch/main/graph/badge.svg)](https://codecov.io/gh/txn2/mcp-trino)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/txn2/mcp-trino/badge)](https://scorecard.dev/viewer/?uri=github.com/txn2/mcp-trino)
+[![SLSA 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
 
 ## Features
 
@@ -160,13 +164,19 @@ git clone https://github.com/txn2/mcp-trino.git
 cd mcp-trino
 
 # Build
-go build -o mcp-trino ./cmd/mcp-trino
+make build
 
-# Test
-go test ./...
+# Run tests
+make test
+
+# Run linter
+make lint
+
+# Run all checks
+make verify
 
 # Run with a local Trino (e.g., via Docker)
-docker run -d -p 8080:8080 --name trino trinodb/trino
+make docker-trino
 export TRINO_HOST=localhost
 export TRINO_PORT=8080
 export TRINO_USER=admin
@@ -174,12 +184,20 @@ export TRINO_SSL=false
 ./mcp-trino
 ```
 
+## Contributing
+
+We welcome contributions for bug fixes, tests, and documentation. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
 ## License
 
-Apache 2.0 - See [LICENSE](LICENSE) for details.
+[Apache License 2.0](LICENSE)
 
 ## Related Projects
 
 - [Model Context Protocol](https://modelcontextprotocol.io/) - The MCP specification
 - [Trino](https://trino.io/) - Distributed SQL query engine
 - [Official Go MCP SDK](https://github.com/modelcontextprotocol/go-sdk) - Go SDK for MCP
+
+---
+
+Open source by [Craig Johnston](https://twitter.com/cjimti), sponsored by [Deasil Works, Inc.](https://deasil.works/)
