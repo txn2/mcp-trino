@@ -1,24 +1,40 @@
 ## Description
 
-<!-- Describe your changes in detail -->
-
-## Related Issue
-
-<!-- Link to the issue this PR addresses, if applicable -->
-<!-- Fixes #123 -->
+<!-- Brief description of changes. What does this PR do and why? -->
 
 ## Type of Change
 
+<!-- Check all that apply -->
+
 - [ ] Bug fix (non-breaking change that fixes an issue)
-- [ ] New feature (non-breaking change that adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to change)
+- [ ] Test improvement (new or updated tests)
 - [ ] Documentation update
+- [ ] Stability/performance improvement
+- [ ] Build/CI improvement
+
+> **Note:** New features are developed by maintainers only. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
+## Related Issues
+
+<!-- Link to issues this PR addresses. Use "Fixes #123" for automatic closing -->
+
+Fixes #
+
+## Testing
+
+<!-- How was this tested? Include steps to reproduce if applicable -->
+
+- [ ] Ran `make test` locally
+- [ ] Tested manually with a Trino server
+- [ ] Added new tests for changes (if applicable)
 
 ## Checklist
 
-- [ ] My code follows the project's style guidelines
-- [ ] I have performed a self-review of my code
-- [ ] I have added tests that prove my fix is effective or my feature works
-- [ ] New and existing unit tests pass locally with my changes (`make test`)
-- [ ] I have run the linter and fixed any issues (`make lint`)
-- [ ] I have updated documentation as needed
+- [ ] My code follows the project's style guidelines (`make lint`)
+- [ ] I have read [CONTRIBUTING.md](CONTRIBUTING.md)
+- [ ] I have updated documentation if needed
+- [ ] This PR is focused and does not include unrelated changes
+
+## Screenshots/Logs (if applicable)
+
+<!-- For output format changes, error handling improvements, or visual changes -->
