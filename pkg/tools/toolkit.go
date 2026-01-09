@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-
-	"github.com/txn2/mcp-trino/pkg/client"
 )
 
 // Config configures the Trino toolkit behavior.
@@ -39,7 +37,7 @@ func DefaultConfig() Config {
 // Toolkit provides MCP tools for Trino operations.
 // It's designed to be composable - you can add its tools to any MCP server.
 type Toolkit struct {
-	client *client.Client
+	client TrinoClient
 	config Config
 
 	// Extensibility hooks (all optional, zero-value = no overhead)
@@ -55,7 +53,7 @@ type Toolkit struct {
 // NewToolkit creates a new Trino toolkit.
 // Accepts optional ToolkitOption arguments for middleware, interceptors, etc.
 // Maintains backwards compatibility - existing code works unchanged.
-func NewToolkit(c *client.Client, cfg Config, opts ...ToolkitOption) *Toolkit {
+func NewToolkit(c TrinoClient, cfg Config, opts ...ToolkitOption) *Toolkit {
 	if cfg.DefaultLimit <= 0 {
 		cfg.DefaultLimit = 1000
 	}
@@ -225,7 +223,7 @@ func (t *Toolkit) wrapHandler(
 }
 
 // Client returns the underlying Trino client.
-func (t *Toolkit) Client() *client.Client {
+func (t *Toolkit) Client() TrinoClient {
 	return t.client
 }
 
