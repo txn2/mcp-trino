@@ -1,0 +1,44 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.txn2/mcp-trino",
+  "description": "Query and explore Trino data warehouses via MCP. Execute SQL, analyze plans, discover schemas, and inspect tables.",
+  "repository": {
+    "url": "https://github.com/txn2/mcp-trino",
+    "source": "github"
+  },
+  "version": "0.0.0",
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/txn2/mcp-trino/releases/download/v0.0.0/mcp-trino-0.0.0-darwin-arm64.mcpb",
+      "file_sha256": "PLACEHOLDER_SHA256",
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/txn2/mcp-trino/releases/download/v0.0.0/mcp-trino-0.0.0-darwin-amd64.mcpb",
+      "file_sha256": "PLACEHOLDER_SHA256",
+      "transport": {
+        "type": "stdio"
+      }
+    },
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/txn2/mcp-trino/releases/download/v0.0.0/mcp-trino-0.0.0-windows-amd64.mcpb",
+      "file_sha256": "PLACEHOLDER_SHA256",
+      "transport": {
+        "type": "stdio"
+      }
+    }
+  ],
+  "tags": [
+    "trino",
+    "sql",
+    "data-warehouse",
+    "analytics",
+    "database",
+    "presto"
+  ]
+}
