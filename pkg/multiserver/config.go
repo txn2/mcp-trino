@@ -9,6 +9,9 @@ import (
 	"github.com/txn2/mcp-trino/pkg/client"
 )
 
+// DefaultConnectionName is the name used for the primary/default connection.
+const DefaultConnectionName = "default"
+
 // ConnectionConfig defines configuration for a single Trino connection.
 // Fields that are empty/zero inherit from the primary connection.
 type ConnectionConfig struct {
@@ -63,7 +66,7 @@ func FromEnv() (Config, error) {
 	primary := client.FromEnv()
 
 	cfg := Config{
-		Default:     "default",
+		Default:     DefaultConnectionName,
 		Primary:     primary,
 		Connections: make(map[string]ConnectionConfig),
 	}
@@ -86,7 +89,7 @@ func FromEnv() (Config, error) {
 // Returns an error if the connection name is not found.
 func (c Config) ClientConfig(name string) (client.Config, error) {
 	// Empty or "default" returns primary
-	if name == "" || name == "default" {
+	if name == "" || name == DefaultConnectionName {
 		return c.Primary, nil
 	}
 
@@ -139,7 +142,7 @@ func (c Config) ClientConfig(name string) (client.Config, error) {
 // ConnectionNames returns the names of all available connections.
 // Always includes "default" as the first entry.
 func (c Config) ConnectionNames() []string {
-	names := []string{"default"}
+	names := []string{DefaultConnectionName}
 	for name := range c.Connections {
 		names = append(names, name)
 	}
@@ -168,7 +171,7 @@ func (c Config) ConnectionInfos() []ConnectionInfo {
 
 	// Add default connection
 	infos = append(infos, ConnectionInfo{
-		Name:      "default",
+		Name:      DefaultConnectionName,
 		Host:      c.Primary.Host,
 		Port:      c.Primary.Port,
 		Catalog:   c.Primary.Catalog,
