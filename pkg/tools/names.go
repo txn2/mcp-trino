@@ -5,12 +5,13 @@ type ToolName string
 
 // Built-in tool names.
 const (
-	ToolQuery         ToolName = "trino_query"
-	ToolExplain       ToolName = "trino_explain"
-	ToolListCatalogs  ToolName = "trino_list_catalogs"
-	ToolListSchemas   ToolName = "trino_list_schemas"
-	ToolListTables    ToolName = "trino_list_tables"
-	ToolDescribeTable ToolName = "trino_describe_table"
+	ToolQuery           ToolName = "trino_query"
+	ToolExplain         ToolName = "trino_explain"
+	ToolListCatalogs    ToolName = "trino_list_catalogs"
+	ToolListSchemas     ToolName = "trino_list_schemas"
+	ToolListTables      ToolName = "trino_list_tables"
+	ToolDescribeTable   ToolName = "trino_describe_table"
+	ToolListConnections ToolName = "trino_list_connections"
 )
 
 // AllTools returns all built-in tool names.
@@ -22,6 +23,7 @@ func AllTools() []ToolName {
 		ToolListSchemas,
 		ToolListTables,
 		ToolDescribeTable,
+		ToolListConnections,
 	}
 }
 

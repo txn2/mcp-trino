@@ -13,7 +13,9 @@ import (
 
 // ListCatalogsInput defines the input for the trino_list_catalogs tool.
 type ListCatalogsInput struct {
-	// No input required
+	// Connection is the named connection to use. Empty uses the default connection.
+	// Use trino_list_connections to see available connections.
+	Connection string `json:"connection,omitempty" jsonschema_description:"Named connection to use (see trino_list_connections)"`
 }
 
 // registerListCatalogsTool adds the trino_list_catalogs tool to the server.
@@ -41,8 +43,16 @@ func (t *Toolkit) registerListCatalogsTool(server *mcp.Server, cfg *toolConfig) 
 	})
 }
 
-func (t *Toolkit) handleListCatalogs(ctx context.Context, _ *mcp.CallToolRequest, _ ListCatalogsInput) (*mcp.CallToolResult, any, error) {
-	catalogs, err := t.client.ListCatalogs(ctx)
+func (t *Toolkit) handleListCatalogs(
+	ctx context.Context, _ *mcp.CallToolRequest, input ListCatalogsInput,
+) (*mcp.CallToolResult, any, error) {
+	// Get client for the specified connection
+	trinoClient, err := t.getClient(input.Connection)
+	if err != nil {
+		return ErrorResult(fmt.Sprintf("Connection error: %v", err)), nil, nil
+	}
+
+	catalogs, err := trinoClient.ListCatalogs(ctx)
 	if err != nil {
 		return ErrorResult(fmt.Sprintf("Failed to list catalogs: %v", err)), nil, nil
 	}
@@ -64,6 +74,10 @@ func (t *Toolkit) handleListCatalogs(ctx context.Context, _ *mcp.CallToolRequest
 type ListSchemasInput struct {
 	// Catalog is the catalog to list schemas from.
 	Catalog string `json:"catalog" jsonschema_description:"The catalog to list schemas from"`
+
+	// Connection is the named connection to use. Empty uses the default connection.
+	// Use trino_list_connections to see available connections.
+	Connection string `json:"connection,omitempty" jsonschema_description:"Named connection to use (see trino_list_connections)"`
 }
 
 // registerListSchemasTool adds the trino_list_schemas tool to the server.
@@ -96,7 +110,13 @@ func (t *Toolkit) handleListSchemas(ctx context.Context, _ *mcp.CallToolRequest,
 		return ErrorResult("catalog parameter is required"), nil, nil
 	}
 
-	schemas, err := t.client.ListSchemas(ctx, input.Catalog)
+	// Get client for the specified connection
+	trinoClient, err := t.getClient(input.Connection)
+	if err != nil {
+		return ErrorResult(fmt.Sprintf("Connection error: %v", err)), nil, nil
+	}
+
+	schemas, err := trinoClient.ListSchemas(ctx, input.Catalog)
 	if err != nil {
 		return ErrorResult(fmt.Sprintf("Failed to list schemas: %v", err)), nil, nil
 	}
@@ -124,6 +144,10 @@ type ListTablesInput struct {
 
 	// Pattern is an optional LIKE pattern to filter table names.
 	Pattern string `json:"pattern,omitempty" jsonschema_description:"Optional LIKE pattern to filter tables (e.g., '%user%')"`
+
+	// Connection is the named connection to use. Empty uses the default connection.
+	// Use trino_list_connections to see available connections.
+	Connection string `json:"connection,omitempty" jsonschema_description:"Named connection to use (see trino_list_connections)"`
 }
 
 // registerListTablesTool adds the trino_list_tables tool to the server.
@@ -159,7 +183,13 @@ func (t *Toolkit) handleListTables(ctx context.Context, _ *mcp.CallToolRequest, 
 		return ErrorResult("schema parameter is required"), nil, nil
 	}
 
-	tables, err := t.client.ListTables(ctx, input.Catalog, input.Schema)
+	// Get client for the specified connection
+	trinoClient, err := t.getClient(input.Connection)
+	if err != nil {
+		return ErrorResult(fmt.Sprintf("Connection error: %v", err)), nil, nil
+	}
+
+	tables, err := trinoClient.ListTables(ctx, input.Catalog, input.Schema)
 	if err != nil {
 		return ErrorResult(fmt.Sprintf("Failed to list tables: %v", err)), nil, nil
 	}
@@ -212,6 +242,10 @@ type DescribeTableInput struct {
 
 	// IncludeSample includes a sample of data rows.
 	IncludeSample bool `json:"include_sample,omitempty" jsonschema_description:"Include a 5-row sample of data"`
+
+	// Connection is the named connection to use. Empty uses the default connection.
+	// Use trino_list_connections to see available connections.
+	Connection string `json:"connection,omitempty" jsonschema_description:"Named connection to use (see trino_list_connections)"`
 }
 
 // registerDescribeTableTool adds the trino_describe_table tool to the server.
@@ -252,7 +286,13 @@ func (t *Toolkit) handleDescribeTable(
 		return ErrorResult("table parameter is required"), nil, nil
 	}
 
-	info, err := t.client.DescribeTable(ctx, input.Catalog, input.Schema, input.Table)
+	// Get client for the specified connection
+	trinoClient, err := t.getClient(input.Connection)
+	if err != nil {
+		return ErrorResult(fmt.Sprintf("Connection error: %v", err)), nil, nil
+	}
+
+	info, err := trinoClient.DescribeTable(ctx, input.Catalog, input.Schema, input.Table)
 	if err != nil {
 		return ErrorResult(fmt.Sprintf("Failed to describe table: %v", err)), nil, nil
 	}
@@ -282,7 +322,7 @@ func (t *Toolkit) handleDescribeTable(
 		sampleOpts := client.DefaultQueryOptions()
 		sampleOpts.Limit = 5
 
-		sample, err := t.client.Query(ctx, sampleSQL, sampleOpts)
+		sample, err := trinoClient.Query(ctx, sampleSQL, sampleOpts)
 		if err == nil && len(sample.Rows) > 0 {
 			output += "\n\n### Sample Data\n\n"
 			sampleJSON, err := json.MarshalIndent(sample.Rows, "", "  ")

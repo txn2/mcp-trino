@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/txn2/mcp-trino/pkg/multiserver"
 )
 
 // Config configures the Trino toolkit behavior.
@@ -37,8 +39,9 @@ func DefaultConfig() Config {
 // Toolkit provides MCP tools for Trino operations.
 // It's designed to be composable - you can add its tools to any MCP server.
 type Toolkit struct {
-	client TrinoClient
-	config Config
+	client  TrinoClient          // Single client mode (for backwards compatibility)
+	manager *multiserver.Manager // Multi-server mode (optional)
+	config  Config
 
 	// Extensibility hooks (all optional, zero-value = no overhead)
 	middlewares     []ToolMiddleware              // Global middleware
@@ -135,6 +138,8 @@ func (t *Toolkit) registerTool(server *mcp.Server, name ToolName, cfg *toolConfi
 		t.registerListTablesTool(server, cfg)
 	case ToolDescribeTable:
 		t.registerDescribeTableTool(server, cfg)
+	case ToolListConnections:
+		t.registerListConnectionsTool(server, cfg)
 	}
 
 	t.registeredTools[name] = true
@@ -253,4 +258,86 @@ func (t *Toolkit) HasInterceptors() bool {
 // HasTransformers returns true if any result transformers are configured.
 func (t *Toolkit) HasTransformers() bool {
 	return len(t.transformers) > 0
+}
+
+// NewToolkitWithManager creates a Toolkit with multi-server support.
+// Use this when you need to connect to multiple Trino servers.
+func NewToolkitWithManager(mgr *multiserver.Manager, cfg Config, opts ...ToolkitOption) *Toolkit {
+	if cfg.DefaultLimit <= 0 {
+		cfg.DefaultLimit = 1000
+	}
+	if cfg.MaxLimit <= 0 {
+		cfg.MaxLimit = 10000
+	}
+	if cfg.DefaultTimeout <= 0 {
+		cfg.DefaultTimeout = 120 * time.Second
+	}
+	if cfg.MaxTimeout <= 0 {
+		cfg.MaxTimeout = 300 * time.Second
+	}
+
+	t := &Toolkit{
+		manager:         mgr,
+		config:          cfg,
+		toolMiddlewares: make(map[ToolName][]ToolMiddleware),
+		registeredTools: make(map[ToolName]bool),
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(t)
+	}
+
+	return t
+}
+
+// getClient returns the Trino client for the given connection name.
+// If connection is empty, returns the default client.
+// In single-client mode, always returns the single client.
+func (t *Toolkit) getClient(connection string) (TrinoClient, error) {
+	// Multi-server mode
+	if t.manager != nil {
+		return t.manager.Client(connection)
+	}
+
+	// Single-client mode - ignore connection parameter
+	if t.client == nil {
+		return nil, fmt.Errorf("no client configured")
+	}
+	return t.client, nil
+}
+
+// HasManager returns true if multi-server mode is enabled.
+func (t *Toolkit) HasManager() bool {
+	return t.manager != nil
+}
+
+// Manager returns the connection manager, or nil if in single-client mode.
+func (t *Toolkit) Manager() *multiserver.Manager {
+	return t.manager
+}
+
+// ConnectionInfos returns information about all configured connections.
+// Returns a single "default" connection in single-client mode.
+func (t *Toolkit) ConnectionInfos() []multiserver.ConnectionInfo {
+	if t.manager != nil {
+		return t.manager.ConnectionInfos()
+	}
+
+	// Single-client mode - return default connection info
+	return []multiserver.ConnectionInfo{
+		{
+			Name:      "default",
+			Host:      "configured via single client",
+			IsDefault: true,
+		},
+	}
+}
+
+// ConnectionCount returns the number of configured connections.
+func (t *Toolkit) ConnectionCount() int {
+	if t.manager != nil {
+		return t.manager.ConnectionCount()
+	}
+	return 1
 }

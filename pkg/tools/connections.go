@@ -1,0 +1,82 @@
+package tools
+
+import (
+	"context"
+	"encoding/json"
+
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+// ListConnectionsInput defines the input for the trino_list_connections tool.
+// This tool has no required parameters.
+type ListConnectionsInput struct{}
+
+// ListConnectionsOutput defines the output of the trino_list_connections tool.
+type ListConnectionsOutput struct {
+	Connections []ConnectionInfoOutput `json:"connections"`
+	Count       int                    `json:"count"`
+}
+
+// ConnectionInfoOutput provides information about a single connection.
+type ConnectionInfoOutput struct {
+	Name      string `json:"name"`
+	Host      string `json:"host"`
+	Port      int    `json:"port,omitempty"`
+	Catalog   string `json:"catalog,omitempty"`
+	Schema    string `json:"schema,omitempty"`
+	SSL       bool   `json:"ssl"`
+	IsDefault bool   `json:"is_default"`
+}
+
+// registerListConnectionsTool adds the trino_list_connections tool to the server.
+func (t *Toolkit) registerListConnectionsTool(server *mcp.Server, cfg *toolConfig) {
+	// Create the base handler
+	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
+		return t.handleListConnections(ctx, req)
+	}
+
+	// Wrap with middleware if configured
+	wrappedHandler := t.wrapHandler(ToolListConnections, baseHandler, cfg)
+
+	// Register with MCP
+	mcp.AddTool(server, &mcp.Tool{
+		Name: "trino_list_connections",
+		Description: "List all configured Trino server connections. " +
+			"Use this to discover available connections before querying specific servers. " +
+			"Pass the connection name to other tools via the 'connection' parameter.",
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListConnectionsInput) (*mcp.CallToolResult, any, error) {
+		return wrappedHandler(ctx, req, input)
+	})
+}
+
+func (t *Toolkit) handleListConnections(_ context.Context, _ *mcp.CallToolRequest) (*mcp.CallToolResult, any, error) {
+	infos := t.ConnectionInfos()
+
+	output := ListConnectionsOutput{
+		Connections: make([]ConnectionInfoOutput, len(infos)),
+		Count:       len(infos),
+	}
+
+	for i, info := range infos {
+		output.Connections[i] = ConnectionInfoOutput{
+			Name:      info.Name,
+			Host:      info.Host,
+			Port:      info.Port,
+			Catalog:   info.Catalog,
+			Schema:    info.Schema,
+			SSL:       info.SSL,
+			IsDefault: info.IsDefault,
+		}
+	}
+
+	data, err := json.MarshalIndent(output, "", "  ")
+	if err != nil {
+		return ErrorResult("Failed to marshal connection info"), nil, nil
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: string(data)},
+		},
+	}, nil, nil
+}

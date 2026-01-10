@@ -54,12 +54,18 @@ func TestHandleQuery_CSVFormat(t *testing.T) {
 	mock := NewMockTrinoClient()
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, _ := toolkit.handleQuery(context.Background(), nil, QueryInput{
+	result, _, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
 		SQL:    "SELECT * FROM users",
 		Format: "csv",
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "id,name") {
 		t.Error("expected CSV header")
 	}
@@ -73,12 +79,18 @@ func TestHandleQuery_MarkdownFormat(t *testing.T) {
 	mock := NewMockTrinoClient()
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, _ := toolkit.handleQuery(context.Background(), nil, QueryInput{
+	result, _, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
 		SQL:    "SELECT * FROM users",
 		Format: "markdown",
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "| id |") {
 		t.Error("expected markdown table header")
 	}
@@ -95,11 +107,17 @@ func TestHandleQuery_Error(t *testing.T) {
 	}
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, _ := toolkit.handleQuery(context.Background(), nil, QueryInput{
+	result, _, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
 		SQL: "SELECT * FROM users",
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "Query failed") {
 		t.Error("expected error message")
 	}
@@ -116,10 +134,12 @@ func TestHandleQuery_WithInterceptor(t *testing.T) {
 	})
 	toolkit := NewToolkit(mock, DefaultConfig(), WithQueryInterceptor(interceptor))
 
-	result, _, _ := toolkit.handleQuery(context.Background(), nil, QueryInput{
+	_, _, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
 		SQL: "SELECT * FROM users",
 	})
-	_ = result // Result not checked in this test
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if mock.QuerySQL != "SELECT * FROM users WHERE active = true" {
 		t.Errorf("expected intercepted SQL, got '%s'", mock.QuerySQL)
@@ -137,11 +157,17 @@ func TestHandleQuery_InterceptorRejects(t *testing.T) {
 	})
 	toolkit := NewToolkit(mock, DefaultConfig(), WithQueryInterceptor(interceptor))
 
-	result, _, _ := toolkit.handleQuery(context.Background(), nil, QueryInput{
+	result, _, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
 		SQL: "DROP TABLE users",
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "Query rejected") {
 		t.Error("expected rejection message")
 	}
@@ -167,7 +193,10 @@ func TestHandleExplain_Success(t *testing.T) {
 		t.Error("Explain was not called")
 	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "Execution Plan") {
 		t.Error("expected plan header")
 	}
@@ -194,11 +223,13 @@ func TestHandleExplain_AllTypes(t *testing.T) {
 			mock := NewMockTrinoClient()
 			toolkit := NewToolkit(mock, DefaultConfig())
 
-			result, _, _ := toolkit.handleExplain(context.Background(), nil, ExplainInput{
+			_, _, err := toolkit.handleExplain(context.Background(), nil, ExplainInput{
 				SQL:  "SELECT 1",
 				Type: tt.inputType,
 			})
-			_ = result // Result not checked in this test
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 
 			if mock.ExplainType != tt.expectedType {
 				t.Errorf("expected type %v, got %v", tt.expectedType, mock.ExplainType)
@@ -215,11 +246,17 @@ func TestHandleExplain_Error(t *testing.T) {
 	}
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, _ := toolkit.handleExplain(context.Background(), nil, ExplainInput{
+	result, _, err := toolkit.handleExplain(context.Background(), nil, ExplainInput{
 		SQL: "SELECT * FORM users", // Intentional typo
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "Explain failed") {
 		t.Error("expected error message")
 	}
@@ -233,10 +270,12 @@ func TestHandleExplain_WithInterceptor(t *testing.T) {
 	})
 	toolkit := NewToolkit(mock, DefaultConfig(), WithQueryInterceptor(interceptor))
 
-	result, _, _ := toolkit.handleExplain(context.Background(), nil, ExplainInput{
+	_, _, err := toolkit.handleExplain(context.Background(), nil, ExplainInput{
 		SQL: "SELECT * FROM users",
 	})
-	_ = result // Result not checked in this test
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if mock.ExplainSQL != "SELECT * FROM users LIMIT 1" {
 		t.Errorf("expected intercepted SQL, got '%s'", mock.ExplainSQL)
@@ -257,7 +296,10 @@ func TestHandleListCatalogs_Success(t *testing.T) {
 		t.Error("ListCatalogs was not called")
 	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "memory") {
 		t.Error("expected 'memory' catalog")
 	}
@@ -274,9 +316,15 @@ func TestHandleListCatalogs_Error(t *testing.T) {
 	}
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, _ := toolkit.handleListCatalogs(context.Background(), nil, ListCatalogsInput{})
+	result, _, err := toolkit.handleListCatalogs(context.Background(), nil, ListCatalogsInput{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "Failed to list catalogs") {
 		t.Error("expected error message")
 	}
@@ -298,7 +346,10 @@ func TestHandleListSchemas_Success(t *testing.T) {
 		t.Errorf("expected catalog 'memory', got '%s'", mock.ListSchemasCatalog)
 	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "default") {
 		t.Error("expected 'default' schema")
 	}
@@ -312,11 +363,17 @@ func TestHandleListSchemas_Error(t *testing.T) {
 	}
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, _ := toolkit.handleListSchemas(context.Background(), nil, ListSchemasInput{
+	result, _, err := toolkit.handleListSchemas(context.Background(), nil, ListSchemasInput{
 		Catalog: "nonexistent",
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "Failed to list schemas") {
 		t.Error("expected error message")
 	}
@@ -342,7 +399,10 @@ func TestHandleListTables_Success(t *testing.T) {
 		t.Errorf("expected schema 'default', got '%s'", mock.ListTablesSchema)
 	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "users") {
 		t.Error("expected 'users' table")
 	}
@@ -356,13 +416,19 @@ func TestHandleListTables_WithPattern(t *testing.T) {
 	mock := NewMockTrinoClient()
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, _ := toolkit.handleListTables(context.Background(), nil, ListTablesInput{
+	result, _, err := toolkit.handleListTables(context.Background(), nil, ListTablesInput{
 		Catalog: "memory",
 		Schema:  "default",
 		Pattern: "%user%",
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "users") {
 		t.Error("expected 'users' table to match pattern")
 	}
@@ -379,12 +445,18 @@ func TestHandleListTables_Error(t *testing.T) {
 	}
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, _ := toolkit.handleListTables(context.Background(), nil, ListTablesInput{
+	result, _, err := toolkit.handleListTables(context.Background(), nil, ListTablesInput{
 		Catalog: "memory",
 		Schema:  "nonexistent",
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "Failed to list tables") {
 		t.Error("expected error message")
 	}
@@ -408,7 +480,10 @@ func TestHandleDescribeTable_Success(t *testing.T) {
 		t.Errorf("expected table 'users', got '%s'", mock.DescribeTableTable)
 	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "memory.default.users") {
 		t.Error("expected full table name")
 	}
@@ -425,14 +500,20 @@ func TestHandleDescribeTable_WithSample(t *testing.T) {
 	mock := NewMockTrinoClient()
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, _ := toolkit.handleDescribeTable(context.Background(), nil, DescribeTableInput{
+	result, _, err := toolkit.handleDescribeTable(context.Background(), nil, DescribeTableInput{
 		Catalog:       "memory",
 		Schema:        "default",
 		Table:         "users",
 		IncludeSample: true,
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "Sample Data") {
 		t.Error("expected sample data section")
 	}
@@ -450,13 +531,19 @@ func TestHandleDescribeTable_Error(t *testing.T) {
 	}
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, _ := toolkit.handleDescribeTable(context.Background(), nil, DescribeTableInput{
+	result, _, err := toolkit.handleDescribeTable(context.Background(), nil, DescribeTableInput{
 		Catalog: "memory",
 		Schema:  "default",
 		Table:   "nonexistent",
 	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "Failed to describe table") {
 		t.Error("expected error message")
 	}
@@ -493,8 +580,10 @@ func TestWrapHandler_WithMiddleware(t *testing.T) {
 
 	cfg := &toolConfig{}
 	wrappedHandler := toolkit.wrapHandler(ToolQuery, baseHandler, cfg)
-	result, _, _ := wrappedHandler(context.Background(), nil, QueryInput{SQL: "SELECT 1"})
-	_ = result // Result not checked in this test
+	_, _, err := wrappedHandler(context.Background(), nil, QueryInput{SQL: "SELECT 1"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if !beforeCalled {
 		t.Error("Before hook not called")
@@ -528,13 +617,19 @@ func TestWrapHandler_MiddlewareError(t *testing.T) {
 	}
 
 	wrappedHandler := toolkit.wrapHandler(ToolQuery, baseHandler, nil)
-	result, _, _ := wrappedHandler(context.Background(), nil, QueryInput{SQL: "SELECT 1"})
+	result, _, err := wrappedHandler(context.Background(), nil, QueryInput{SQL: "SELECT 1"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if handlerCalled {
 		t.Error("Handler should not be called when middleware fails")
 	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "middleware error") {
 		t.Error("expected middleware error message")
 	}
@@ -559,9 +654,15 @@ func TestWrapHandler_WithTransformer(t *testing.T) {
 	}
 
 	wrappedHandler := toolkit.wrapHandler(ToolQuery, baseHandler, nil)
-	result, _, _ := wrappedHandler(context.Background(), nil, QueryInput{SQL: "SELECT 1"})
+	result, _, err := wrappedHandler(context.Background(), nil, QueryInput{SQL: "SELECT 1"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
-	textContent := result.Content[0].(*mcp.TextContent)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
 	if !strings.Contains(textContent.Text, "[TRANSFORMED]") {
 		t.Error("expected transformed result")
 	}
@@ -683,11 +784,13 @@ func TestQueryTimeoutEnforcement(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, _, _ := toolkit.handleQuery(context.Background(), nil, QueryInput{
+			_, _, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
 				SQL:            "SELECT 1",
 				TimeoutSeconds: tt.inputTimeout,
 			})
-			_ = result // Result not checked in this test
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
 
 			// We can't directly check the timeout applied, but we verify no panics
 			// and that the query was called

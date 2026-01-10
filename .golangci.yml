@@ -109,7 +109,6 @@ linters:
     rules:
       - linters:
           - dupl
-          - errcheck
           - goconst
           - gocyclo
           - gosec

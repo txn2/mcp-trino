@@ -174,8 +174,14 @@ func TestConvertValue(t *testing.T) {
 			result := convertValue(tt.input)
 
 			// For complex types, use JSON comparison
-			expectedJSON, _ := json.Marshal(tt.expected)
-			resultJSON, _ := json.Marshal(result)
+			expectedJSON, err := json.Marshal(tt.expected)
+			if err != nil {
+				t.Fatalf("failed to marshal expected value: %v", err)
+			}
+			resultJSON, err := json.Marshal(result)
+			if err != nil {
+				t.Fatalf("failed to marshal result: %v", err)
+			}
 
 			if !bytes.Equal(expectedJSON, resultJSON) {
 				t.Errorf("expected %v, got %v", tt.expected, result)
