@@ -10,7 +10,7 @@ import (
 )
 
 // DefaultConnectionName is the fallback name for the primary connection.
-const DefaultConnectionName = "Database"
+const DefaultConnectionName = "database"
 
 // ConnectionConfig defines configuration for a single Trino connection.
 // Fields that are empty/zero inherit from the primary connection.
