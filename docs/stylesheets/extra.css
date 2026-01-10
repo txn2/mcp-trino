@@ -1,0 +1,119 @@
+/* ============================================
+   COLOR VARIABLES - LIGHT MODE
+   ============================================ */
+:root,
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #166534;
+  --md-primary-fg-color--light: #22c55e;
+  --md-primary-fg-color--dark: #14532d;
+  --md-accent-fg-color: #14b8a6;
+  --md-typeset-a-color: #14b8a6;
+}
+
+/* ============================================
+   COLOR VARIABLES - DARK MODE
+   ============================================ */
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #166534;
+  --md-primary-fg-color--light: #22c55e;
+  --md-primary-fg-color--dark: #14532d;
+  --md-accent-fg-color: #2dd4bf;
+  --md-typeset-a-color: #2dd4bf;
+  --md-default-bg-color: #1e293b;
+  --md-default-bg-color--light: #283548;
+  --md-default-bg-color--lighter: #334155;
+  --md-default-bg-color--lightest: #475569;
+  --md-code-bg-color: #0f172a;
+}
+
+/* ============================================
+   HEADER
+   ============================================ */
+.md-header {
+  background-color: #166534;
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+.md-typeset {
+  line-height: 1.7;
+}
+
+[data-md-color-scheme="default"] .md-typeset {
+  color: #1c1917;
+}
+
+/* ============================================
+   CONTENT WIDTH
+   ============================================ */
+.md-content__inner {
+  max-width: 52rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ============================================
+   CODE BLOCKS
+   ============================================ */
+[data-md-color-scheme="default"] .md-typeset pre > code {
+  background-color: #1e293b;
+}
+
+[data-md-color-scheme="default"] .md-typeset code {
+  background-color: #f1f5f9;
+}
+
+[data-md-color-scheme="slate"] .md-typeset pre > code {
+  background-color: #0f172a;
+}
+
+[data-md-color-scheme="slate"] .md-typeset code {
+  background-color: #0f172a;
+}
+
+/* ============================================
+   DARK MODE - SIDEBAR & NAV
+   ============================================ */
+[data-md-color-scheme="slate"] .md-sidebar {
+  background-color: #1e293b;
+}
+
+[data-md-color-scheme="slate"] .md-nav {
+  background-color: #1e293b;
+}
+
+[data-md-color-scheme="slate"] .md-tabs {
+  background-color: #1e293b;
+}
+
+/* ============================================
+   LINKS
+   ============================================ */
+.md-typeset a {
+  color: #14b8a6;
+  text-decoration: none;
+}
+
+.md-typeset a:hover {
+  text-decoration: underline;
+}
+
+/* ============================================
+   TABLE HEADERS
+   ============================================ */
+.md-typeset table:not([class]) th {
+  background-color: #166534;
+  color: white;
+}
+
+/* ============================================
+   FOOTER
+   ============================================ */
+[data-md-color-scheme="default"] .md-footer-meta {
+  background-color: #f8fafc;
+}
+
+[data-md-color-scheme="slate"] .md-footer-meta {
+  background-color: #1e293b;
+}
