@@ -171,4 +171,3 @@ jobs:
     with:
       base64-subjects: "${{ needs.release.outputs.hashes }}"
       upload-assets: true
-      private-repository: true  # Workaround for false positive private repo detection
