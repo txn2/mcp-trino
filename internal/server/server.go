@@ -7,6 +7,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/txn2/mcp-trino/pkg/client"
+	"github.com/txn2/mcp-trino/pkg/extensions"
 	"github.com/txn2/mcp-trino/pkg/tools"
 )
 
@@ -20,13 +21,17 @@ type Options struct {
 
 	// ToolkitConfig is the toolkit configuration.
 	ToolkitConfig tools.Config
+
+	// ExtensionsConfig configures middleware, interceptors, and transformers.
+	ExtensionsConfig extensions.Config
 }
 
 // DefaultOptions returns default server options.
 func DefaultOptions() Options {
 	return Options{
-		ClientConfig:  client.FromEnv(),
-		ToolkitConfig: tools.DefaultConfig(),
+		ClientConfig:     client.FromEnv(),
+		ToolkitConfig:    tools.DefaultConfig(),
+		ExtensionsConfig: extensions.FromEnv(),
 	}
 }
 
@@ -44,8 +49,11 @@ func New(opts Options) (*mcp.Server, *client.Client, error) {
 		Version: Version,
 	}, nil)
 
+	// Build toolkit options from extensions configuration
+	toolkitOpts := extensions.BuildToolkitOptions(opts.ExtensionsConfig)
+
 	// Create toolkit and register tools
-	toolkit := tools.NewToolkit(trinoClient, opts.ToolkitConfig)
+	toolkit := tools.NewToolkit(trinoClient, opts.ToolkitConfig, toolkitOpts...)
 	toolkit.RegisterAll(server)
 
 	return server, trinoClient, nil
