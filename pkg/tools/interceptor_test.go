@@ -100,7 +100,10 @@ func TestInterceptorChain_ToolNamePassed(t *testing.T) {
 	})
 
 	chain := NewInterceptorChain(interceptor)
-	_, _ = chain.Intercept(context.Background(), "SELECT 1", ToolExplain)
+	_, err := chain.Intercept(context.Background(), "SELECT 1", ToolExplain)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if receivedToolName != ToolExplain {
 		t.Errorf("expected ToolExplain, got %v", receivedToolName)

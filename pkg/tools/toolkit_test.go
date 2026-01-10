@@ -3,6 +3,9 @@ package tools
 import (
 	"testing"
 	"time"
+
+	"github.com/txn2/mcp-trino/pkg/client"
+	"github.com/txn2/mcp-trino/pkg/multiserver"
 )
 
 func TestDefaultConfig(t *testing.T) {
@@ -105,8 +108,8 @@ func TestNewToolkit_NegativeValues(t *testing.T) {
 func TestToolkit_Client(t *testing.T) {
 	toolkit := NewToolkit(nil, DefaultConfig())
 
-	client := toolkit.Client()
-	if client != nil {
+	trinoClient := toolkit.Client()
+	if trinoClient != nil {
 		t.Error("expected nil client when none provided")
 	}
 }
@@ -166,5 +169,186 @@ func TestConfig_Boundaries(t *testing.T) {
 				t.Errorf("expected MaxTimeout %v, got %v", tt.expectedMaxTO, cfg.MaxTimeout)
 			}
 		})
+	}
+}
+
+func TestNewToolkitWithManager(t *testing.T) {
+	msCfg := multiserver.Config{
+		Default: "default",
+		Primary: client.Config{
+			Host: "localhost",
+			Port: 8080,
+			User: "admin",
+		},
+		Connections: map[string]multiserver.ConnectionConfig{
+			"staging": {Host: "staging.example.com"},
+		},
+	}
+	mgr := multiserver.NewManager(msCfg)
+
+	toolkit := NewToolkitWithManager(mgr, DefaultConfig())
+
+	if !toolkit.HasManager() {
+		t.Error("expected HasManager() to return true")
+	}
+	if toolkit.Manager() != mgr {
+		t.Error("expected Manager() to return the provided manager")
+	}
+}
+
+func TestNewToolkitWithManager_DefaultsZeroValues(t *testing.T) {
+	msCfg := multiserver.Config{
+		Default: "default",
+		Primary: client.Config{
+			Host: "localhost",
+			Port: 8080,
+			User: "admin",
+		},
+	}
+	mgr := multiserver.NewManager(msCfg)
+
+	cfg := Config{
+		DefaultLimit:   0,
+		MaxLimit:       0,
+		DefaultTimeout: 0,
+		MaxTimeout:     0,
+	}
+
+	toolkit := NewToolkitWithManager(mgr, cfg)
+	actualCfg := toolkit.Config()
+
+	if actualCfg.DefaultLimit != 1000 {
+		t.Errorf("expected DefaultLimit to default to 1000, got %d", actualCfg.DefaultLimit)
+	}
+	if actualCfg.MaxLimit != 10000 {
+		t.Errorf("expected MaxLimit to default to 10000, got %d", actualCfg.MaxLimit)
+	}
+}
+
+func TestToolkit_HasManager_SingleClient(t *testing.T) {
+	toolkit := NewToolkit(nil, DefaultConfig())
+
+	if toolkit.HasManager() {
+		t.Error("expected HasManager() to return false for single-client mode")
+	}
+	if toolkit.Manager() != nil {
+		t.Error("expected Manager() to return nil for single-client mode")
+	}
+}
+
+func TestToolkit_ConnectionInfos_WithManager(t *testing.T) {
+	msCfg := multiserver.Config{
+		Default: "default",
+		Primary: client.Config{
+			Host:    "prod.example.com",
+			Port:    443,
+			User:    "admin",
+			Catalog: "hive",
+			Schema:  "default",
+			SSL:     true,
+		},
+		Connections: map[string]multiserver.ConnectionConfig{
+			"staging": {Host: "staging.example.com", Catalog: "iceberg"},
+		},
+	}
+	mgr := multiserver.NewManager(msCfg)
+	toolkit := NewToolkitWithManager(mgr, DefaultConfig())
+
+	infos := toolkit.ConnectionInfos()
+
+	if len(infos) != 2 {
+		t.Errorf("expected 2 connections, got %d", len(infos))
+	}
+
+	// Check that default is marked correctly
+	var foundDefault bool
+	for _, info := range infos {
+		if info.Name == "default" && info.IsDefault {
+			foundDefault = true
+		}
+	}
+	if !foundDefault {
+		t.Error("expected default connection to be marked as IsDefault")
+	}
+}
+
+func TestToolkit_ConnectionInfos_SingleClient(t *testing.T) {
+	toolkit := NewToolkit(nil, DefaultConfig())
+
+	infos := toolkit.ConnectionInfos()
+
+	if len(infos) != 1 {
+		t.Errorf("expected 1 connection for single-client mode, got %d", len(infos))
+	}
+	if infos[0].Name != "default" {
+		t.Errorf("expected connection name 'default', got %q", infos[0].Name)
+	}
+	if !infos[0].IsDefault {
+		t.Error("expected single connection to be marked as IsDefault")
+	}
+}
+
+func TestToolkit_ConnectionCount_WithManager(t *testing.T) {
+	msCfg := multiserver.Config{
+		Default: "default",
+		Primary: client.Config{
+			Host: "localhost",
+			Port: 8080,
+			User: "admin",
+		},
+		Connections: map[string]multiserver.ConnectionConfig{
+			"staging": {Host: "staging.example.com"},
+			"dev":     {Host: "dev.example.com"},
+		},
+	}
+	mgr := multiserver.NewManager(msCfg)
+	toolkit := NewToolkitWithManager(mgr, DefaultConfig())
+
+	count := toolkit.ConnectionCount()
+	if count != 3 {
+		t.Errorf("expected 3 connections, got %d", count)
+	}
+}
+
+func TestToolkit_ConnectionCount_SingleClient(t *testing.T) {
+	toolkit := NewToolkit(nil, DefaultConfig())
+
+	count := toolkit.ConnectionCount()
+	if count != 1 {
+		t.Errorf("expected 1 connection for single-client mode, got %d", count)
+	}
+}
+
+func TestToolkit_GetClient_SingleClientMode(t *testing.T) {
+	toolkit := NewToolkit(nil, DefaultConfig())
+
+	// Single-client mode with nil client
+	_, err := toolkit.getClient("")
+	if err == nil {
+		t.Error("expected error when client is nil")
+	}
+
+	// Single-client mode ignores connection parameter
+	_, err = toolkit.getClient("staging")
+	if err == nil {
+		t.Error("expected error when client is nil, even with connection param")
+	}
+}
+
+func TestToolkit_GetClient_ManagerMode_UnknownConnection(t *testing.T) {
+	msCfg := multiserver.Config{
+		Default: "default",
+		Primary: client.Config{
+			Host: "localhost",
+			Port: 8080,
+			User: "admin",
+		},
+	}
+	mgr := multiserver.NewManager(msCfg)
+	toolkit := NewToolkitWithManager(mgr, DefaultConfig())
+
+	_, err := toolkit.getClient("unknown")
+	if err == nil {
+		t.Error("expected error for unknown connection")
 	}
 }

@@ -89,7 +89,10 @@ func TestBeforeFunc(t *testing.T) {
 	})
 
 	tc := NewToolContext(ToolQuery, nil)
-	_, _ = mw.Before(context.Background(), tc)
+	_, err := mw.Before(context.Background(), tc)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if !called {
 		t.Error("before function was not called")
@@ -109,7 +112,10 @@ func TestAfterFunc(t *testing.T) {
 	})
 
 	tc := NewToolContext(ToolQuery, nil)
-	_, _ = mw.After(context.Background(), tc, &mcp.CallToolResult{}, nil)
+	_, err := mw.After(context.Background(), tc, &mcp.CallToolResult{}, nil)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if !called {
 		t.Error("after function was not called")

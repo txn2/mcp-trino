@@ -255,7 +255,7 @@ func clearTrinoEnvVars(t *testing.T) {
 		"TRINO_SOURCE",
 	}
 	for _, v := range envVars {
-		os.Unsetenv(v)
+		_ = os.Unsetenv(v)
 	}
 }
 
