@@ -69,7 +69,14 @@ func DefaultConfig() Config {
 //   - TRINO_SOURCE: Client source identifier
 func FromEnv() Config {
 	cfg := DefaultConfig()
+	cfg = applyHostEnv(cfg)
+	cfg = applyConnectionEnv(cfg)
+	cfg = applyOptionsEnv(cfg)
+	return cfg
+}
 
+// applyHostEnv applies TRINO_HOST and sets SSL defaults for remote hosts.
+func applyHostEnv(cfg Config) Config {
 	if v := os.Getenv("TRINO_HOST"); v != "" {
 		cfg.Host = v
 		// Default to SSL for non-localhost hosts
@@ -78,47 +85,47 @@ func FromEnv() Config {
 			cfg.Port = 443
 		}
 	}
+	return cfg
+}
 
+// applyConnectionEnv applies TRINO_PORT, TRINO_USER, TRINO_PASSWORD, TRINO_CATALOG, TRINO_SCHEMA.
+func applyConnectionEnv(cfg Config) Config {
 	if v := os.Getenv("TRINO_PORT"); v != "" {
 		if port, err := strconv.Atoi(v); err == nil {
 			cfg.Port = port
 		}
 	}
-
 	if v := os.Getenv("TRINO_USER"); v != "" {
 		cfg.User = v
 	}
-
 	if v := os.Getenv("TRINO_PASSWORD"); v != "" {
 		cfg.Password = v
 	}
-
 	if v := os.Getenv("TRINO_CATALOG"); v != "" {
 		cfg.Catalog = v
 	}
-
 	if v := os.Getenv("TRINO_SCHEMA"); v != "" {
 		cfg.Schema = v
 	}
+	return cfg
+}
 
+// applyOptionsEnv applies TRINO_SSL, TRINO_SSL_VERIFY, TRINO_TIMEOUT, TRINO_SOURCE.
+func applyOptionsEnv(cfg Config) Config {
 	if v := os.Getenv("TRINO_SSL"); v != "" {
 		cfg.SSL = v == "true" || v == "1"
 	}
-
 	if v := os.Getenv("TRINO_SSL_VERIFY"); v != "" {
 		cfg.SSLVerify = v == "true" || v == "1"
 	}
-
 	if v := os.Getenv("TRINO_TIMEOUT"); v != "" {
 		if secs, err := strconv.Atoi(v); err == nil {
 			cfg.Timeout = time.Duration(secs) * time.Second
 		}
 	}
-
 	if v := os.Getenv("TRINO_SOURCE"); v != "" {
 		cfg.Source = v
 	}
-
 	return cfg
 }
 
