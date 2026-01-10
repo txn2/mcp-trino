@@ -363,3 +363,291 @@ func TestSingleClientManager(t *testing.T) {
 func boolPtr(b bool) *bool {
 	return &b
 }
+
+func TestNewManagerFromEnv(t *testing.T) {
+	// Set up environment for valid config
+	t.Setenv("TRINO_HOST", "localhost")
+	t.Setenv("TRINO_PORT", "8080")
+	t.Setenv("TRINO_USER", "admin")
+	t.Setenv("TRINO_SSL", "false")
+	t.Setenv("TRINO_ADDITIONAL_SERVERS", "")
+
+	mgr, err := NewManagerFromEnv()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mgr == nil {
+		t.Fatal("expected non-nil manager")
+	}
+	if mgr.ConnectionCount() != 1 {
+		t.Errorf("expected 1 connection, got %d", mgr.ConnectionCount())
+	}
+}
+
+func TestNewManagerFromEnv_WithAdditionalServers(t *testing.T) {
+	t.Setenv("TRINO_HOST", "prod.example.com")
+	t.Setenv("TRINO_USER", "admin")
+	t.Setenv("TRINO_ADDITIONAL_SERVERS", `{"staging": {"host": "staging.example.com"}}`)
+
+	mgr, err := NewManagerFromEnv()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if mgr.ConnectionCount() != 2 {
+		t.Errorf("expected 2 connections, got %d", mgr.ConnectionCount())
+	}
+}
+
+func TestNewManagerFromEnv_InvalidJSON(t *testing.T) {
+	t.Setenv("TRINO_HOST", "localhost")
+	t.Setenv("TRINO_USER", "admin")
+	t.Setenv("TRINO_ADDITIONAL_SERVERS", `{invalid}`)
+
+	_, err := NewManagerFromEnv()
+	if err == nil {
+		t.Error("expected error for invalid JSON")
+	}
+}
+
+func TestManager_DefaultClient(t *testing.T) {
+	cfg := Config{
+		Default: "default",
+		Primary: client.Config{
+			Host: "localhost",
+			Port: 8080,
+			User: "admin",
+			SSL:  false,
+		},
+	}
+	mgr := NewManager(cfg)
+
+	// DefaultClient should return the same as Client("default")
+	c1, err := mgr.DefaultClient()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	c2, err := mgr.Client("default")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if c1 != c2 {
+		t.Error("DefaultClient should return same client as Client(\"default\")")
+	}
+
+	// Clean up
+	mgr.Close()
+}
+
+func TestManager_ConnectionInfos(t *testing.T) {
+	cfg := Config{
+		Default: "default",
+		Primary: client.Config{
+			Host:    "prod.example.com",
+			Port:    443,
+			User:    "admin",
+			Catalog: "hive",
+			Schema:  "default",
+			SSL:     true,
+		},
+		Connections: map[string]ConnectionConfig{
+			"staging": {Host: "staging.example.com", Catalog: "iceberg"},
+		},
+	}
+	mgr := NewManager(cfg)
+
+	infos := mgr.ConnectionInfos()
+	if len(infos) != 2 {
+		t.Errorf("expected 2 connection infos, got %d", len(infos))
+	}
+
+	// Verify default connection info
+	var defaultInfo *ConnectionInfo
+	for i := range infos {
+		if infos[i].Name == "default" {
+			defaultInfo = &infos[i]
+			break
+		}
+	}
+	if defaultInfo == nil {
+		t.Fatal("default connection not found")
+	}
+	if !defaultInfo.IsDefault {
+		t.Error("default connection should have IsDefault=true")
+	}
+	if defaultInfo.Host != "prod.example.com" {
+		t.Errorf("expected host 'prod.example.com', got %q", defaultInfo.Host)
+	}
+}
+
+func TestManager_Config(t *testing.T) {
+	cfg := Config{
+		Default: "default",
+		Primary: client.Config{
+			Host: "localhost",
+			Port: 8080,
+			User: "admin",
+		},
+		Connections: map[string]ConnectionConfig{
+			"staging": {Host: "staging.example.com"},
+		},
+	}
+	mgr := NewManager(cfg)
+
+	returnedCfg := mgr.Config()
+	if returnedCfg.Default != cfg.Default {
+		t.Errorf("expected Default %q, got %q", cfg.Default, returnedCfg.Default)
+	}
+	if returnedCfg.Primary.Host != cfg.Primary.Host {
+		t.Errorf("expected Primary.Host %q, got %q", cfg.Primary.Host, returnedCfg.Primary.Host)
+	}
+	if len(returnedCfg.Connections) != len(cfg.Connections) {
+		t.Errorf("expected %d connections, got %d", len(cfg.Connections), len(returnedCfg.Connections))
+	}
+}
+
+func TestManager_Close(t *testing.T) {
+	cfg := Config{
+		Default: "default",
+		Primary: client.Config{
+			Host: "localhost",
+			Port: 8080,
+			User: "admin",
+			SSL:  false,
+		},
+	}
+	mgr := NewManager(cfg)
+
+	// Create a client
+	_, err := mgr.Client("default")
+	if err != nil {
+		t.Fatalf("unexpected error creating client: %v", err)
+	}
+
+	// Close should work
+	err = mgr.Close()
+	if err != nil {
+		t.Errorf("unexpected error closing: %v", err)
+	}
+
+	// After close, client cache should be empty (new client created on next access)
+	// This is hard to test directly, but we can verify Close doesn't error on empty cache
+	err = mgr.Close()
+	if err != nil {
+		t.Errorf("unexpected error closing empty manager: %v", err)
+	}
+}
+
+func TestManager_Close_NoClients(t *testing.T) {
+	cfg := Config{
+		Default: "default",
+		Primary: client.Config{
+			Host: "localhost",
+			Port: 8080,
+			User: "admin",
+		},
+	}
+	mgr := NewManager(cfg)
+
+	// Close without any clients created
+	err := mgr.Close()
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestSingleClientManager_Full(t *testing.T) {
+	// Create a real client config (we'll just test the manager structure)
+	cfg := client.Config{
+		Host:    "test.example.com",
+		Port:    443,
+		User:    "test",
+		Catalog: "hive",
+		Schema:  "default",
+		SSL:     true,
+	}
+
+	// Use nil client to test manager structure without actual connection
+	mgr := SingleClientManager(nil, cfg)
+
+	if mgr.ConnectionCount() != 1 {
+		t.Errorf("expected 1 connection, got %d", mgr.ConnectionCount())
+	}
+
+	if !mgr.HasConnection("default") {
+		t.Error("expected HasConnection(\"default\") to return true")
+	}
+
+	if mgr.HasConnection("staging") {
+		t.Error("expected HasConnection(\"staging\") to return false")
+	}
+
+	conns := mgr.Connections()
+	if len(conns) != 1 {
+		t.Errorf("expected 1 connection name, got %d", len(conns))
+	}
+	if conns[0] != "default" {
+		t.Errorf("expected connection name 'default', got %q", conns[0])
+	}
+
+	infos := mgr.ConnectionInfos()
+	if len(infos) != 1 {
+		t.Errorf("expected 1 connection info, got %d", len(infos))
+	}
+
+	// Config should be accessible
+	returnedCfg := mgr.Config()
+	if returnedCfg.Primary.Host != cfg.Host {
+		t.Errorf("expected host %q, got %q", cfg.Host, returnedCfg.Primary.Host)
+	}
+}
+
+func TestManager_Client_ConcurrentAccess(_ *testing.T) {
+	cfg := Config{
+		Default: "default",
+		Primary: client.Config{
+			Host: "localhost",
+			Port: 8080,
+			User: "admin",
+			SSL:  false,
+		},
+	}
+	mgr := NewManager(cfg)
+	defer mgr.Close()
+
+	// Concurrent access should be safe
+	done := make(chan bool, 10)
+	for i := 0; i < 10; i++ {
+		go func() {
+			_, _ = mgr.Client("default")
+			done <- true
+		}()
+	}
+
+	// Wait for all goroutines
+	for i := 0; i < 10; i++ {
+		<-done
+	}
+}
+
+func TestManager_Client_InvalidConfig(t *testing.T) {
+	cfg := Config{
+		Default: "default",
+		Primary: client.Config{
+			Host: "localhost",
+			Port: 8080,
+			User: "admin",
+		},
+		Connections: map[string]ConnectionConfig{
+			"invalid": {
+				Host: "test.example.com",
+				Port: 99999, // Invalid: port > 65535
+			},
+		},
+	}
+	mgr := NewManager(cfg)
+
+	_, err := mgr.Client("invalid")
+	if err == nil {
+		t.Error("expected error for invalid config")
+	}
+}

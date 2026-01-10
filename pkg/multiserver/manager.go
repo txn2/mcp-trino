@@ -37,9 +37,9 @@ func NewManagerFromEnv() (*Manager, error) {
 // If name is empty or "default", returns the primary connection's client.
 // Clients are created lazily and cached for reuse.
 func (m *Manager) Client(name string) (*client.Client, error) {
-	// Normalize empty to "default"
+	// Normalize empty to default
 	if name == "" {
-		name = "default"
+		name = DefaultConnectionName
 	}
 
 	// Check cache first (read lock)
@@ -82,7 +82,7 @@ func (m *Manager) Client(name string) (*client.Client, error) {
 
 // DefaultClient returns the default (primary) connection's client.
 func (m *Manager) DefaultClient() (*client.Client, error) {
-	return m.Client("default")
+	return m.Client(DefaultConnectionName)
 }
 
 // Connections returns the names of all configured connections.
@@ -102,7 +102,7 @@ func (m *Manager) ConnectionCount() int {
 
 // HasConnection returns true if the named connection exists.
 func (m *Manager) HasConnection(name string) bool {
-	if name == "" || name == "default" {
+	if name == "" || name == DefaultConnectionName {
 		return true
 	}
 	_, ok := m.config.Connections[name]
@@ -134,12 +134,12 @@ func (m *Manager) Close() error {
 func SingleClientManager(c *client.Client, cfg client.Config) *Manager {
 	return &Manager{
 		config: Config{
-			Default:     "default",
+			Default:     DefaultConnectionName,
 			Primary:     cfg,
 			Connections: make(map[string]ConnectionConfig),
 		},
 		clients: map[string]*client.Client{
-			"default": c,
+			DefaultConnectionName: c,
 		},
 	}
 }
