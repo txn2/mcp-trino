@@ -161,7 +161,7 @@ func DefaultServerConfig() ServerConfig {
 // The format is detected by the file extension (.json, .yaml, .yml).
 // Missing fields use values from DefaultServerConfig.
 func FromFile(path string) (ServerConfig, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) // #nosec G304 -- config file path is provided by administrator
 	if err != nil {
 		return ServerConfig{}, fmt.Errorf("reading config file: %w", err)
 	}
