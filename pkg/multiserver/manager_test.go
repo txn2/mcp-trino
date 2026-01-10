@@ -601,7 +601,7 @@ func TestSingleClientManager_Full(t *testing.T) {
 	}
 }
 
-func TestManager_Client_ConcurrentAccess(_ *testing.T) {
+func TestManager_Client_ConcurrentAccess(t *testing.T) {
 	cfg := Config{
 		Default: "default",
 		Primary: client.Config{
@@ -612,13 +612,21 @@ func TestManager_Client_ConcurrentAccess(_ *testing.T) {
 		},
 	}
 	mgr := NewManager(cfg)
-	defer mgr.Close()
+	defer func() {
+		if err := mgr.Close(); err != nil {
+			t.Errorf("failed to close manager: %v", err)
+		}
+	}()
 
 	// Concurrent access should be safe
 	done := make(chan bool, 10)
 	for i := 0; i < 10; i++ {
 		go func() {
-			_, _ = mgr.Client("default")
+			// Intentionally ignore error - testing concurrent access safety
+			if _, err := mgr.Client("default"); err != nil {
+				// Error is expected in some cases, just testing for races
+				_ = err
+			}
 			done <- true
 		}()
 	}

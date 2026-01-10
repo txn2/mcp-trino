@@ -250,7 +250,10 @@ func TestLoggingMiddleware_After_Error(t *testing.T) {
 		IsError: true,
 	}
 
-	_, _ = lm.After(context.Background(), tc, result, nil)
+	_, err := lm.After(context.Background(), tc, result, nil)
+	if err != nil {
+		t.Fatalf("After returned error: %v", err)
+	}
 
 	logOutput := buf.String()
 	if !strings.Contains(logOutput, "tool_call_failed") {

@@ -34,9 +34,12 @@ func TestResultTransformerFunc(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	text := transformed.Content[0].(*mcp.TextContent).Text
-	if text != "original [transformed]" {
-		t.Errorf("expected transformed text, got: %s", text)
+	tc, ok := transformed.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
+	if tc.Text != "original [transformed]" {
+		t.Errorf("expected transformed text, got: %s", tc.Text)
 	}
 }
 
@@ -98,9 +101,12 @@ func TestTransformerChain_Transform(t *testing.T) {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	text := transformed.Content[0].(*mcp.TextContent).Text
-	if text != "base[1][2]" {
-		t.Errorf("expected chained transformations, got: %s", text)
+	tc, ok := transformed.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
+	if tc.Text != "base[1][2]" {
+		t.Errorf("expected chained transformations, got: %s", tc.Text)
 	}
 }
 
@@ -165,7 +171,10 @@ func TestTransformerChain_ToolNamePassed(t *testing.T) {
 	})
 
 	chain := NewTransformerChain(transformer)
-	_, _ = chain.Transform(context.Background(), ToolDescribeTable, &mcp.CallToolResult{})
+	_, err := chain.Transform(context.Background(), ToolDescribeTable, &mcp.CallToolResult{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
 
 	if receivedToolName != ToolDescribeTable {
 		t.Errorf("expected ToolDescribeTable, got %v", receivedToolName)
