@@ -21,6 +21,7 @@ This file provides guidance to Claude Code when working with this project.
    - Unit tests with race detection (`make test` or `go test -race ./...`)
    - Linting (`make lint` / golangci-lint)
    - Security scanning (`gosec ./...`)
+   - Cyclomatic complexity (`gocyclo -over 15 .` must return no results)
    - All checks that run in CI must pass locally before considering code "tested"
 
 4. **Human Review Required**: A human must review and approve every line of code before it is committed. Therefore, commits are always performed by a human, not by Claude.

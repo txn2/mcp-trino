@@ -316,65 +316,73 @@ func LoadConfig(path string) (ServerConfig, error) {
 // applyEnvOverrides applies environment variable overrides to a config.
 // Environment variables take precedence over file config.
 func applyEnvOverrides(cfg ServerConfig) ServerConfig {
-	// Trino overrides
+	cfg.Trino = applyTrinoEnvOverrides(cfg.Trino)
+	cfg.Extensions = applyExtensionsEnvOverrides(cfg.Extensions)
+	return cfg
+}
+
+// applyTrinoEnvOverrides applies TRINO_* environment variable overrides.
+func applyTrinoEnvOverrides(cfg TrinoConfig) TrinoConfig {
 	if v := os.Getenv("TRINO_HOST"); v != "" {
-		cfg.Trino.Host = v
+		cfg.Host = v
 	}
 	if v := os.Getenv("TRINO_PORT"); v != "" {
 		var port int
 		if _, err := fmt.Sscanf(v, "%d", &port); err == nil {
-			cfg.Trino.Port = port
+			cfg.Port = port
 		}
 	}
 	if v := os.Getenv("TRINO_USER"); v != "" {
-		cfg.Trino.User = v
+		cfg.User = v
 	}
 	if v := os.Getenv("TRINO_PASSWORD"); v != "" {
-		cfg.Trino.Password = v
+		cfg.Password = v
 	}
 	if v := os.Getenv("TRINO_CATALOG"); v != "" {
-		cfg.Trino.Catalog = v
+		cfg.Catalog = v
 	}
 	if v := os.Getenv("TRINO_SCHEMA"); v != "" {
-		cfg.Trino.Schema = v
+		cfg.Schema = v
 	}
 	if v := os.Getenv("TRINO_SSL"); v != "" {
 		b := parseBool(v)
-		cfg.Trino.SSL = &b
+		cfg.SSL = &b
 	}
 	if v := os.Getenv("TRINO_SSL_VERIFY"); v != "" {
 		b := parseBool(v)
-		cfg.Trino.SSLVerify = &b
+		cfg.SSLVerify = &b
 	}
 	if v := os.Getenv("TRINO_SOURCE"); v != "" {
-		cfg.Trino.Source = v
+		cfg.Source = v
 	}
+	return cfg
+}
 
-	// Extensions overrides
+// applyExtensionsEnvOverrides applies MCP_TRINO_EXT_* environment variable overrides.
+func applyExtensionsEnvOverrides(cfg ExtFileConfig) ExtFileConfig {
 	if v := os.Getenv("MCP_TRINO_EXT_LOGGING"); v != "" {
 		b := parseBool(v)
-		cfg.Extensions.Logging = &b
+		cfg.Logging = &b
 	}
 	if v := os.Getenv("MCP_TRINO_EXT_METRICS"); v != "" {
 		b := parseBool(v)
-		cfg.Extensions.Metrics = &b
+		cfg.Metrics = &b
 	}
 	if v := os.Getenv("MCP_TRINO_EXT_READONLY"); v != "" {
 		b := parseBool(v)
-		cfg.Extensions.ReadOnly = &b
+		cfg.ReadOnly = &b
 	}
 	if v := os.Getenv("MCP_TRINO_EXT_QUERYLOG"); v != "" {
 		b := parseBool(v)
-		cfg.Extensions.QueryLog = &b
+		cfg.QueryLog = &b
 	}
 	if v := os.Getenv("MCP_TRINO_EXT_METADATA"); v != "" {
 		b := parseBool(v)
-		cfg.Extensions.Metadata = &b
+		cfg.Metadata = &b
 	}
 	if v := os.Getenv("MCP_TRINO_EXT_ERRORS"); v != "" {
 		b := parseBool(v)
-		cfg.Extensions.Errors = &b
+		cfg.Errors = &b
 	}
-
 	return cfg
 }
