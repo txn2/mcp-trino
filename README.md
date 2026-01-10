@@ -21,100 +21,15 @@ This project provides both a **standalone MCP server** and a **composable Go lib
 
 ## Installation
 
-### As a standalone server
+### Claude Desktop (Recommended)
 
-```bash
-go install github.com/txn2/mcp-trino/cmd/mcp-trino@latest
-```
-
-### As a library
-
-```bash
-go get github.com/txn2/mcp-trino
-```
-
-## Quick Start
-
-### Standalone Server
-
-```bash
-# Set environment variables
-export TRINO_HOST=trino.example.com
-export TRINO_USER=your_user
-export TRINO_PASSWORD=your_password
-export TRINO_CATALOG=hive
-export TRINO_SCHEMA=default
-
-# Run the server
-mcp-trino
-```
-
-### Claude Code CLI
-
-1. **Clone and build the binary:**
-
-```bash
-git clone https://github.com/txn2/mcp-trino.git ~/mcp-trino
-cd ~/mcp-trino
-go build -o mcp-trino ./cmd/mcp-trino
-```
-
-2. **Add the MCP server to Claude Code:**
-
-```bash
-claude mcp add trino \
-  -e TRINO_HOST=trino.example.com \
-  -e TRINO_PORT=443 \
-  -e TRINO_SSL=true \
-  -e TRINO_USER=your_username \
-  -e TRINO_PASSWORD=your_password \
-  -e TRINO_CATALOG=hive \
-  -e TRINO_SCHEMA=default \
-  -- ~/mcp-trino/mcp-trino
-```
-
-3. **Restart Claude Code** to load the new MCP server.
-
-4. **Verify the tools are available** by asking Claude to list your Trino catalogs.
-
-**Multiple Trino Servers:**
-
-You can add multiple Trino instances with different names:
-
-```bash
-# Production
-claude mcp add trino-prod \
-  -e TRINO_HOST=trino.prod.example.com \
-  -e TRINO_USER=prod_user \
-  -e TRINO_PASSWORD=prod_pass \
-  -- ~/mcp-trino/mcp-trino
-
-# Staging
-claude mcp add trino-staging \
-  -e TRINO_HOST=trino.staging.example.com \
-  -e TRINO_USER=staging_user \
-  -e TRINO_PASSWORD=staging_pass \
-  -- ~/mcp-trino/mcp-trino
-```
-
-Each server gets its own set of tools (e.g., `trino-prod_query`, `trino-staging_query`).
-
-**Update or remove a configuration:**
-
-```bash
-claude mcp remove trino
-claude mcp add trino -e TRINO_HOST=... -- ~/mcp-trino/mcp-trino
-```
-
-### Claude Desktop Configuration
-
-Add to your Claude Desktop `claude_desktop_config.json`:
+Install from the MCP Registry with a single click, or manually add to `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "trino": {
-      "command": "/Users/you/mcp-trino/mcp-trino",
+      "command": "/path/to/mcp-trino",
       "env": {
         "TRINO_HOST": "trino.example.com",
         "TRINO_USER": "your_user",
@@ -127,6 +42,76 @@ Add to your Claude Desktop `claude_desktop_config.json`:
 }
 ```
 
+### Claude Code CLI
+
+```bash
+# Download the latest release
+curl -L https://github.com/txn2/mcp-trino/releases/latest/download/mcp-trino_$(uname -s)_$(uname -m).tar.gz | tar xz
+
+# Add to Claude Code
+claude mcp add trino \
+  -e TRINO_HOST=trino.example.com \
+  -e TRINO_USER=your_user \
+  -e TRINO_PASSWORD=your_password \
+  -e TRINO_CATALOG=hive \
+  -- ./mcp-trino
+```
+
+### Docker
+
+```bash
+docker run --rm -i \
+  -e TRINO_HOST=trino.example.com \
+  -e TRINO_USER=your_user \
+  -e TRINO_PASSWORD=your_password \
+  ghcr.io/txn2/mcp-trino:latest
+```
+
+### Go Install
+
+```bash
+go install github.com/txn2/mcp-trino/cmd/mcp-trino@latest
+```
+
+### Download Binary
+
+Download pre-built binaries from the [releases page](https://github.com/txn2/mcp-trino/releases). All releases are signed with [Cosign](https://github.com/sigstore/cosign) and include [SLSA provenance](https://slsa.dev/).
+
+### As a Library
+
+```bash
+go get github.com/txn2/mcp-trino
+```
+
+## Quick Start
+
+### Multiple Trino Servers
+
+You can configure multiple Trino instances with different names:
+
+```bash
+# Production
+claude mcp add trino-prod \
+  -e TRINO_HOST=trino.prod.example.com \
+  -e TRINO_USER=prod_user \
+  -- mcp-trino
+
+# Staging
+claude mcp add trino-staging \
+  -e TRINO_HOST=trino.staging.example.com \
+  -e TRINO_USER=staging_user \
+  -- mcp-trino
+```
+
+### Standalone Server
+
+```bash
+export TRINO_HOST=trino.example.com
+export TRINO_USER=your_user
+export TRINO_PASSWORD=your_password
+mcp-trino
+```
+
 ## Tools
 
 | Tool | Description |
@@ -137,6 +122,7 @@ Add to your Claude Desktop `claude_desktop_config.json`:
 | `trino_list_schemas` | List schemas in a catalog |
 | `trino_list_tables` | List tables in a schema |
 | `trino_describe_table` | Get table columns and sample data |
+| `trino_list_connections` | List all configured server connections |
 
 ## Configuration
 
@@ -152,6 +138,90 @@ Add to your Claude Desktop `claude_desktop_config.json`:
 | `TRINO_SSL_VERIFY` | Verify SSL certificates | `true` |
 | `TRINO_TIMEOUT` | Query timeout (seconds) | `120` |
 | `TRINO_SOURCE` | Client identifier | `mcp-trino` |
+| `TRINO_ADDITIONAL_SERVERS` | Additional servers (JSON) | (optional) |
+
+### Multi-Server Configuration
+
+Connect to multiple Trino servers from a single installation. Configure your primary server with the standard environment variables, then add additional servers via JSON:
+
+```bash
+export TRINO_HOST=prod.trino.example.com
+export TRINO_USER=admin
+export TRINO_PASSWORD=secret
+export TRINO_ADDITIONAL_SERVERS='{
+  "staging": {"host": "staging.trino.example.com"},
+  "dev": {"host": "localhost", "port": 8080, "ssl": false}
+}'
+```
+
+Additional servers inherit credentials and settings from the primary server unless overridden:
+
+```json
+{
+  "staging": {
+    "host": "staging.trino.example.com",
+    "user": "staging_user",
+    "catalog": "iceberg"
+  },
+  "dev": {
+    "host": "localhost",
+    "port": 8080,
+    "ssl": false,
+    "user": "admin"
+  }
+}
+```
+
+Use the `connection` parameter in any tool to target a specific server:
+
+```
+"Query the staging server: SELECT * FROM users LIMIT 10"
+→ trino_query(sql="...", connection="staging")
+```
+
+Use `trino_list_connections` to discover available connections.
+
+### File-Based Configuration
+
+For production deployments using Kubernetes ConfigMaps, Vault, or other secret management systems, mcp-trino supports file-based configuration:
+
+```yaml
+# config.yaml
+trino:
+  host: trino.example.com
+  port: 443
+  user: ${TRINO_USER}           # Supports env var expansion
+  password: ${TRINO_PASSWORD}   # Secrets can come from env
+  catalog: hive
+  schema: default
+  ssl: true
+  timeout: 120s
+
+toolkit:
+  default_limit: 1000
+  max_limit: 10000
+  default_timeout: 120s
+  max_timeout: 300s
+
+extensions:
+  logging: true
+  readonly: true
+  errors: true
+```
+
+Load configuration in your custom server:
+
+```go
+import "github.com/txn2/mcp-trino/pkg/extensions"
+
+// Load from file with env var overrides
+cfg, err := extensions.LoadConfig("/etc/mcp-trino/config.yaml")
+
+// Convert to individual configs
+clientCfg := cfg.ClientConfig()
+toolsCfg := cfg.ToolsConfig()
+extCfg := cfg.ExtConfig()
+```
 
 ## Using as a Library
 
