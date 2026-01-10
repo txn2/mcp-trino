@@ -36,7 +36,6 @@ The first public release of mcp-trino, a Model Context Protocol server for Trino
 - Configurable query limits (default: 1000 rows, max: 10000)
 - Query timeouts (default: 120s)
 - SSL/TLS with certificate verification
-- SLSA Level 3 provenance on all release artifacts
 - Cosign signatures for verification
 
 ## Installation
