@@ -22,7 +22,18 @@ func TestFromEnv(t *testing.T) {
 			},
 			wantErr:     false,
 			wantCount:   1,
-			wantDefault: "default",
+			wantDefault: "Database",
+		},
+		{
+			name: "custom connection name",
+			envVars: map[string]string{
+				"TRINO_HOST":            "localhost",
+				"TRINO_USER":            "admin",
+				"TRINO_CONNECTION_NAME": "Production Data",
+			},
+			wantErr:     false,
+			wantCount:   1,
+			wantDefault: "Production Data",
 		},
 		{
 			name: "with additional servers",
@@ -573,8 +584,8 @@ func TestSingleClientManager_Full(t *testing.T) {
 		t.Errorf("expected 1 connection, got %d", mgr.ConnectionCount())
 	}
 
-	if !mgr.HasConnection("default") {
-		t.Error("expected HasConnection(\"default\") to return true")
+	if !mgr.HasConnection("Database") {
+		t.Error("expected HasConnection(\"Database\") to return true")
 	}
 
 	if mgr.HasConnection("staging") {
@@ -585,8 +596,8 @@ func TestSingleClientManager_Full(t *testing.T) {
 	if len(conns) != 1 {
 		t.Errorf("expected 1 connection name, got %d", len(conns))
 	}
-	if conns[0] != "default" {
-		t.Errorf("expected connection name 'default', got %q", conns[0])
+	if conns[0] != "Database" {
+		t.Errorf("expected connection name 'Database', got %q", conns[0])
 	}
 
 	infos := mgr.ConnectionInfos()
