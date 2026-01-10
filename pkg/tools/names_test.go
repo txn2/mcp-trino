@@ -15,6 +15,7 @@ func TestToolName_String(t *testing.T) {
 		{ToolListSchemas, "trino_list_schemas"},
 		{ToolListTables, "trino_list_tables"},
 		{ToolDescribeTable, "trino_describe_table"},
+		{ToolListConnections, "trino_list_connections"},
 	}
 
 	for _, tt := range tests {
@@ -29,18 +30,19 @@ func TestToolName_String(t *testing.T) {
 func TestAllTools(t *testing.T) {
 	tools := AllTools()
 
-	if len(tools) != 6 {
-		t.Errorf("expected 6 tools, got %d", len(tools))
+	if len(tools) != 7 {
+		t.Errorf("expected 7 tools, got %d", len(tools))
 	}
 
 	// Verify all expected tools are present
 	expected := map[ToolName]bool{
-		ToolQuery:         false,
-		ToolExplain:       false,
-		ToolListCatalogs:  false,
-		ToolListSchemas:   false,
-		ToolListTables:    false,
-		ToolDescribeTable: false,
+		ToolQuery:           false,
+		ToolExplain:         false,
+		ToolListCatalogs:    false,
+		ToolListSchemas:     false,
+		ToolListTables:      false,
+		ToolDescribeTable:   false,
+		ToolListConnections: false,
 	}
 
 	for _, tool := range tools {
