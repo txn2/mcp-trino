@@ -2,6 +2,7 @@
   "manifest_version": "0.3",
   "name": "mcp-trino",
   "display_name": "Trino MCP Server",
+  "icon": "icon.png",
   "version": "0.0.0",
   "description": "Query and explore Trino data warehouses via the Model Context Protocol (MCP).",
   "long_description": "mcp-trino is a Model Context Protocol server for Trino, enabling AI assistants like Claude to query and explore data warehouses. Execute SQL queries, analyze execution plans, discover schemas, and inspect tables - all through natural language conversations with your AI assistant.",
@@ -33,14 +34,15 @@
       "command": "${__dirname}/mcp-trino",
       "args": [],
       "env": {
-        "TRINO_HOST": "",
-        "TRINO_PORT": "443",
-        "TRINO_USER": "",
-        "TRINO_PASSWORD": "",
-        "TRINO_CATALOG": "memory",
-        "TRINO_SCHEMA": "default",
-        "TRINO_SSL": "true",
-        "TRINO_ADDITIONAL_SERVERS": ""
+        "TRINO_CONNECTION_NAME": "${user_config.trino_connection_name}",
+        "TRINO_HOST": "${user_config.trino_host}",
+        "TRINO_PORT": "${user_config.trino_port}",
+        "TRINO_USER": "${user_config.trino_user}",
+        "TRINO_PASSWORD": "${user_config.trino_password}",
+        "TRINO_CATALOG": "${user_config.trino_catalog}",
+        "TRINO_SCHEMA": "${user_config.trino_schema}",
+        "TRINO_SSL": "${user_config.trino_ssl}",
+        "TRINO_ADDITIONAL_SERVERS": "${user_config.trino_additional_servers}"
       },
       "platform_overrides": {
         "win32": {
@@ -51,8 +53,7 @@
   },
   "compatibility": {
     "claude_desktop": ">=1.0.0",
-    "platforms": ["darwin", "win32"],
-    "runtimes": {}
+    "platforms": ["darwin", "win32"]
   },
   "tools": [
     {
@@ -85,6 +86,13 @@
     }
   ],
   "user_config": {
+    "trino_connection_name": {
+      "type": "string",
+      "title": "Connection Name",
+      "description": "Display name for this connection (e.g., 'production', 'staging')",
+      "required": false,
+      "default": "database"
+    },
     "trino_host": {
       "type": "string",
       "title": "Trino Host",
@@ -105,10 +113,11 @@
       "required": true
     },
     "trino_password": {
-      "type": "password",
+      "type": "string",
       "title": "Password",
       "description": "Trino authentication password",
-      "required": false
+      "required": false,
+      "sensitive": true
     },
     "trino_catalog": {
       "type": "string",
@@ -137,12 +146,6 @@
       "description": "Optional: Add more Trino servers as JSON. Example: {\"staging\": {\"host\": \"staging.example.com\", \"user\": \"me\"}}",
       "required": false,
       "default": ""
-    }
-  },
-  "_meta": {
-    "claude_desktop": {
-      "category": "Data & Analytics",
-      "featured": false
     }
   }
 }
