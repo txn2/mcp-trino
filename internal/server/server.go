@@ -2,6 +2,7 @@
 package server
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -39,6 +40,7 @@ func DefaultOptions() Options {
 
 // New creates a new MCP server with Trino tools.
 // Returns the MCP server and the connection manager for cleanup.
+// The server starts even if unconfigured - tools will return helpful errors.
 func New(opts Options) (*mcp.Server, *multiserver.Manager, error) {
 	// Load multi-server config from environment if not provided
 	var msCfg multiserver.Config
@@ -52,9 +54,10 @@ func New(opts Options) (*mcp.Server, *multiserver.Manager, error) {
 		}
 	}
 
-	// Validate primary configuration
+	// Check configuration but don't fail - store error for tools to report
+	var configErr error
 	if err := msCfg.Primary.Validate(); err != nil {
-		return nil, nil, fmt.Errorf("invalid primary configuration: %w", err)
+		configErr = fmt.Errorf("trino connection not configured: %w - please configure the extension in Claude Desktop settings", err)
 	}
 
 	// Create connection manager
@@ -68,6 +71,15 @@ func New(opts Options) (*mcp.Server, *multiserver.Manager, error) {
 
 	// Build toolkit options from extensions configuration
 	toolkitOpts := extensions.BuildToolkitOptions(opts.ExtensionsConfig)
+
+	// If unconfigured, add middleware that returns helpful error for all tools
+	if configErr != nil {
+		toolkitOpts = append(toolkitOpts, tools.WithMiddleware(
+			tools.BeforeFunc(func(_ context.Context, _ *tools.ToolContext) (context.Context, error) {
+				return nil, configErr
+			}),
+		))
+	}
 
 	// Create toolkit with multi-server manager and register tools
 	toolkit := tools.NewToolkitWithManager(mgr, opts.ToolkitConfig, toolkitOpts...)
