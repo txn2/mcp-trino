@@ -1,0 +1,148 @@
+{
+  "manifest_version": "0.3",
+  "name": "mcp-trino",
+  "display_name": "Trino MCP Server",
+  "version": "0.0.0",
+  "description": "Query and explore Trino data warehouses via the Model Context Protocol (MCP).",
+  "long_description": "mcp-trino is a Model Context Protocol server for Trino, enabling AI assistants like Claude to query and explore data warehouses. Execute SQL queries, analyze execution plans, discover schemas, and inspect tables - all through natural language conversations with your AI assistant.",
+  "author": {
+    "name": "Craig Johnston",
+    "email": "cj@imti.co",
+    "url": "https://imti.co"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/txn2/mcp-trino"
+  },
+  "homepage": "https://github.com/txn2/mcp-trino",
+  "documentation": "https://github.com/txn2/mcp-trino#readme",
+  "license": "Apache-2.0",
+  "keywords": [
+    "trino",
+    "sql",
+    "data-warehouse",
+    "analytics",
+    "presto",
+    "database",
+    "mcp"
+  ],
+  "server": {
+    "type": "binary",
+    "entry_point": "mcp-trino",
+    "mcp_config": {
+      "command": "${__dirname}/mcp-trino",
+      "args": [],
+      "env": {
+        "TRINO_HOST": "",
+        "TRINO_PORT": "443",
+        "TRINO_USER": "",
+        "TRINO_PASSWORD": "",
+        "TRINO_CATALOG": "memory",
+        "TRINO_SCHEMA": "default",
+        "TRINO_SSL": "true",
+        "TRINO_ADDITIONAL_SERVERS": ""
+      },
+      "platform_overrides": {
+        "win32": {
+          "command": "${__dirname}/mcp-trino.exe"
+        }
+      }
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=1.0.0",
+    "platforms": ["darwin", "win32"],
+    "runtimes": {}
+  },
+  "tools": [
+    {
+      "name": "trino_query",
+      "description": "Execute SQL queries against Trino with configurable limits and output formats (JSON, CSV, Markdown)"
+    },
+    {
+      "name": "trino_explain",
+      "description": "Get execution plans for SQL queries (logical, distributed, IO, validate)"
+    },
+    {
+      "name": "trino_list_catalogs",
+      "description": "List all available catalogs in the Trino cluster"
+    },
+    {
+      "name": "trino_list_schemas",
+      "description": "List schemas within a catalog"
+    },
+    {
+      "name": "trino_list_tables",
+      "description": "List tables in a schema with optional pattern filtering"
+    },
+    {
+      "name": "trino_describe_table",
+      "description": "Get table column definitions and optionally sample data"
+    },
+    {
+      "name": "trino_list_connections",
+      "description": "List all configured Trino server connections for multi-server environments"
+    }
+  ],
+  "user_config": {
+    "trino_host": {
+      "type": "string",
+      "title": "Trino Host",
+      "description": "Trino server hostname (e.g., trino.example.com)",
+      "required": true
+    },
+    "trino_port": {
+      "type": "number",
+      "title": "Trino Port",
+      "description": "Trino server port",
+      "required": false,
+      "default": 443
+    },
+    "trino_user": {
+      "type": "string",
+      "title": "Username",
+      "description": "Trino authentication username",
+      "required": true
+    },
+    "trino_password": {
+      "type": "password",
+      "title": "Password",
+      "description": "Trino authentication password",
+      "required": false
+    },
+    "trino_catalog": {
+      "type": "string",
+      "title": "Default Catalog",
+      "description": "Default catalog to use",
+      "required": false,
+      "default": "memory"
+    },
+    "trino_schema": {
+      "type": "string",
+      "title": "Default Schema",
+      "description": "Default schema to use",
+      "required": false,
+      "default": "default"
+    },
+    "trino_ssl": {
+      "type": "boolean",
+      "title": "Use SSL",
+      "description": "Enable HTTPS connection",
+      "required": false,
+      "default": true
+    },
+    "trino_additional_servers": {
+      "type": "string",
+      "title": "Additional Servers (JSON)",
+      "description": "Optional: Add more Trino servers as JSON. Example: {\"staging\": {\"host\": \"staging.example.com\", \"user\": \"me\"}}",
+      "required": false,
+      "default": ""
+    }
+  },
+  "_meta": {
+    "claude_desktop": {
+      "category": "Data & Analytics",
+      "featured": false
+    }
+  }
+}
