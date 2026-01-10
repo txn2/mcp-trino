@@ -24,6 +24,10 @@ type QueryInput struct {
 
 	// Format is the output format: json (default), csv, or markdown.
 	Format string `json:"format,omitempty" jsonschema_description:"Output format: json, csv, or markdown (default: json)"`
+
+	// Connection is the named connection to use. Empty uses the default connection.
+	// Use trino_list_connections to see available connections.
+	Connection string `json:"connection,omitempty" jsonschema_description:"Named connection to use (see trino_list_connections)"`
 }
 
 // registerQueryTool adds the trino_query tool to the server.
@@ -82,13 +86,19 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 		timeout = t.config.MaxTimeout
 	}
 
+	// Get client for the specified connection
+	trinoClient, err := t.getClient(input.Connection)
+	if err != nil {
+		return ErrorResult(fmt.Sprintf("Connection error: %v", err)), nil, nil
+	}
+
 	// Execute query
 	opts := client.QueryOptions{
 		Limit:   limit,
 		Timeout: timeout,
 	}
 
-	result, err := t.client.Query(ctx, sql, opts)
+	result, err := trinoClient.Query(ctx, sql, opts)
 	if err != nil {
 		return ErrorResult(fmt.Sprintf("Query failed: %v", err)), nil, nil
 	}
