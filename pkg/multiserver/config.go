@@ -9,8 +9,8 @@ import (
 	"github.com/txn2/mcp-trino/pkg/client"
 )
 
-// DefaultConnectionName is the name used for the primary/default connection.
-const DefaultConnectionName = "default"
+// DefaultConnectionName is the fallback name for the primary connection.
+const DefaultConnectionName = "Database"
 
 // ConnectionConfig defines configuration for a single Trino connection.
 // Fields that are empty/zero inherit from the primary connection.
@@ -42,14 +42,16 @@ type ConnectionConfig struct {
 
 // Config holds configuration for multiple Trino connections.
 type Config struct {
-	// Default is the name of the default connection.
+	// Default is the display name of the primary connection.
+	// This can be customized via TRINO_CONNECTION_NAME env var.
+	// Defaults to "Database" if not specified.
 	Default string
 
 	// Primary is the primary connection configuration (from TRINO_* env vars).
 	Primary client.Config
 
 	// Connections maps connection names to their configurations.
-	// The primary connection is always available as "default".
+	// The primary connection is always available under the Default name.
 	Connections map[string]ConnectionConfig
 }
 
@@ -60,13 +62,22 @@ type Config struct {
 //
 //	{"staging": {"host": "staging.example.com", "catalog": "iceberg"}}
 //
+// The primary connection name can be customized via TRINO_CONNECTION_NAME
+// (defaults to "Database").
+//
 // Additional servers inherit user, password, catalog, schema from the primary
 // if not explicitly specified.
 func FromEnv() (Config, error) {
 	primary := client.FromEnv()
 
+	// Get connection name from env or use default
+	connectionName := os.Getenv("TRINO_CONNECTION_NAME")
+	if connectionName == "" {
+		connectionName = DefaultConnectionName
+	}
+
 	cfg := Config{
-		Default:     DefaultConnectionName,
+		Default:     connectionName,
 		Primary:     primary,
 		Connections: make(map[string]ConnectionConfig),
 	}
@@ -85,11 +96,11 @@ func FromEnv() (Config, error) {
 }
 
 // ClientConfig returns a client.Config for the named connection.
-// Returns the primary config if name is empty or "default".
+// Returns the primary config if name is empty or matches the default connection name.
 // Returns an error if the connection name is not found.
 func (c Config) ClientConfig(name string) (client.Config, error) {
-	// Empty or "default" returns primary
-	if name == "" || name == DefaultConnectionName {
+	// Empty or default connection name returns primary
+	if name == "" || name == c.Default {
 		return c.Primary, nil
 	}
 
@@ -140,9 +151,9 @@ func (c Config) ClientConfig(name string) (client.Config, error) {
 }
 
 // ConnectionNames returns the names of all available connections.
-// Always includes "default" as the first entry.
+// Always includes the primary connection name as the first entry.
 func (c Config) ConnectionNames() []string {
-	names := []string{DefaultConnectionName}
+	names := []string{c.Default}
 	for name := range c.Connections {
 		names = append(names, name)
 	}
@@ -169,9 +180,9 @@ type ConnectionInfo struct {
 func (c Config) ConnectionInfos() []ConnectionInfo {
 	infos := make([]ConnectionInfo, 0, c.ConnectionCount())
 
-	// Add default connection
+	// Add primary connection
 	infos = append(infos, ConnectionInfo{
-		Name:      DefaultConnectionName,
+		Name:      c.Default,
 		Host:      c.Primary.Host,
 		Port:      c.Primary.Port,
 		Catalog:   c.Primary.Catalog,
