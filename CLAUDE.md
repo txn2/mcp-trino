@@ -18,10 +18,10 @@ This file provides guidance to Claude Code when working with this project.
 2. **Test Coverage**: Project must maintain >80% unit test coverage. Build mocks where necessary to achieve this. Use table-driven tests where appropriate.
 
 3. **Testing Definition**: When asked to "test" or "testing" the code, this means running the full CI test suite:
-   - Unit tests with race detection (`go test -race`)
+   - Unit tests with race detection (`make test` or `go test -race ./...`)
    - Linting (`make lint` / golangci-lint)
-   - Vulnerability scanning
-   - All checks that typically run in CI
+   - Security scanning (`gosec ./...`)
+   - All checks that run in CI must pass locally before considering code "tested"
 
 4. **Human Review Required**: A human must review and approve every line of code before it is committed. Therefore, commits are always performed by a human, not by Claude.
 

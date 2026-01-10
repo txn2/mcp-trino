@@ -105,8 +105,15 @@ for platform in "${PLATFORMS[@]}"; do
     echo "Creating manifest.json..."
     sed "s/\"version\": \"0.0.0\"/\"version\": \"${VERSION}\"/" "$MANIFEST_TEMPLATE" > "$BUNDLE_DIR/manifest.json"
 
-    # Create .mcpb bundle
-    MCPB_FILE="$BUILD_DIR/mcp-trino-${VERSION}-${PLATFORM_NAME}.mcpb"
+    # Copy icon if available
+    ICON_FILE="$PROJECT_ROOT/docs/images/txn2-logo.png"
+    if [ -f "$ICON_FILE" ]; then
+        echo "Copying icon.png..."
+        cp "$ICON_FILE" "$BUNDLE_DIR/icon.png"
+    fi
+
+    # Create .mcpb bundle (naming matches goreleaser archive pattern)
+    MCPB_FILE="$BUILD_DIR/mcp-trino_${VERSION}_${GOOS}_${GOARCH}.mcpb"
 
     echo "Packaging ${MCPB_FILE}..."
     if command -v mcpb &> /dev/null; then

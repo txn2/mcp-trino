@@ -33,7 +33,7 @@ go.work.sum
 .vscode/
 .claude/
 
-# Compiled binary
-mcp-trino
+# Compiled binary (root only, not cmd/mcp-trino/)
+/mcp-trino
 
 NOTES_*

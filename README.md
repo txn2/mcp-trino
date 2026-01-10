@@ -21,15 +21,36 @@ This project provides both a **standalone MCP server** and a **composable Go lib
 
 ## Installation
 
-### Claude Desktop (Recommended)
+### Homebrew (macOS)
 
-Install from the MCP Registry with a single click, or manually add to `claude_desktop_config.json`:
+```bash
+brew install txn2/tap/mcp-trino
+```
+
+### Claude Desktop
+
+Claude Desktop is the GUI application for chatting with Claude. Install the mcp-trino extension to enable Trino queries in your conversations.
+
+**Option 1: One-Click Install (Recommended)**
+
+Download the `.mcpb` bundle for your Mac from the [releases page](https://github.com/txn2/mcp-trino/releases) and double-click to install:
+
+| Mac Type | Chip | Download |
+|----------|------|----------|
+| MacBook Air/Pro (2020+), Mac Mini (2020+), iMac (2021+), Mac Studio | Apple M1, M2, M3, M4 (arm64) | `mcp-trino_*_darwin_arm64.mcpb` |
+| MacBook Air/Pro (pre-2020), Mac Mini (pre-2020), iMac (pre-2021) | Intel (amd64) | `mcp-trino_*_darwin_amd64.mcpb` |
+
+> **Tip:** Not sure which chip you have? Click  → "About This Mac". Look for "Chip" (Apple Silicon) or "Processor" (Intel).
+
+**Option 2: Manual Configuration**
+
+Add to your `claude_desktop_config.json` (find via Claude Desktop → Settings → Developer):
 
 ```json
 {
   "mcpServers": {
     "trino": {
-      "command": "/path/to/mcp-trino",
+      "command": "/opt/homebrew/bin/mcp-trino",
       "env": {
         "TRINO_HOST": "trino.example.com",
         "TRINO_USER": "your_user",
@@ -44,8 +65,22 @@ Install from the MCP Registry with a single click, or manually add to `claude_de
 
 ### Claude Code CLI
 
+Claude Code is the terminal-based coding assistant. Add mcp-trino as an MCP server:
+
 ```bash
-# Download the latest release
+# Install via Homebrew first (see above), then:
+claude mcp add trino \
+  -e TRINO_HOST=trino.example.com \
+  -e TRINO_USER=your_user \
+  -e TRINO_PASSWORD=your_password \
+  -e TRINO_CATALOG=hive \
+  -- mcp-trino
+```
+
+Or download and install manually:
+
+```bash
+# Download the latest release for your architecture
 curl -L https://github.com/txn2/mcp-trino/releases/latest/download/mcp-trino_$(uname -s)_$(uname -m).tar.gz | tar xz
 
 # Add to Claude Code
