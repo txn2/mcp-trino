@@ -16,6 +16,10 @@ type ExplainInput struct {
 
 	// Type is the explain type: logical, distributed, io, or validate.
 	Type string `json:"type,omitempty" jsonschema_description:"Explain type: logical (default), distributed, io, or validate"`
+
+	// Connection is the named connection to use. Empty uses the default connection.
+	// Use trino_list_connections to see available connections.
+	Connection string `json:"connection,omitempty" jsonschema_description:"Named connection to use (see trino_list_connections)"`
 }
 
 // registerExplainTool adds the trino_explain tool to the server.
@@ -68,7 +72,13 @@ func (t *Toolkit) handleExplain(ctx context.Context, _ *mcp.CallToolRequest, inp
 		explainType = client.ExplainLogical
 	}
 
-	result, err := t.client.Explain(ctx, sql, explainType)
+	// Get client for the specified connection
+	trinoClient, err := t.getClient(input.Connection)
+	if err != nil {
+		return ErrorResult(fmt.Sprintf("Connection error: %v", err)), nil, nil
+	}
+
+	result, err := trinoClient.Explain(ctx, sql, explainType)
 	if err != nil {
 		return ErrorResult(fmt.Sprintf("Explain failed: %v", err)), nil, nil
 	}
