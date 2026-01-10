@@ -13,10 +13,8 @@ jobs:
     permissions:
       contents: write
       packages: write
-      id-token: write  # Required for keyless signing with Cosign and SLSA provenance
+      id-token: write  # Required for keyless signing with Cosign
       attestations: write  # Required for GitHub attestations
-    outputs:
-      hashes: ${{ steps.hash.outputs.hashes }}
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -110,19 +108,6 @@ jobs:
             gh release upload "$GITHUB_REF_NAME" "${mcpb}.sigstore.json" --clobber
           done
 
-      - name: Generate artifact hashes
-        id: hash
-        run: |
-          cd dist
-          # Find all release artifacts and generate hashes
-          find . -type f \( -name "*.tar.gz" -o -name "*.zip" -o -name "*.mcpb" \) -exec sha256sum {} \; > /tmp/hashes.txt
-          if [ -s /tmp/hashes.txt ]; then
-            cat /tmp/hashes.txt | base64 -w0 > /tmp/hashes_b64.txt
-            echo "hashes=$(cat /tmp/hashes_b64.txt)" >> "$GITHUB_OUTPUT"
-          else
-            echo "No artifacts found for hashing"
-          fi
-
       - name: Install mcp-publisher
         run: |
           curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz
@@ -160,14 +145,7 @@ jobs:
           # Publish the server to the MCP registry
           mcp-publisher publish
 
-  provenance:
-    needs: [release]
-    if: needs.release.outputs.hashes != ''
-    permissions:
-      actions: read
-      id-token: write
-      contents: write
-    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
-    with:
-      base64-subjects: "${{ needs.release.outputs.hashes }}"
-      upload-assets: true
+  # NOTE: SLSA provenance job removed due to false positive "private repository" detection
+  # See: https://github.com/slsa-framework/slsa-github-generator/issues
+  # The workflow incorrectly detects public repos as private and halts.
+  # Re-add when the upstream bug is fixed.

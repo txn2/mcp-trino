@@ -190,15 +190,8 @@ release:
 
     ## Verification
 
-    All release artifacts are signed. Verify with:
+    All release artifacts are signed with Cosign. Verify with:
     ```bash
     cosign verify-blob --bundle mcp-trino_{{ .Version }}_linux_amd64.tar.gz.sigstore.json \
       mcp-trino_{{ .Version }}_linux_amd64.tar.gz
-    ```
-
-    SLSA provenance verification:
-    ```bash
-    slsa-verifier verify-artifact mcp-trino_{{ .Version }}_linux_amd64.tar.gz \
-      --provenance-path multiple.intoto.jsonl \
-      --source-uri github.com/txn2/mcp-trino
     ```
