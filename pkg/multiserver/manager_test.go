@@ -22,7 +22,7 @@ func TestFromEnv(t *testing.T) {
 			},
 			wantErr:     false,
 			wantCount:   1,
-			wantDefault: "Database",
+			wantDefault: "database",
 		},
 		{
 			name: "custom connection name",
@@ -584,8 +584,8 @@ func TestSingleClientManager_Full(t *testing.T) {
 		t.Errorf("expected 1 connection, got %d", mgr.ConnectionCount())
 	}
 
-	if !mgr.HasConnection("Database") {
-		t.Error("expected HasConnection(\"Database\") to return true")
+	if !mgr.HasConnection("database") {
+		t.Error("expected HasConnection(\"database\") to return true")
 	}
 
 	if mgr.HasConnection("staging") {
@@ -596,8 +596,8 @@ func TestSingleClientManager_Full(t *testing.T) {
 	if len(conns) != 1 {
 		t.Errorf("expected 1 connection name, got %d", len(conns))
 	}
-	if conns[0] != "Database" {
-		t.Errorf("expected connection name 'Database', got %q", conns[0])
+	if conns[0] != "database" {
+		t.Errorf("expected connection name 'database', got %q", conns[0])
 	}
 
 	infos := mgr.ConnectionInfos()
