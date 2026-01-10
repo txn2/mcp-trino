@@ -139,6 +139,20 @@ docker_signs:
       - "${artifact}"
     artifacts: all
 
+brews:
+  - name: mcp-trino
+    repository:
+      owner: txn2
+      name: homebrew-tap
+    directory: Formula
+    homepage: https://github.com/txn2/mcp-trino
+    description: MCP server for Trino data warehouses
+    license: Apache-2.0
+    install: |
+      bin.install "mcp-trino"
+    test: |
+      system "#{bin}/mcp-trino", "--version"
+
 release:
   github:
     owner: txn2
@@ -148,6 +162,17 @@ release:
   mode: append
   footer: |
     ## Installation
+
+    ### Claude Desktop (macOS/Windows)
+    Download the `.mcpb` bundle for your platform and double-click to install:
+    - **macOS Apple Silicon (M1/M2/M3/M4)**: `mcp-trino_{{ .Version }}_darwin_arm64.mcpb`
+    - **macOS Intel**: `mcp-trino_{{ .Version }}_darwin_amd64.mcpb`
+    - **Windows**: `mcp-trino_{{ .Version }}_windows_amd64.mcpb`
+
+    ### Homebrew (macOS)
+    ```bash
+    brew install txn2/tap/mcp-trino
+    ```
 
     ### Claude Code CLI
     ```bash
