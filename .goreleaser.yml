@@ -144,6 +144,7 @@ brews:
     repository:
       owner: txn2
       name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
     directory: Formula
     homepage: https://github.com/txn2/mcp-trino
     description: MCP server for Trino data warehouses
