@@ -62,16 +62,16 @@ func TestFromEnv(t *testing.T) {
 	defer func() {
 		for key, val := range savedEnv {
 			if val == "" {
-				os.Unsetenv(key)
+				_ = os.Unsetenv(key)
 			} else {
-				os.Setenv(key, val)
+				_ = os.Setenv(key, val)
 			}
 		}
 	}()
 
 	// Clear env
 	for _, key := range envVars {
-		os.Unsetenv(key)
+		_ = os.Unsetenv(key)
 	}
 
 	// Test default (env not set)
@@ -84,12 +84,12 @@ func TestFromEnv(t *testing.T) {
 	}
 
 	// Test with env set
-	os.Setenv("MCP_TRINO_EXT_LOGGING", "true")
-	os.Setenv("MCP_TRINO_EXT_METRICS", "1")
-	os.Setenv("MCP_TRINO_EXT_READONLY", "false")
-	os.Setenv("MCP_TRINO_EXT_QUERYLOG", "yes")
-	os.Setenv("MCP_TRINO_EXT_METADATA", "on")
-	os.Setenv("MCP_TRINO_EXT_ERRORS", "enabled")
+	_ = os.Setenv("MCP_TRINO_EXT_LOGGING", "true")
+	_ = os.Setenv("MCP_TRINO_EXT_METRICS", "1")
+	_ = os.Setenv("MCP_TRINO_EXT_READONLY", "false")
+	_ = os.Setenv("MCP_TRINO_EXT_QUERYLOG", "yes")
+	_ = os.Setenv("MCP_TRINO_EXT_METADATA", "on")
+	_ = os.Setenv("MCP_TRINO_EXT_ERRORS", "enabled")
 
 	cfg = FromEnv()
 	if !cfg.EnableLogging {
