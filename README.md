@@ -9,6 +9,8 @@ A Model Context Protocol (MCP) server for [Trino](https://trino.io/), enabling A
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/txn2/mcp-trino/badge)](https://scorecard.dev/viewer/?uri=github.com/txn2/mcp-trino)
 [![SLSA 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
 
+This project provides both a **standalone MCP server** and a **composable Go library**. The standalone server serves as a reference implementation, demonstrating all extensibility features including middleware, query interceptors, and result transformers. Import the `pkg/tools` and `pkg/extensions` packages into your own MCP server to add Trino capabilities with full customization for authentication, tenant isolation, audit logging, and more.
+
 ## Features
 
 - **SQL Query Execution**: Execute queries with configurable limits and timeouts
@@ -205,12 +207,78 @@ func main() {
 }
 ```
 
+## Extensions
+
+The standalone server includes optional extensions that can be enabled via environment variables:
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `MCP_TRINO_EXT_LOGGING` | `false` | Structured JSON logging of tool calls |
+| `MCP_TRINO_EXT_METRICS` | `false` | In-memory metrics collection |
+| `MCP_TRINO_EXT_READONLY` | `true` | Block modification statements (INSERT, UPDATE, DELETE, etc.) |
+| `MCP_TRINO_EXT_QUERYLOG` | `false` | Log all SQL queries for audit |
+| `MCP_TRINO_EXT_METADATA` | `false` | Add execution metadata footer to results |
+| `MCP_TRINO_EXT_ERRORS` | `true` | Add helpful hints to error messages |
+
+### Using Extensions in Custom Servers
+
+```go
+import (
+    "github.com/txn2/mcp-trino/pkg/extensions"
+    "github.com/txn2/mcp-trino/pkg/tools"
+)
+
+// Load extension config from environment
+extCfg := extensions.FromEnv()
+
+// Or configure programmatically
+extCfg := extensions.Config{
+    EnableLogging:   true,
+    EnableReadOnly:  true,
+    EnableErrorHelp: true,
+}
+
+// Build toolkit options from extensions
+toolkitOpts := extensions.BuildToolkitOptions(extCfg)
+
+// Create toolkit with extensions
+toolkit := tools.NewToolkit(trinoClient, toolsCfg, toolkitOpts...)
+```
+
+### Custom Middleware and Interceptors
+
+You can create custom middleware, interceptors, and transformers:
+
+```go
+// Custom middleware for authentication
+authMiddleware := tools.MiddlewareFunc{
+    BeforeFn: func(ctx context.Context, tc *tools.ToolContext) (context.Context, error) {
+        // Validate user permissions
+        return ctx, nil
+    },
+}
+
+// Custom interceptor for tenant isolation
+tenantInterceptor := tools.QueryInterceptorFunc(
+    func(ctx context.Context, sql string, toolName tools.ToolName) (string, error) {
+        // Add WHERE tenant_id = ? clause
+        return sql, nil
+    },
+)
+
+// Apply to toolkit
+toolkit := tools.NewToolkit(client, cfg,
+    tools.WithMiddleware(authMiddleware),
+    tools.WithQueryInterceptor(tenantInterceptor),
+)
+```
+
 ## Security Considerations
 
 - **Credentials**: Store passwords in environment variables or secret managers
 - **Query Limits**: Default 1000 rows, max 10000 to prevent data exfiltration
 - **Timeouts**: Default 120s timeout prevents runaway queries
-- **Read-Only**: The server only executes SELECT queries; it does not modify data
+- **Read-Only**: ReadOnly interceptor enabled by default blocks modification statements
 - **Access Control**: Configure Trino roles and catalog access for defense in depth
 
 ## Development
