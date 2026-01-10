@@ -79,6 +79,7 @@ func TestOptions_CustomToolkitConfig(t *testing.T) {
 }
 
 func TestNew_InvalidClientConfig(t *testing.T) {
+	// Server now starts even when unconfigured - tools return helpful errors
 	opts := Options{
 		MultiServerConfig: &multiserver.Config{
 			Default: "default",
@@ -92,15 +93,19 @@ func TestNew_InvalidClientConfig(t *testing.T) {
 	}
 
 	server, mgr, err := New(opts)
-	if err == nil {
-		t.Error("expected error for invalid config")
-		if server != nil || mgr != nil {
-			t.Error("server and manager should be nil on error")
-		}
+	if err != nil {
+		t.Errorf("expected server to start even with invalid host, got error: %v", err)
+	}
+	if server == nil {
+		t.Error("expected server to be created")
+	}
+	if mgr != nil {
+		_ = mgr.Close()
 	}
 }
 
 func TestNew_MissingUser(t *testing.T) {
+	// Server now starts even when unconfigured - tools return helpful errors
 	opts := Options{
 		MultiServerConfig: &multiserver.Config{
 			Default: "default",
@@ -114,16 +119,19 @@ func TestNew_MissingUser(t *testing.T) {
 	}
 
 	server, mgr, err := New(opts)
-	if err == nil {
-		t.Error("expected error for missing user")
-		if mgr != nil {
-			mgr.Close()
-		}
+	if err != nil {
+		t.Errorf("expected server to start even without user, got error: %v", err)
 	}
-	_ = server
+	if server == nil {
+		t.Error("expected server to be created")
+	}
+	if mgr != nil {
+		_ = mgr.Close()
+	}
 }
 
 func TestNew_InvalidPort(t *testing.T) {
+	// Server now starts even when unconfigured - tools return helpful errors
 	opts := Options{
 		MultiServerConfig: &multiserver.Config{
 			Default: "default",
@@ -137,13 +145,15 @@ func TestNew_InvalidPort(t *testing.T) {
 	}
 
 	server, mgr, err := New(opts)
-	if err == nil {
-		t.Error("expected error for invalid port")
-		if mgr != nil {
-			mgr.Close()
-		}
+	if err != nil {
+		t.Errorf("expected server to start even with invalid port, got error: %v", err)
 	}
-	_ = server
+	if server == nil {
+		t.Error("expected server to be created")
+	}
+	if mgr != nil {
+		_ = mgr.Close()
+	}
 }
 
 func TestNew_ValidConfig(t *testing.T) {
