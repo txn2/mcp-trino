@@ -10,6 +10,9 @@ import (
 	"github.com/txn2/mcp-trino/pkg/semantic"
 )
 
+// ProviderName is the name returned by Provider.Name().
+const ProviderName = "datahub"
+
 // Provider implements semantic.Provider for DataHub.
 type Provider struct {
 	client   *Client
@@ -34,7 +37,7 @@ func New(cfg Config) (*Provider, error) {
 
 // Name implements semantic.Provider.
 func (p *Provider) Name() string {
-	return "datahub"
+	return ProviderName
 }
 
 // GetTableContext implements semantic.Provider.
@@ -129,7 +132,7 @@ func (p *Provider) GetLineage(
 	lineage := &semantic.LineageInfo{
 		Table:     table,
 		Direction: direction,
-		Source:    "datahub",
+		Source:    ProviderName,
 	}
 
 	for _, result := range resp.SearchAcrossLineage.SearchResults {
