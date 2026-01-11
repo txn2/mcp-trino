@@ -1,0 +1,56 @@
+# E2E Test Environment - Tier 1: Lightweight Stack
+# PostgreSQL + Trino (fast startup, ~30 seconds)
+#
+# Usage:
+#   docker compose up -d
+#   ./scripts/start.sh
+#
+# Ports:
+#   - PostgreSQL: 5432
+#   - Trino: 8080
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: e2e-postgres
+    environment:
+      POSTGRES_USER: ecommerce
+      POSTGRES_PASSWORD: ecommerce
+      POSTGRES_DB: ecommerce
+    volumes:
+      - ./init/postgres:/docker-entrypoint-initdb.d:ro
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ecommerce"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - e2e-network
+
+  trino:
+    image: trinodb/trino:latest
+    container_name: e2e-trino
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./config/trino/catalog:/etc/trino/catalog:ro
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "trino", "--execute", "SELECT 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - e2e-network
+
+volumes:
+  postgres_data:
+
+networks:
+  e2e-network:
+    driver: bridge

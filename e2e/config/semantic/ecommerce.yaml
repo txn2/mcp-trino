@@ -1,0 +1,371 @@
+# E-commerce Semantic Metadata
+# This file provides rich business context for the e-commerce sample database.
+# Used by the static semantic provider to enrich mcp-trino responses.
+
+tables:
+  # ==========================================================================
+  # Customers Table
+  # ==========================================================================
+  - catalog: postgresql
+    schema: ecommerce
+    table: customers
+    description: |
+      Customer master data containing all registered customers.
+      This is the authoritative source for customer information across all systems.
+      Contains PII and is subject to GDPR compliance requirements.
+    owners:
+      - name: Customer Data Team
+        type: group
+        role: Data Steward
+      - name: privacy@company.com
+        type: user
+        role: Privacy Officer
+    tags:
+      - name: pii
+        description: Contains personally identifiable information
+      - name: gdpr-relevant
+        description: Subject to GDPR compliance requirements
+      - name: master-data
+        description: Authoritative source of truth
+    domain:
+      name: Customer
+      description: Customer domain - all customer-related data assets
+    quality:
+      score: 95
+      lastAssessed: "2024-01-15T00:00:00Z"
+      dimensions:
+        - name: completeness
+          score: 98
+          description: All required fields populated
+        - name: accuracy
+          score: 92
+          description: Email validation performed at signup
+    columns:
+      customer_id:
+        description: Unique customer identifier, auto-generated primary key
+      email:
+        description: Customer's primary email address used for account login and communications
+        sensitive: true
+        sensitivityLevel: pii
+        tags:
+          - pii
+          - contact-info
+        glossaryTerms:
+          - urn: "urn:li:glossaryTerm:email"
+      first_name:
+        description: Customer's first/given name as provided during registration
+        sensitive: true
+        sensitivityLevel: pii
+        tags:
+          - pii
+      last_name:
+        description: Customer's last/family name as provided during registration
+        sensitive: true
+        sensitivityLevel: pii
+        tags:
+          - pii
+      phone:
+        description: Customer's phone number for order updates and support (optional field)
+        sensitive: true
+        sensitivityLevel: pii
+        tags:
+          - pii
+          - contact-info
+      created_at:
+        description: Timestamp when the customer account was created
+      updated_at:
+        description: Timestamp of the last profile update
+      is_active:
+        description: |
+          Whether the customer account is active.
+          Inactive accounts cannot place orders but data is retained for compliance.
+
+  # ==========================================================================
+  # Products Table
+  # ==========================================================================
+  - catalog: postgresql
+    schema: ecommerce
+    table: products
+    description: |
+      Product catalog containing all products available for sale.
+      All prices are in USD. Cost price is confidential and used for margin calculations.
+      This is the master product data synchronized to all sales channels.
+    owners:
+      - name: Product Team
+        type: group
+        role: Data Owner
+      - name: inventory@company.com
+        type: user
+        role: Technical Owner
+    tags:
+      - name: master-data
+        description: Authoritative source for product information
+      - name: financial-data
+        description: Contains pricing information
+    domain:
+      name: Product
+      description: Product domain - catalog and inventory data
+    quality:
+      score: 98
+      lastAssessed: "2024-01-10T00:00:00Z"
+      dimensions:
+        - name: completeness
+          score: 100
+          description: All products have required fields
+        - name: timeliness
+          score: 95
+          description: Prices updated within 24 hours of changes
+    columns:
+      product_id:
+        description: Unique product identifier, auto-generated primary key
+      sku:
+        description: |
+          Stock Keeping Unit - unique product code used across all systems.
+          Format: CATEGORY-NNN (e.g., LAPTOP-001)
+        glossaryTerms:
+          - urn: "urn:li:glossaryTerm:sku"
+      name:
+        description: Product display name shown to customers
+      description:
+        description: Detailed product description for product pages
+      category:
+        description: Product category for navigation and reporting (e.g., Electronics, Apparel)
+      unit_price:
+        description: Current selling price in USD, excluding tax
+        tags:
+          - financial
+        glossaryTerms:
+          - urn: "urn:li:glossaryTerm:unit-price"
+      cost_price:
+        description: |
+          Product acquisition cost in USD for margin calculations.
+          CONFIDENTIAL: Do not expose to customers or external systems.
+        sensitive: true
+        sensitivityLevel: confidential
+        tags:
+          - financial
+          - confidential
+      stock_quantity:
+        description: Current inventory level; updated in real-time from warehouse system
+      is_active:
+        description: Whether the product is available for sale; inactive products hidden from catalog
+      created_at:
+        description: When the product was added to the catalog
+
+  # ==========================================================================
+  # Orders Table
+  # ==========================================================================
+  - catalog: postgresql
+    schema: ecommerce
+    table: orders
+    description: |
+      Customer orders - the primary transaction record.
+      Each order belongs to one customer and contains one or more order items.
+      Status flow: pending -> processing -> completed (or cancelled at any point)
+    owners:
+      - name: Order Management Team
+        type: group
+        role: Data Owner
+      - name: fulfillment@company.com
+        type: user
+        role: Technical Owner
+    tags:
+      - name: transactional
+        description: Core transactional data
+      - name: financial-data
+        description: Contains order amounts
+    domain:
+      name: Orders
+      description: Order domain - transactions and fulfillment
+    columns:
+      order_id:
+        description: Unique order identifier, auto-generated primary key
+      customer_id:
+        description: Foreign key to customers table; identifies who placed the order
+      order_date:
+        description: Timestamp when the order was placed by the customer
+      status:
+        description: |
+          Current order status:
+          - pending: Order received, awaiting payment confirmation
+          - processing: Payment confirmed, order being prepared
+          - completed: Order shipped and delivered
+          - cancelled: Order cancelled by customer or system
+      total_amount:
+        description: Total order value in USD, calculated from order items
+        tags:
+          - financial
+        glossaryTerms:
+          - urn: "urn:li:glossaryTerm:order-total"
+      shipping_address:
+        description: Delivery address provided by customer
+        sensitive: true
+        sensitivityLevel: pii
+        tags:
+          - pii
+          - address
+      billing_address:
+        description: Billing/invoice address for payment processing
+        sensitive: true
+        sensitivityLevel: pii
+        tags:
+          - pii
+          - address
+
+  # ==========================================================================
+  # Order Items Table
+  # ==========================================================================
+  - catalog: postgresql
+    schema: ecommerce
+    table: order_items
+    description: |
+      Line items for each order - connects orders to products with quantity and pricing.
+      Unit price is captured at time of purchase and may differ from current product price.
+    owners:
+      - name: Order Management Team
+        type: group
+        role: Data Owner
+    tags:
+      - name: transactional
+        description: Part of order transaction
+    domain:
+      name: Orders
+      description: Order domain - transactions and fulfillment
+    columns:
+      order_item_id:
+        description: Unique line item identifier, auto-generated primary key
+      order_id:
+        description: Foreign key to orders table
+      product_id:
+        description: Foreign key to products table
+      quantity:
+        description: Number of units purchased in this line item
+      unit_price:
+        description: |
+          Price per unit at time of purchase in USD.
+          Captured at order time; may differ from current product.unit_price.
+        tags:
+          - financial
+      discount_percent:
+        description: |
+          Percentage discount applied to this line item (0-100).
+          Common discounts: 10% for loyalty, 20% for bulk orders.
+        tags:
+          - financial
+
+  # ==========================================================================
+  # Daily Revenue View
+  # ==========================================================================
+  - catalog: postgresql
+    schema: ecommerce
+    table: daily_revenue
+    description: |
+      Aggregated daily revenue metrics for executive reporting and trend analysis.
+      Refreshed: Real-time (view over transactional tables)
+      Excludes cancelled orders.
+
+      Use cases:
+      - Executive dashboards
+      - Revenue trend analysis
+      - Daily business metrics
+    owners:
+      - name: Analytics Team
+        type: group
+        role: Data Owner
+      - name: bi@company.com
+        type: user
+        role: Technical Owner
+    tags:
+      - name: analytics
+        description: Derived analytics data
+      - name: kpi
+        description: Key Performance Indicator
+      - name: financial-data
+        description: Contains revenue metrics
+    domain:
+      name: Analytics
+      description: Analytics domain - derived metrics and KPIs
+    columns:
+      revenue_date:
+        description: Date of the revenue aggregation (day granularity)
+      order_count:
+        description: Number of non-cancelled orders placed on this date
+        glossaryTerms:
+          - urn: "urn:li:glossaryTerm:order-count"
+      gross_revenue:
+        description: |
+          Total revenue for the day before returns and adjustments.
+          Calculated as: SUM(quantity * unit_price * (1 - discount_percent/100))
+        tags:
+          - financial
+          - kpi
+        glossaryTerms:
+          - urn: "urn:li:glossaryTerm:gross-revenue"
+
+# =============================================================================
+# Glossary Terms
+# =============================================================================
+glossary:
+  - urn: "urn:li:glossaryTerm:sku"
+    name: SKU
+    definition: |
+      Stock Keeping Unit - A unique identifier assigned to each distinct product
+      for inventory management and tracking purposes. In our system, SKUs follow
+      the format CATEGORY-NNN (e.g., LAPTOP-001, PHONE-002).
+    relatedTerms:
+      - "urn:li:glossaryTerm:product"
+
+  - urn: "urn:li:glossaryTerm:pii"
+    name: PII
+    definition: |
+      Personally Identifiable Information - Any data that could potentially
+      identify a specific individual. Examples include: name, email address,
+      phone number, physical address, and government-issued IDs.
+
+      PII must be handled according to privacy regulations (GDPR, CCPA).
+    relatedTerms:
+      - "urn:li:glossaryTerm:gdpr"
+
+  - urn: "urn:li:glossaryTerm:gdpr"
+    name: GDPR
+    definition: |
+      General Data Protection Regulation - European Union regulation on data
+      protection and privacy. Requires explicit consent for data collection,
+      right to access, right to erasure, and data portability.
+
+  - urn: "urn:li:glossaryTerm:unit-price"
+    name: Unit Price
+    definition: |
+      The selling price for a single unit of a product, expressed in USD.
+      Does not include taxes, shipping, or discounts.
+
+  - urn: "urn:li:glossaryTerm:gross-revenue"
+    name: Gross Revenue
+    definition: |
+      Total revenue from sales before deducting returns, discounts beyond
+      line-item level, taxes, or any other adjustments.
+
+      Formula: SUM(quantity * unit_price * (1 - discount_percent/100))
+
+      Also known as: Top-line revenue, Total sales
+    relatedTerms:
+      - "urn:li:glossaryTerm:net-revenue"
+
+  - urn: "urn:li:glossaryTerm:order-total"
+    name: Order Total
+    definition: |
+      The total monetary value of a single customer order, calculated as
+      the sum of all line items including any discounts applied.
+
+  - urn: "urn:li:glossaryTerm:order-count"
+    name: Order Count
+    definition: |
+      The number of orders in a given time period. Typically excludes
+      cancelled orders unless explicitly stated otherwise.
+
+  - urn: "urn:li:glossaryTerm:email"
+    name: Email Address
+    definition: |
+      A customer's electronic mail address used for account identification
+      and communication. Considered PII and must be handled according to
+      privacy regulations.
