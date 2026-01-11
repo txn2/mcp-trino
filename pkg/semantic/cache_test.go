@@ -398,8 +398,7 @@ func TestCachingProvider_ConcurrentAccess(t *testing.T) {
 				Schema:  "s",
 				Table:   "t",
 			}
-			//nolint:errcheck // test intentionally ignores error
-			cp.GetTableContext(ctx, table)
+			_, _ = cp.GetTableContext(ctx, table)
 		}()
 	}
 	wg.Wait()

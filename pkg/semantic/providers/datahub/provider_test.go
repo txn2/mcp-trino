@@ -33,7 +33,7 @@ func mockGraphQLServer(t *testing.T, handler func(query string, variables map[st
 				"errors": []map[string]string{{"message": err.Error()}},
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(resp)
+			_ = json.NewEncoder(w).Encode(resp)
 			return
 		}
 
@@ -41,7 +41,7 @@ func mockGraphQLServer(t *testing.T, handler func(query string, variables map[st
 			"data": data,
 		}
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(resp)
 	}))
 }
 
@@ -746,21 +746,21 @@ func TestFromEnv(t *testing.T) {
 	}
 	defer func() {
 		for key, val := range saved {
-			os.Setenv(key, val)
+			_ = os.Setenv(key, val)
 		}
 	}()
 
 	// Clear all env vars first
 	for _, key := range envVars {
-		os.Unsetenv(key)
+		_ = os.Unsetenv(key)
 	}
 
 	t.Run("reads all env vars", func(t *testing.T) {
-		os.Setenv("DATAHUB_ENDPOINT", "http://test")
-		os.Setenv("DATAHUB_TOKEN", "token123")
-		os.Setenv("DATAHUB_PLATFORM", "custom")
-		os.Setenv("DATAHUB_ENVIRONMENT", "DEV")
-		os.Setenv("DATAHUB_TIMEOUT", "60s")
+		t.Setenv("DATAHUB_ENDPOINT", "http://test")
+		t.Setenv("DATAHUB_TOKEN", "token123")
+		t.Setenv("DATAHUB_PLATFORM", "custom")
+		t.Setenv("DATAHUB_ENVIRONMENT", "DEV")
+		t.Setenv("DATAHUB_TIMEOUT", "60s")
 
 		cfg := FromEnv()
 		if cfg.Endpoint != "http://test" {
@@ -782,7 +782,7 @@ func TestFromEnv(t *testing.T) {
 
 	t.Run("uses defaults", func(t *testing.T) {
 		for _, key := range envVars {
-			os.Unsetenv(key)
+			_ = os.Unsetenv(key)
 		}
 
 		cfg := FromEnv()
@@ -798,7 +798,7 @@ func TestFromEnv(t *testing.T) {
 	})
 
 	t.Run("ignores invalid timeout", func(t *testing.T) {
-		os.Setenv("DATAHUB_TIMEOUT", "invalid")
+		t.Setenv("DATAHUB_TIMEOUT", "invalid")
 		cfg := FromEnv()
 		if cfg.Timeout != 30*time.Second {
 			t.Errorf("Timeout = %v, want 30s for invalid input", cfg.Timeout)

@@ -101,7 +101,7 @@ func TestNew(t *testing.T) {
 		if err != nil {
 			t.Fatalf("New() error = %v", err)
 		}
-		defer p.Close()
+		defer func() { _ = p.Close() }()
 
 		if p.TableCount() != 3 {
 			t.Errorf("TableCount() = %d, want 3", p.TableCount())
@@ -117,7 +117,7 @@ func TestNew(t *testing.T) {
 		if err != nil {
 			t.Fatalf("New() error = %v", err)
 		}
-		defer p.Close()
+		defer func() { _ = p.Close() }()
 
 		if p.TableCount() != 1 {
 			t.Errorf("TableCount() = %d, want 1", p.TableCount())
@@ -169,7 +169,7 @@ func TestProvider_Name(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	if got := p.Name(); got != "static" {
 		t.Errorf("Name() = %q, want %q", got, "static")
@@ -182,7 +182,7 @@ func TestProvider_GetTableContext_Basic(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()
 	table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "users"}
@@ -210,7 +210,7 @@ func TestProvider_GetTableContext_Ownership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()
 	table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "users"}
@@ -232,7 +232,7 @@ func TestProvider_GetTableContext_Metadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()
 	table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "users"}
@@ -266,7 +266,7 @@ func TestProvider_GetTableContext_Deprecation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()
 	table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "deprecated_table"}
@@ -288,7 +288,7 @@ func TestProvider_GetTableContext_CustomProperties(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()
 	table := semantic.TableIdentifier{Catalog: "memory", Schema: "default", Table: "test"}
@@ -307,7 +307,7 @@ func TestProvider_GetTableContext_Unknown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()
 	table := semantic.TableIdentifier{Catalog: "unknown", Schema: "unknown", Table: "unknown"}
@@ -326,7 +326,7 @@ func TestProvider_GetColumnContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()
 
@@ -413,7 +413,7 @@ func TestProvider_GetColumnsContext(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()
 
@@ -463,7 +463,7 @@ func TestProvider_GetLineage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()
 	table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "users"}
@@ -483,7 +483,7 @@ func TestProvider_GetGlossaryTerm(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()
 
@@ -526,7 +526,7 @@ func TestProvider_SearchTables(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()
 
@@ -569,7 +569,7 @@ func TestProvider_SearchTables_CatalogMatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()
 	result, err := p.SearchTables(ctx, semantic.SearchFilter{Catalog: "memory", IncludeDeprecated: true})
@@ -609,7 +609,7 @@ func TestProvider_Reload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	initialCount := p.TableCount()
 
@@ -647,7 +647,7 @@ func TestProvider_WatchInterval(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
 	}
-	defer p.Close()
+	defer func() { _ = p.Close() }()
 
 	// Modify the file
 	newContent := `
@@ -697,13 +697,13 @@ func TestFromEnv(t *testing.T) {
 	oldFile := os.Getenv("SEMANTIC_STATIC_FILE")
 	oldInterval := os.Getenv("SEMANTIC_STATIC_WATCH_INTERVAL")
 	defer func() {
-		os.Setenv("SEMANTIC_STATIC_FILE", oldFile)
-		os.Setenv("SEMANTIC_STATIC_WATCH_INTERVAL", oldInterval)
+		_ = os.Setenv("SEMANTIC_STATIC_FILE", oldFile)
+		_ = os.Setenv("SEMANTIC_STATIC_WATCH_INTERVAL", oldInterval)
 	}()
 
 	t.Run("reads file path", func(t *testing.T) {
-		os.Setenv("SEMANTIC_STATIC_FILE", "/test/path.yaml")
-		os.Setenv("SEMANTIC_STATIC_WATCH_INTERVAL", "")
+		t.Setenv("SEMANTIC_STATIC_FILE", "/test/path.yaml")
+		t.Setenv("SEMANTIC_STATIC_WATCH_INTERVAL", "")
 		cfg := FromEnv()
 		if cfg.FilePath != "/test/path.yaml" {
 			t.Errorf("FilePath = %q", cfg.FilePath)
@@ -711,8 +711,8 @@ func TestFromEnv(t *testing.T) {
 	})
 
 	t.Run("reads watch interval", func(t *testing.T) {
-		os.Setenv("SEMANTIC_STATIC_FILE", "/test/path.yaml")
-		os.Setenv("SEMANTIC_STATIC_WATCH_INTERVAL", "30s")
+		t.Setenv("SEMANTIC_STATIC_FILE", "/test/path.yaml")
+		t.Setenv("SEMANTIC_STATIC_WATCH_INTERVAL", "30s")
 		cfg := FromEnv()
 		if cfg.WatchInterval != 30*time.Second {
 			t.Errorf("WatchInterval = %v", cfg.WatchInterval)
@@ -720,8 +720,8 @@ func TestFromEnv(t *testing.T) {
 	})
 
 	t.Run("ignores invalid interval", func(t *testing.T) {
-		os.Setenv("SEMANTIC_STATIC_FILE", "/test/path.yaml")
-		os.Setenv("SEMANTIC_STATIC_WATCH_INTERVAL", "invalid")
+		t.Setenv("SEMANTIC_STATIC_FILE", "/test/path.yaml")
+		t.Setenv("SEMANTIC_STATIC_WATCH_INTERVAL", "invalid")
 		cfg := FromEnv()
 		if cfg.WatchInterval != 0 {
 			t.Errorf("WatchInterval = %v, want 0", cfg.WatchInterval)
