@@ -4,11 +4,16 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/txn2/mcp-trino/pkg/extensions"
 	"github.com/txn2/mcp-trino/pkg/multiserver"
+	"github.com/txn2/mcp-trino/pkg/semantic"
+	"github.com/txn2/mcp-trino/pkg/semantic/providers/static"
 	"github.com/txn2/mcp-trino/pkg/tools"
 )
 
@@ -26,6 +31,14 @@ type Options struct {
 
 	// ExtensionsConfig configures middleware, interceptors, and transformers.
 	ExtensionsConfig extensions.Config
+
+	// SemanticProvider is an optional semantic metadata provider.
+	// If nil and SEMANTIC_FILE env var is set, a static provider will be created.
+	SemanticProvider semantic.Provider
+
+	// SemanticCacheConfig configures caching for the semantic provider.
+	// If nil, default caching (5 minute TTL) is applied when a provider is configured.
+	SemanticCacheConfig *semantic.CacheConfig
 }
 
 // DefaultOptions returns default server options.
@@ -79,6 +92,40 @@ func New(opts Options) (*mcp.Server, *multiserver.Manager, error) {
 				return nil, configErr
 			}),
 		))
+	}
+
+	// Setup semantic provider
+	semanticProvider := opts.SemanticProvider
+	if semanticProvider == nil {
+		// Check for SEMANTIC_FILE environment variable
+		if semanticFile := os.Getenv("SEMANTIC_FILE"); semanticFile != "" {
+			provider, err := static.New(static.Config{
+				FilePath:      semanticFile,
+				WatchInterval: 30 * time.Second, // Enable hot-reload
+			})
+			if err != nil {
+				log.Printf("Warning: Failed to load semantic file %s: %v", semanticFile, err)
+			} else {
+				semanticProvider = provider
+				log.Printf("Loaded semantic metadata from %s", semanticFile)
+			}
+		}
+	}
+
+	// Add semantic provider to toolkit options if configured
+	if semanticProvider != nil {
+		toolkitOpts = append(toolkitOpts, tools.WithSemanticProvider(semanticProvider))
+
+		// Apply caching
+		cacheConfig := opts.SemanticCacheConfig
+		if cacheConfig == nil {
+			// Default: 5 minute TTL, 10000 entries
+			cacheConfig = &semantic.CacheConfig{
+				TTL:        5 * time.Minute,
+				MaxEntries: 10000,
+			}
+		}
+		toolkitOpts = append(toolkitOpts, tools.WithSemanticCache(*cacheConfig))
 	}
 
 	// Create toolkit with multi-server manager and register tools
