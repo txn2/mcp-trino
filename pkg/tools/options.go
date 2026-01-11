@@ -1,5 +1,7 @@
 package tools
 
+import "github.com/txn2/mcp-trino/pkg/semantic"
+
 // ToolkitOption configures a Toolkit during construction.
 // Use with NewToolkit to add middleware, interceptors, and transformers.
 type ToolkitOption func(*Toolkit)
@@ -54,5 +56,36 @@ type ToolOption func(*toolConfig)
 func WithPerToolMiddleware(m ToolMiddleware) ToolOption {
 	return func(tc *toolConfig) {
 		tc.middlewares = append(tc.middlewares, m)
+	}
+}
+
+// WithSemanticProvider adds a semantic metadata provider to the toolkit.
+// When configured, tools like describe_table and list_tables will enrich
+// their output with semantic metadata from the provider.
+//
+// Example:
+//
+//	datahub := datahub.New(datahub.FromEnv())
+//	toolkit := tools.NewToolkit(client, cfg,
+//	    tools.WithSemanticProvider(datahub),
+//	)
+func WithSemanticProvider(provider semantic.Provider) ToolkitOption {
+	return func(t *Toolkit) {
+		t.semanticProvider = provider
+	}
+}
+
+// WithSemanticCache wraps the semantic provider with caching.
+// Only applies if a semantic provider is configured.
+//
+// Example:
+//
+//	toolkit := tools.NewToolkit(client, cfg,
+//	    tools.WithSemanticProvider(datahub),
+//	    tools.WithSemanticCache(semantic.DefaultCacheConfig()),
+//	)
+func WithSemanticCache(cfg semantic.CacheConfig) ToolkitOption {
+	return func(t *Toolkit) {
+		t.semanticCacheConfig = &cfg
 	}
 }
