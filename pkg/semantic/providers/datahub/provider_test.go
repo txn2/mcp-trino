@@ -86,8 +86,8 @@ func TestProvider_Name(t *testing.T) {
 	defer server.Close()
 
 	p, _ := New(Config{Endpoint: server.URL, Token: "test"})
-	if got := p.Name(); got != "datahub" {
-		t.Errorf("Name() = %q, want %q", got, "datahub")
+	if got := p.Name(); got != ProviderName {
+		t.Errorf("Name() = %q, want %q", got, ProviderName)
 	}
 }
 
@@ -179,7 +179,7 @@ func TestProvider_GetTableContext(t *testing.T) {
 		if result.Description != "User table" {
 			t.Errorf("Description = %q", result.Description)
 		}
-		if result.Source != "datahub" {
+		if result.Source != ProviderName {
 			t.Errorf("Source = %q", result.Source)
 		}
 		if result.Ownership == nil || len(result.Ownership.Owners) != 1 {
