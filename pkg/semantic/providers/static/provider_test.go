@@ -176,7 +176,7 @@ func TestProvider_Name(t *testing.T) {
 	}
 }
 
-func TestProvider_GetTableContext(t *testing.T) {
+func TestProvider_GetTableContext_Basic(t *testing.T) {
 	path := createTestFile(t, "test.yaml", testYAML)
 	p, err := New(Config{FilePath: path})
 	if err != nil {
@@ -185,106 +185,139 @@ func TestProvider_GetTableContext(t *testing.T) {
 	defer p.Close()
 
 	ctx := context.Background()
+	table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "users"}
+	result, err := p.GetTableContext(ctx, table)
+	if err != nil {
+		t.Errorf("GetTableContext() error = %v", err)
+	}
+	if result == nil {
+		t.Fatal("GetTableContext() returned nil")
+	}
+	if result.Description != "User accounts table" {
+		t.Errorf("Description = %q, want %q", result.Description, "User accounts table")
+	}
+	if result.Source != "static" {
+		t.Errorf("Source = %q, want %q", result.Source, "static")
+	}
+	if result.FetchedAt.IsZero() {
+		t.Error("FetchedAt should be set")
+	}
+}
 
-	t.Run("returns table context", func(t *testing.T) {
-		table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "users"}
-		result, err := p.GetTableContext(ctx, table)
-		if err != nil {
-			t.Errorf("GetTableContext() error = %v", err)
-		}
-		if result == nil {
-			t.Fatal("GetTableContext() returned nil")
-		}
-		if result.Description != "User accounts table" {
-			t.Errorf("Description = %q, want %q", result.Description, "User accounts table")
-		}
-		if result.Source != "static" {
-			t.Errorf("Source = %q, want %q", result.Source, "static")
-		}
-		if result.FetchedAt.IsZero() {
-			t.Error("FetchedAt should be set")
-		}
-	})
+func TestProvider_GetTableContext_Ownership(t *testing.T) {
+	path := createTestFile(t, "test.yaml", testYAML)
+	p, err := New(Config{FilePath: path})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer p.Close()
 
-	t.Run("includes ownership", func(t *testing.T) {
-		table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "users"}
-		result, _ := p.GetTableContext(ctx, table)
-		if result.Ownership == nil {
-			t.Fatal("Ownership is nil")
-		}
-		if len(result.Ownership.Owners) != 2 {
-			t.Errorf("Owners count = %d, want 2", len(result.Ownership.Owners))
-		}
-		if result.Ownership.Owners[0].Name != "Data Platform Team" {
-			t.Errorf("Owner[0].Name = %q", result.Ownership.Owners[0].Name)
-		}
-	})
+	ctx := context.Background()
+	table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "users"}
+	result, _ := p.GetTableContext(ctx, table)
+	if result.Ownership == nil {
+		t.Fatal("Ownership is nil")
+	}
+	if len(result.Ownership.Owners) != 2 {
+		t.Errorf("Owners count = %d, want 2", len(result.Ownership.Owners))
+	}
+	if result.Ownership.Owners[0].Name != "Data Platform Team" {
+		t.Errorf("Owner[0].Name = %q", result.Ownership.Owners[0].Name)
+	}
+}
 
-	t.Run("includes tags", func(t *testing.T) {
-		table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "users"}
-		result, _ := p.GetTableContext(ctx, table)
-		if len(result.Tags) != 2 {
-			t.Errorf("Tags count = %d, want 2", len(result.Tags))
-		}
-	})
+func TestProvider_GetTableContext_Metadata(t *testing.T) {
+	path := createTestFile(t, "test.yaml", testYAML)
+	p, err := New(Config{FilePath: path})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer p.Close()
 
-	t.Run("includes glossary terms", func(t *testing.T) {
-		table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "users"}
-		result, _ := p.GetTableContext(ctx, table)
-		if len(result.GlossaryTerms) != 1 {
-			t.Errorf("GlossaryTerms count = %d, want 1", len(result.GlossaryTerms))
-		}
-		if result.GlossaryTerms[0].URN != "urn:li:glossaryTerm:customer" {
-			t.Errorf("GlossaryTerms[0].URN = %q", result.GlossaryTerms[0].URN)
-		}
-	})
+	ctx := context.Background()
+	table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "users"}
+	result, _ := p.GetTableContext(ctx, table)
 
-	t.Run("includes domain", func(t *testing.T) {
-		table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "users"}
-		result, _ := p.GetTableContext(ctx, table)
-		if result.Domain == nil {
-			t.Fatal("Domain is nil")
-		}
-		if result.Domain.Name != "Customer Analytics" {
-			t.Errorf("Domain.Name = %q", result.Domain.Name)
-		}
-	})
+	// Check tags
+	if len(result.Tags) != 2 {
+		t.Errorf("Tags count = %d, want 2", len(result.Tags))
+	}
 
-	t.Run("includes deprecation", func(t *testing.T) {
-		table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "deprecated_table"}
-		result, _ := p.GetTableContext(ctx, table)
-		if result.Deprecation == nil {
-			t.Fatal("Deprecation is nil")
-		}
-		if !result.Deprecation.Deprecated {
-			t.Error("Deprecated should be true")
-		}
-		if result.Deprecation.ReplacedBy != "new_table" {
-			t.Errorf("ReplacedBy = %q", result.Deprecation.ReplacedBy)
-		}
-	})
+	// Check glossary terms
+	if len(result.GlossaryTerms) != 1 {
+		t.Errorf("GlossaryTerms count = %d, want 1", len(result.GlossaryTerms))
+	}
+	if result.GlossaryTerms[0].URN != "urn:li:glossaryTerm:customer" {
+		t.Errorf("GlossaryTerms[0].URN = %q", result.GlossaryTerms[0].URN)
+	}
 
-	t.Run("includes custom properties", func(t *testing.T) {
-		table := semantic.TableIdentifier{Catalog: "memory", Schema: "default", Table: "test"}
-		result, _ := p.GetTableContext(ctx, table)
-		if result.CustomProperties == nil {
-			t.Fatal("CustomProperties is nil")
-		}
-		if result.CustomProperties["created_by"] != "test" {
-			t.Errorf("CustomProperties[created_by] = %v", result.CustomProperties["created_by"])
-		}
-	})
+	// Check domain
+	if result.Domain == nil {
+		t.Fatal("Domain is nil")
+	}
+	if result.Domain.Name != "Customer Analytics" {
+		t.Errorf("Domain.Name = %q", result.Domain.Name)
+	}
+}
 
-	t.Run("returns nil for unknown table", func(t *testing.T) {
-		table := semantic.TableIdentifier{Catalog: "unknown", Schema: "unknown", Table: "unknown"}
-		result, err := p.GetTableContext(ctx, table)
-		if err != nil {
-			t.Errorf("GetTableContext() error = %v", err)
-		}
-		if result != nil {
-			t.Errorf("GetTableContext() = %v, want nil", result)
-		}
-	})
+func TestProvider_GetTableContext_Deprecation(t *testing.T) {
+	path := createTestFile(t, "test.yaml", testYAML)
+	p, err := New(Config{FilePath: path})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer p.Close()
+
+	ctx := context.Background()
+	table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "deprecated_table"}
+	result, _ := p.GetTableContext(ctx, table)
+	if result.Deprecation == nil {
+		t.Fatal("Deprecation is nil")
+	}
+	if !result.Deprecation.Deprecated {
+		t.Error("Deprecated should be true")
+	}
+	if result.Deprecation.ReplacedBy != "new_table" {
+		t.Errorf("ReplacedBy = %q", result.Deprecation.ReplacedBy)
+	}
+}
+
+func TestProvider_GetTableContext_CustomProperties(t *testing.T) {
+	path := createTestFile(t, "test.yaml", testYAML)
+	p, err := New(Config{FilePath: path})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer p.Close()
+
+	ctx := context.Background()
+	table := semantic.TableIdentifier{Catalog: "memory", Schema: "default", Table: "test"}
+	result, _ := p.GetTableContext(ctx, table)
+	if result.CustomProperties == nil {
+		t.Fatal("CustomProperties is nil")
+	}
+	if result.CustomProperties["created_by"] != "test" {
+		t.Errorf("CustomProperties[created_by] = %v", result.CustomProperties["created_by"])
+	}
+}
+
+func TestProvider_GetTableContext_Unknown(t *testing.T) {
+	path := createTestFile(t, "test.yaml", testYAML)
+	p, err := New(Config{FilePath: path})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer p.Close()
+
+	ctx := context.Background()
+	table := semantic.TableIdentifier{Catalog: "unknown", Schema: "unknown", Table: "unknown"}
+	result, err := p.GetTableContext(ctx, table)
+	if err != nil {
+		t.Errorf("GetTableContext() error = %v", err)
+	}
+	if result != nil {
+		t.Errorf("GetTableContext() = %v, want nil", result)
+	}
 }
 
 func TestProvider_GetColumnContext(t *testing.T) {
@@ -497,138 +530,58 @@ func TestProvider_SearchTables(t *testing.T) {
 
 	ctx := context.Background()
 
-	t.Run("returns all tables with empty filter", func(t *testing.T) {
-		result, err := p.SearchTables(ctx, semantic.SearchFilter{IncludeDeprecated: true})
-		if err != nil {
-			t.Errorf("SearchTables() error = %v", err)
-		}
-		if len(result) != 3 {
-			t.Errorf("len(result) = %d, want 3", len(result))
-		}
-	})
+	tests := []struct {
+		name      string
+		filter    semantic.SearchFilter
+		wantCount int
+	}{
+		{"all tables with deprecated", semantic.SearchFilter{IncludeDeprecated: true}, 3},
+		{"excludes deprecated by default", semantic.SearchFilter{}, 2},
+		{"filter by catalog", semantic.SearchFilter{Catalog: "memory", IncludeDeprecated: true}, 1},
+		{"filter by schema", semantic.SearchFilter{Schema: "default", IncludeDeprecated: true}, 1},
+		{"filter by domain name", semantic.SearchFilter{Domain: "Customer Analytics"}, 1},
+		{"filter by domain URN", semantic.SearchFilter{Domain: "urn:li:domain:customer"}, 1},
+		{"filter by owner ID", semantic.SearchFilter{Owner: "user123"}, 1},
+		{"filter by owner name", semantic.SearchFilter{Owner: "Alice"}, 1},
+		{"filter by tags", semantic.SearchFilter{Tags: []string{"pii"}}, 1},
+		{"filter by multiple tags", semantic.SearchFilter{Tags: []string{"pii", "daily-refresh"}}, 1},
+		{"filter by query in table name", semantic.SearchFilter{Query: "users", IncludeDeprecated: true}, 1},
+		{"filter by query in description", semantic.SearchFilter{Query: "accounts", IncludeDeprecated: true}, 1},
+		{"applies limit", semantic.SearchFilter{Limit: 1, IncludeDeprecated: true}, 1},
+	}
 
-	t.Run("excludes deprecated by default", func(t *testing.T) {
-		result, err := p.SearchTables(ctx, semantic.SearchFilter{})
-		if err != nil {
-			t.Errorf("SearchTables() error = %v", err)
-		}
-		if len(result) != 2 {
-			t.Errorf("len(result) = %d, want 2 (deprecated excluded)", len(result))
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := p.SearchTables(ctx, tt.filter)
+			if err != nil {
+				t.Errorf("SearchTables() error = %v", err)
+			}
+			if len(result) != tt.wantCount {
+				t.Errorf("len(result) = %d, want %d", len(result), tt.wantCount)
+			}
+		})
+	}
+}
 
-	t.Run("filters by catalog", func(t *testing.T) {
-		result, err := p.SearchTables(ctx, semantic.SearchFilter{Catalog: "memory", IncludeDeprecated: true})
-		if err != nil {
-			t.Errorf("SearchTables() error = %v", err)
-		}
-		if len(result) != 1 {
-			t.Errorf("len(result) = %d, want 1", len(result))
-		}
-		if result[0].Catalog != "memory" {
-			t.Errorf("result[0].Catalog = %q", result[0].Catalog)
-		}
-	})
+func TestProvider_SearchTables_CatalogMatch(t *testing.T) {
+	path := createTestFile(t, "test.yaml", testYAML)
+	p, err := New(Config{FilePath: path})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer p.Close()
 
-	t.Run("filters by schema", func(t *testing.T) {
-		result, err := p.SearchTables(ctx, semantic.SearchFilter{Schema: "default", IncludeDeprecated: true})
-		if err != nil {
-			t.Errorf("SearchTables() error = %v", err)
-		}
-		if len(result) != 1 {
-			t.Errorf("len(result) = %d, want 1", len(result))
-		}
-	})
-
-	t.Run("filters by domain name", func(t *testing.T) {
-		result, err := p.SearchTables(ctx, semantic.SearchFilter{Domain: "Customer Analytics"})
-		if err != nil {
-			t.Errorf("SearchTables() error = %v", err)
-		}
-		if len(result) != 1 {
-			t.Errorf("len(result) = %d, want 1", len(result))
-		}
-	})
-
-	t.Run("filters by domain URN", func(t *testing.T) {
-		result, err := p.SearchTables(ctx, semantic.SearchFilter{Domain: "urn:li:domain:customer"})
-		if err != nil {
-			t.Errorf("SearchTables() error = %v", err)
-		}
-		if len(result) != 1 {
-			t.Errorf("len(result) = %d, want 1", len(result))
-		}
-	})
-
-	t.Run("filters by owner ID", func(t *testing.T) {
-		result, err := p.SearchTables(ctx, semantic.SearchFilter{Owner: "user123"})
-		if err != nil {
-			t.Errorf("SearchTables() error = %v", err)
-		}
-		if len(result) != 1 {
-			t.Errorf("len(result) = %d, want 1", len(result))
-		}
-	})
-
-	t.Run("filters by owner name", func(t *testing.T) {
-		result, err := p.SearchTables(ctx, semantic.SearchFilter{Owner: "Alice"})
-		if err != nil {
-			t.Errorf("SearchTables() error = %v", err)
-		}
-		if len(result) != 1 {
-			t.Errorf("len(result) = %d, want 1", len(result))
-		}
-	})
-
-	t.Run("filters by tags", func(t *testing.T) {
-		result, err := p.SearchTables(ctx, semantic.SearchFilter{Tags: []string{"pii"}})
-		if err != nil {
-			t.Errorf("SearchTables() error = %v", err)
-		}
-		if len(result) != 1 {
-			t.Errorf("len(result) = %d, want 1", len(result))
-		}
-	})
-
-	t.Run("filters by multiple tags", func(t *testing.T) {
-		result, err := p.SearchTables(ctx, semantic.SearchFilter{Tags: []string{"pii", "daily-refresh"}})
-		if err != nil {
-			t.Errorf("SearchTables() error = %v", err)
-		}
-		if len(result) != 1 {
-			t.Errorf("len(result) = %d, want 1", len(result))
-		}
-	})
-
-	t.Run("filters by query in table name", func(t *testing.T) {
-		result, err := p.SearchTables(ctx, semantic.SearchFilter{Query: "users", IncludeDeprecated: true})
-		if err != nil {
-			t.Errorf("SearchTables() error = %v", err)
-		}
-		if len(result) != 1 {
-			t.Errorf("len(result) = %d, want 1", len(result))
-		}
-	})
-
-	t.Run("filters by query in description", func(t *testing.T) {
-		result, err := p.SearchTables(ctx, semantic.SearchFilter{Query: "accounts", IncludeDeprecated: true})
-		if err != nil {
-			t.Errorf("SearchTables() error = %v", err)
-		}
-		if len(result) != 1 {
-			t.Errorf("len(result) = %d, want 1", len(result))
-		}
-	})
-
-	t.Run("applies limit", func(t *testing.T) {
-		result, err := p.SearchTables(ctx, semantic.SearchFilter{Limit: 1, IncludeDeprecated: true})
-		if err != nil {
-			t.Errorf("SearchTables() error = %v", err)
-		}
-		if len(result) != 1 {
-			t.Errorf("len(result) = %d, want 1", len(result))
-		}
-	})
+	ctx := context.Background()
+	result, err := p.SearchTables(ctx, semantic.SearchFilter{Catalog: "memory", IncludeDeprecated: true})
+	if err != nil {
+		t.Errorf("SearchTables() error = %v", err)
+	}
+	if len(result) != 1 {
+		t.Fatalf("len(result) = %d, want 1", len(result))
+	}
+	if result[0].Catalog != "memory" {
+		t.Errorf("result[0].Catalog = %q, want memory", result[0].Catalog)
+	}
 }
 
 func TestProvider_Close(t *testing.T) {
