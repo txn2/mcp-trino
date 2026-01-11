@@ -203,7 +203,7 @@ func mapDatasetToTableContext(data *datasetData, table semantic.TableIdentifier)
 
 	ctx := &semantic.TableContext{
 		Identifier: table,
-		Source:     "datahub",
+		Source:     ProviderName,
 		FetchedAt:  time.Now(),
 	}
 
@@ -277,7 +277,7 @@ func mapTags(data *tagsData) []semantic.Tag {
 			tags = append(tags, semantic.Tag{
 				Name:        t.Tag.Properties.Name,
 				Description: t.Tag.Properties.Description,
-				Source:      "datahub",
+				Source:      ProviderName,
 			})
 		}
 	}
@@ -294,7 +294,7 @@ func mapGlossaryTerms(data *glossaryTermsData) []semantic.GlossaryTerm {
 	for _, t := range data.Terms {
 		term := semantic.GlossaryTerm{
 			URN:    t.Term.URN,
-			Source: "datahub",
+			Source: ProviderName,
 		}
 		if t.Term.Properties != nil {
 			term.Name = t.Term.Properties.Name
@@ -373,7 +373,7 @@ func mapFieldToColumnContext(field fieldEntry, table semantic.TableIdentifier) *
 			Column:          columnName,
 		},
 		Description:      field.Description,
-		Source:           "datahub",
+		Source:           ProviderName,
 		Tags:             tags,
 		GlossaryTerms:    mapGlossaryTerms(field.GlossaryTerms),
 		IsSensitive:      isSensitive,
@@ -392,7 +392,7 @@ func mapColumnTagsWithSensitivity(data *tagsData) (tags []semantic.Tag, isSensit
 		if t.Tag.Properties != nil {
 			tag := semantic.Tag{
 				Name:   t.Tag.Properties.Name,
-				Source: "datahub",
+				Source: ProviderName,
 			}
 			// Check for sensitivity tags
 			tagLower := strings.ToLower(t.Tag.Properties.Name)
@@ -415,7 +415,7 @@ func mapGlossaryTermData(data *glossaryTermData) *semantic.GlossaryTerm {
 
 	term := &semantic.GlossaryTerm{
 		URN:    data.URN,
-		Source: "datahub",
+		Source: ProviderName,
 	}
 
 	if data.Properties != nil {
