@@ -18,6 +18,9 @@ import (
 	"github.com/txn2/mcp-trino/pkg/semantic"
 )
 
+// ProviderName is the name returned by Provider.Name().
+const ProviderName = "static"
+
 // Common errors.
 var (
 	ErrNoFilePath        = errors.New("static: file path is required")
@@ -68,7 +71,7 @@ func New(cfg Config) (*Provider, error) {
 
 // Name implements semantic.Provider.
 func (p *Provider) Name() string {
-	return "static"
+	return ProviderName
 }
 
 // GetTableContext implements semantic.Provider.
@@ -256,8 +259,8 @@ func (p *Provider) watch() {
 	for {
 		select {
 		case <-ticker.C:
-			//nolint:errcheck // reload errors are non-fatal, continue watching
-			p.load() // #nosec G104 - intentionally ignoring reload errors
+			// #nosec G104 -- reload errors are non-fatal, continue watching
+			p.load() //nolint:errcheck // reload errors are non-fatal
 		case <-p.stopChan:
 			return
 		}
