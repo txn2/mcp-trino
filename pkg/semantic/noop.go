@@ -7,11 +7,6 @@ import "context"
 // ensuring zero overhead (no allocations, no external calls).
 type NoOpProvider struct{}
 
-// NewNoOpProvider creates a no-op provider.
-func NewNoOpProvider() *NoOpProvider {
-	return &NoOpProvider{}
-}
-
 // Name implements Provider.
 func (n *NoOpProvider) Name() string {
 	return "noop"
