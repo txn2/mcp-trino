@@ -35,211 +35,6 @@ func TestDefaultConfig(t *testing.T) {
 	}
 }
 
-func TestFromEnv(t *testing.T) {
-	tests := []struct {
-		name     string
-		envVars  map[string]string
-		validate func(t *testing.T, cfg Config)
-	}{
-		{
-			name:    "defaults with no env vars",
-			envVars: map[string]string{},
-			validate: func(t *testing.T, cfg Config) {
-				if cfg.Host != "localhost" {
-					t.Errorf("expected default Host, got %q", cfg.Host)
-				}
-				if cfg.SSL {
-					t.Error("expected SSL false for localhost")
-				}
-			},
-		},
-		{
-			name: "remote host enables SSL",
-			envVars: map[string]string{
-				"TRINO_HOST": "trino.example.com",
-			},
-			validate: func(t *testing.T, cfg Config) {
-				if cfg.Host != "trino.example.com" {
-					t.Errorf("expected Host 'trino.example.com', got %q", cfg.Host)
-				}
-				if !cfg.SSL {
-					t.Error("expected SSL true for remote host")
-				}
-				if cfg.Port != 443 {
-					t.Errorf("expected Port 443 for SSL, got %d", cfg.Port)
-				}
-			},
-		},
-		{
-			name: "localhost keeps SSL disabled",
-			envVars: map[string]string{
-				"TRINO_HOST": "localhost",
-			},
-			validate: func(t *testing.T, cfg Config) {
-				if cfg.SSL {
-					t.Error("expected SSL false for localhost")
-				}
-			},
-		},
-		{
-			name: "127.0.0.1 keeps SSL disabled",
-			envVars: map[string]string{
-				"TRINO_HOST": "127.0.0.1",
-			},
-			validate: func(t *testing.T, cfg Config) {
-				if cfg.SSL {
-					t.Error("expected SSL false for 127.0.0.1")
-				}
-			},
-		},
-		{
-			name: "custom port",
-			envVars: map[string]string{
-				"TRINO_PORT": "9090",
-			},
-			validate: func(t *testing.T, cfg Config) {
-				if cfg.Port != 9090 {
-					t.Errorf("expected Port 9090, got %d", cfg.Port)
-				}
-			},
-		},
-		{
-			name: "invalid port keeps default",
-			envVars: map[string]string{
-				"TRINO_PORT": "invalid",
-			},
-			validate: func(t *testing.T, cfg Config) {
-				if cfg.Port != 8080 {
-					t.Errorf("expected default Port 8080, got %d", cfg.Port)
-				}
-			},
-		},
-		{
-			name: "user and password",
-			envVars: map[string]string{
-				"TRINO_USER":     "testuser",
-				"TRINO_PASSWORD": "testpass",
-			},
-			validate: func(t *testing.T, cfg Config) {
-				if cfg.User != "testuser" {
-					t.Errorf("expected User 'testuser', got %q", cfg.User)
-				}
-				if cfg.Password != "testpass" {
-					t.Errorf("expected Password 'testpass', got %q", cfg.Password)
-				}
-			},
-		},
-		{
-			name: "catalog and schema",
-			envVars: map[string]string{
-				"TRINO_CATALOG": "hive",
-				"TRINO_SCHEMA":  "sales",
-			},
-			validate: func(t *testing.T, cfg Config) {
-				if cfg.Catalog != "hive" {
-					t.Errorf("expected Catalog 'hive', got %q", cfg.Catalog)
-				}
-				if cfg.Schema != "sales" {
-					t.Errorf("expected Schema 'sales', got %q", cfg.Schema)
-				}
-			},
-		},
-		{
-			name: "SSL settings true",
-			envVars: map[string]string{
-				"TRINO_SSL":        "true",
-				"TRINO_SSL_VERIFY": "true",
-			},
-			validate: func(t *testing.T, cfg Config) {
-				if !cfg.SSL {
-					t.Error("expected SSL true")
-				}
-				if !cfg.SSLVerify {
-					t.Error("expected SSLVerify true")
-				}
-			},
-		},
-		{
-			name: "SSL settings with 1",
-			envVars: map[string]string{
-				"TRINO_SSL":        "1",
-				"TRINO_SSL_VERIFY": "1",
-			},
-			validate: func(t *testing.T, cfg Config) {
-				if !cfg.SSL {
-					t.Error("expected SSL true with '1'")
-				}
-				if !cfg.SSLVerify {
-					t.Error("expected SSLVerify true with '1'")
-				}
-			},
-		},
-		{
-			name: "SSL settings false",
-			envVars: map[string]string{
-				"TRINO_SSL":        "false",
-				"TRINO_SSL_VERIFY": "false",
-			},
-			validate: func(t *testing.T, cfg Config) {
-				if cfg.SSL {
-					t.Error("expected SSL false")
-				}
-				if cfg.SSLVerify {
-					t.Error("expected SSLVerify false")
-				}
-			},
-		},
-		{
-			name: "timeout in seconds",
-			envVars: map[string]string{
-				"TRINO_TIMEOUT": "60",
-			},
-			validate: func(t *testing.T, cfg Config) {
-				if cfg.Timeout != 60*time.Second {
-					t.Errorf("expected Timeout 60s, got %v", cfg.Timeout)
-				}
-			},
-		},
-		{
-			name: "invalid timeout keeps default",
-			envVars: map[string]string{
-				"TRINO_TIMEOUT": "invalid",
-			},
-			validate: func(t *testing.T, cfg Config) {
-				if cfg.Timeout != 120*time.Second {
-					t.Errorf("expected default Timeout 120s, got %v", cfg.Timeout)
-				}
-			},
-		},
-		{
-			name: "custom source",
-			envVars: map[string]string{
-				"TRINO_SOURCE": "my-app",
-			},
-			validate: func(t *testing.T, cfg Config) {
-				if cfg.Source != "my-app" {
-					t.Errorf("expected Source 'my-app', got %q", cfg.Source)
-				}
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Clear all TRINO_ env vars
-			clearTrinoEnvVars(t)
-
-			// Set test env vars
-			for k, v := range tt.envVars {
-				t.Setenv(k, v)
-			}
-
-			cfg := FromEnv()
-			tt.validate(t, cfg)
-		})
-	}
-}
-
 func clearTrinoEnvVars(t *testing.T) {
 	t.Helper()
 	envVars := []string{
@@ -256,6 +51,174 @@ func clearTrinoEnvVars(t *testing.T) {
 	}
 	for _, v := range envVars {
 		_ = os.Unsetenv(v)
+	}
+}
+
+func TestFromEnv_Defaults(t *testing.T) {
+	clearTrinoEnvVars(t)
+
+	cfg := FromEnv()
+	if cfg.Host != "localhost" {
+		t.Errorf("expected default Host, got %q", cfg.Host)
+	}
+	if cfg.SSL {
+		t.Error("expected SSL false for localhost")
+	}
+}
+
+func TestFromEnv_RemoteHostEnablesSSL(t *testing.T) {
+	clearTrinoEnvVars(t)
+	t.Setenv("TRINO_HOST", "trino.example.com")
+
+	cfg := FromEnv()
+	if cfg.Host != "trino.example.com" {
+		t.Errorf("expected Host 'trino.example.com', got %q", cfg.Host)
+	}
+	if !cfg.SSL {
+		t.Error("expected SSL true for remote host")
+	}
+	if cfg.Port != 443 {
+		t.Errorf("expected Port 443 for SSL, got %d", cfg.Port)
+	}
+}
+
+func TestFromEnv_LocalhostKeepsSSLDisabled(t *testing.T) {
+	clearTrinoEnvVars(t)
+	t.Setenv("TRINO_HOST", "localhost")
+
+	cfg := FromEnv()
+	if cfg.SSL {
+		t.Error("expected SSL false for localhost")
+	}
+}
+
+func TestFromEnv_LoopbackKeepsSSLDisabled(t *testing.T) {
+	clearTrinoEnvVars(t)
+	t.Setenv("TRINO_HOST", "127.0.0.1")
+
+	cfg := FromEnv()
+	if cfg.SSL {
+		t.Error("expected SSL false for 127.0.0.1")
+	}
+}
+
+func TestFromEnv_CustomPort(t *testing.T) {
+	clearTrinoEnvVars(t)
+	t.Setenv("TRINO_PORT", "9090")
+
+	cfg := FromEnv()
+	if cfg.Port != 9090 {
+		t.Errorf("expected Port 9090, got %d", cfg.Port)
+	}
+}
+
+func TestFromEnv_InvalidPortKeepsDefault(t *testing.T) {
+	clearTrinoEnvVars(t)
+	t.Setenv("TRINO_PORT", "invalid")
+
+	cfg := FromEnv()
+	if cfg.Port != 8080 {
+		t.Errorf("expected default Port 8080, got %d", cfg.Port)
+	}
+}
+
+func TestFromEnv_UserAndPassword(t *testing.T) {
+	clearTrinoEnvVars(t)
+	t.Setenv("TRINO_USER", "testuser")
+	t.Setenv("TRINO_PASSWORD", "testpass")
+
+	cfg := FromEnv()
+	if cfg.User != "testuser" {
+		t.Errorf("expected User 'testuser', got %q", cfg.User)
+	}
+	if cfg.Password != "testpass" {
+		t.Errorf("expected Password 'testpass', got %q", cfg.Password)
+	}
+}
+
+func TestFromEnv_CatalogAndSchema(t *testing.T) {
+	clearTrinoEnvVars(t)
+	t.Setenv("TRINO_CATALOG", "hive")
+	t.Setenv("TRINO_SCHEMA", "sales")
+
+	cfg := FromEnv()
+	if cfg.Catalog != "hive" {
+		t.Errorf("expected Catalog 'hive', got %q", cfg.Catalog)
+	}
+	if cfg.Schema != "sales" {
+		t.Errorf("expected Schema 'sales', got %q", cfg.Schema)
+	}
+}
+
+func TestFromEnv_SSLSettingsTrue(t *testing.T) {
+	clearTrinoEnvVars(t)
+	t.Setenv("TRINO_SSL", "true")
+	t.Setenv("TRINO_SSL_VERIFY", "true")
+
+	cfg := FromEnv()
+	if !cfg.SSL {
+		t.Error("expected SSL true")
+	}
+	if !cfg.SSLVerify {
+		t.Error("expected SSLVerify true")
+	}
+}
+
+func TestFromEnv_SSLSettingsWithOne(t *testing.T) {
+	clearTrinoEnvVars(t)
+	t.Setenv("TRINO_SSL", "1")
+	t.Setenv("TRINO_SSL_VERIFY", "1")
+
+	cfg := FromEnv()
+	if !cfg.SSL {
+		t.Error("expected SSL true with '1'")
+	}
+	if !cfg.SSLVerify {
+		t.Error("expected SSLVerify true with '1'")
+	}
+}
+
+func TestFromEnv_SSLSettingsFalse(t *testing.T) {
+	clearTrinoEnvVars(t)
+	t.Setenv("TRINO_SSL", "false")
+	t.Setenv("TRINO_SSL_VERIFY", "false")
+
+	cfg := FromEnv()
+	if cfg.SSL {
+		t.Error("expected SSL false")
+	}
+	if cfg.SSLVerify {
+		t.Error("expected SSLVerify false")
+	}
+}
+
+func TestFromEnv_TimeoutInSeconds(t *testing.T) {
+	clearTrinoEnvVars(t)
+	t.Setenv("TRINO_TIMEOUT", "60")
+
+	cfg := FromEnv()
+	if cfg.Timeout != 60*time.Second {
+		t.Errorf("expected Timeout 60s, got %v", cfg.Timeout)
+	}
+}
+
+func TestFromEnv_InvalidTimeoutKeepsDefault(t *testing.T) {
+	clearTrinoEnvVars(t)
+	t.Setenv("TRINO_TIMEOUT", "invalid")
+
+	cfg := FromEnv()
+	if cfg.Timeout != 120*time.Second {
+		t.Errorf("expected default Timeout 120s, got %v", cfg.Timeout)
+	}
+}
+
+func TestFromEnv_CustomSource(t *testing.T) {
+	clearTrinoEnvVars(t)
+	t.Setenv("TRINO_SOURCE", "my-app")
+
+	cfg := FromEnv()
+	if cfg.Source != "my-app" {
+		t.Errorf("expected Source 'my-app', got %q", cfg.Source)
 	}
 }
 
