@@ -3,11 +3,11 @@ hide:
   - toc
 ---
 
-# mcp-trino
+# txn2/mcp-trino
 
-**The only composable MCP server for Trino**
+An MCP server that connects AI assistants to Trino data warehouses. Execute SQL queries, explore schemas, and describe tables with optional semantic context from metadata catalogs like DataHub.
 
-Connect your AI assistant to Trino data warehouses. Use it standalone or import the Go library to build custom MCP servers.
+Unlike other MCP servers, mcp-trino is designed as a composable Go library. Import it into your own MCP server to add Trino capabilities with custom authentication, tenant isolation, and audit logging. The standalone server works out of the box; the library lets you build exactly what your organization needs.
 
 [Get Started](server/installation.md){ .md-button .md-button--primary }
 [View on GitHub](https://github.com/txn2/mcp-trino){ .md-button }
@@ -46,14 +46,47 @@ Connect your AI assistant to Trino data warehouses. Use it standalone or import 
 
 ---
 
-## Why mcp-trino?
+## Core Capabilities
 
-| Feature | mcp-trino | Others |
-|---------|-----------|--------|
-| Composable library | :material-check: | :material-close: |
-| Multi-server support | :material-check: | :material-close: |
-| Middleware/interceptors | :material-check: | :material-close: |
-| SLSA Level 3 provenance | :material-check: | :material-close: |
+<div class="grid cards" markdown>
+
+-   :material-puzzle:{ .lg .middle } **Composable Architecture**
+
+    ---
+
+    Import as a Go library to build custom MCP servers with authentication,
+    tenant isolation, and audit logging without forking.
+
+    [:octicons-arrow-right-24: Library docs](library/index.md)
+
+-   :material-database-search:{ .lg .middle } **Semantic Context**
+
+    ---
+
+    Surface business descriptions, ownership, data quality, and sensitivity
+    markers from metadata catalogs like DataHub.
+
+    [:octicons-arrow-right-24: Semantic layer](semantic/index.md)
+
+-   :material-server-network:{ .lg .middle } **Multi-Cluster**
+
+    ---
+
+    Query production, staging, and development Trino servers from a single
+    MCP installation with unified credentials.
+
+    [:octicons-arrow-right-24: Multi-server setup](server/multi-server.md)
+
+-   :material-shield-check:{ .lg .middle } **Secure Defaults**
+
+    ---
+
+    Read-only mode, query limits, timeouts, and SLSA Level 3 provenance
+    for production deployments.
+
+    [:octicons-arrow-right-24: Security reference](reference/security.md)
+
+</div>
 
 ---
 
