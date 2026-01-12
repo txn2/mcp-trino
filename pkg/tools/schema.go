@@ -9,6 +9,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/txn2/mcp-trino/pkg/client"
+	"github.com/txn2/mcp-trino/pkg/semantic"
 )
 
 // ListCatalogsInput defines the input for the trino_list_catalogs tool.
@@ -276,17 +277,10 @@ func (t *Toolkit) registerDescribeTableTool(server *mcp.Server, cfg *toolConfig)
 func (t *Toolkit) handleDescribeTable(
 	ctx context.Context, _ *mcp.CallToolRequest, input DescribeTableInput,
 ) (*mcp.CallToolResult, any, error) {
-	if input.Catalog == "" {
-		return ErrorResult("catalog parameter is required"), nil, nil
-	}
-	if input.Schema == "" {
-		return ErrorResult("schema parameter is required"), nil, nil
-	}
-	if input.Table == "" {
-		return ErrorResult("table parameter is required"), nil, nil
+	if err := validateDescribeTableInput(input); err != nil {
+		return ErrorResult(err.Error()), nil, nil
 	}
 
-	// Get client for the specified connection
 	trinoClient, err := t.getClient(input.Connection)
 	if err != nil {
 		return ErrorResult(fmt.Sprintf("Connection error: %v", err)), nil, nil
@@ -298,11 +292,81 @@ func (t *Toolkit) handleDescribeTable(
 	}
 
 	output := fmt.Sprintf("## Table: `%s.%s.%s`\n\n", info.Catalog, info.Schema, info.Name)
-	output += "### Columns\n\n"
-	output += "| Name | Type | Nullable | Comment |\n"
-	output += "|------|------|----------|----------|\n"
+	output += t.formatTableWithSemantics(ctx, input, info)
 
-	for _, col := range info.Columns {
+	if input.IncludeSample {
+		sampleOutput, err := t.formatSampleData(ctx, trinoClient, input)
+		if err != nil {
+			return ErrorResult(err.Error()), nil, nil
+		}
+		output += sampleOutput
+	}
+
+	return &mcp.CallToolResult{
+		Content: []mcp.Content{
+			&mcp.TextContent{Text: output},
+		},
+	}, nil, nil
+}
+
+func validateDescribeTableInput(input DescribeTableInput) error {
+	if input.Catalog == "" {
+		return fmt.Errorf("catalog parameter is required")
+	}
+	if input.Schema == "" {
+		return fmt.Errorf("schema parameter is required")
+	}
+	if input.Table == "" {
+		return fmt.Errorf("table parameter is required")
+	}
+	return nil
+}
+
+func (t *Toolkit) formatTableWithSemantics(
+	ctx context.Context, input DescribeTableInput, info *client.TableInfo,
+) string {
+	var output string
+	var columnSemantics map[string]*semantic.ColumnContext
+
+	if t.semanticProvider != nil {
+		tableID := semantic.TableIdentifier{
+			Connection: input.Connection,
+			Catalog:    input.Catalog,
+			Schema:     input.Schema,
+			Table:      input.Table,
+		}
+		output += t.enrichWithTableContext(ctx, tableID)
+		//nolint:errcheck // semantic enrichment is optional
+		columnSemantics, _ = t.semanticProvider.GetColumnsContext(ctx, tableID)
+	}
+
+	output += t.formatColumns(info.Columns, columnSemantics)
+	output += fmt.Sprintf("\n*%d columns*", len(info.Columns))
+	return output
+}
+
+func (t *Toolkit) enrichWithTableContext(ctx context.Context, tableID semantic.TableIdentifier) string {
+	tableCtx, err := t.semanticProvider.GetTableContext(ctx, tableID)
+	if err != nil || tableCtx == nil {
+		return ""
+	}
+	return t.formatTableSemantics(tableCtx)
+}
+
+func (t *Toolkit) formatColumns(columns []client.ColumnDef, semantics map[string]*semantic.ColumnContext) string {
+	if len(semantics) > 0 {
+		return t.formatColumnsWithSemantics(columns, semantics)
+	}
+	return formatBasicColumns(columns)
+}
+
+func formatBasicColumns(columns []client.ColumnDef) string {
+	var sb strings.Builder
+	sb.WriteString("### Columns\n\n")
+	sb.WriteString("| Name | Type | Nullable | Comment |\n")
+	sb.WriteString("|------|------|----------|----------|\n")
+
+	for _, col := range columns {
 		nullable := col.Nullable
 		if nullable == "" {
 			nullable = "-"
@@ -311,31 +375,174 @@ func (t *Toolkit) handleDescribeTable(
 		if comment == "" {
 			comment = "-"
 		}
-		output += fmt.Sprintf("| `%s` | %s | %s | %s |\n", col.Name, col.Type, nullable, comment)
+		sb.WriteString(fmt.Sprintf("| `%s` | %s | %s | %s |\n", col.Name, col.Type, nullable, comment))
+	}
+	return sb.String()
+}
+
+func (t *Toolkit) formatSampleData(
+	ctx context.Context, trinoClient TrinoClient, input DescribeTableInput,
+) (string, error) {
+	sampleSQL := fmt.Sprintf("SELECT * FROM %s.%s.%s LIMIT 5", input.Catalog, input.Schema, input.Table)
+	sampleOpts := client.DefaultQueryOptions()
+	sampleOpts.Limit = 5
+
+	sample, err := trinoClient.Query(ctx, sampleSQL, sampleOpts)
+	if err != nil || len(sample.Rows) == 0 {
+		return "", nil
 	}
 
-	output += fmt.Sprintf("\n*%d columns*", len(info.Columns))
+	sampleJSON, err := json.MarshalIndent(sample.Rows, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal sample: %w", err)
+	}
+	return "\n\n### Sample Data\n\n```json\n" + string(sampleJSON) + "\n```", nil
+}
 
-	// Include sample if requested
-	if input.IncludeSample {
-		sampleSQL := fmt.Sprintf("SELECT * FROM %s.%s.%s LIMIT 5", input.Catalog, input.Schema, input.Table)
-		sampleOpts := client.DefaultQueryOptions()
-		sampleOpts.Limit = 5
+// formatTableSemantics formats semantic metadata for a table.
+func (t *Toolkit) formatTableSemantics(tc *semantic.TableContext) string {
+	var sb strings.Builder
+	sb.WriteString(formatDescription(tc.Description))
+	sb.WriteString(formatDeprecation(tc.Deprecation))
+	sb.WriteString(formatOwnership(tc.Ownership))
+	sb.WriteString(formatTags(tc.Tags))
+	sb.WriteString(formatDomain(tc.Domain))
+	sb.WriteString(formatGlossaryTerms(tc.GlossaryTerms))
+	sb.WriteString(formatQuality(tc.Quality))
+	return sb.String()
+}
 
-		sample, err := trinoClient.Query(ctx, sampleSQL, sampleOpts)
-		if err == nil && len(sample.Rows) > 0 {
-			output += "\n\n### Sample Data\n\n"
-			sampleJSON, err := json.MarshalIndent(sample.Rows, "", "  ")
-			if err != nil {
-				return ErrorResult(fmt.Sprintf("Failed to marshal sample: %v", err)), nil, nil
-			}
-			output += "```json\n" + string(sampleJSON) + "\n```"
+func formatDescription(desc string) string {
+	if desc == "" {
+		return ""
+	}
+	return fmt.Sprintf("**Description:** %s\n\n", desc)
+}
+
+func formatDeprecation(d *semantic.Deprecation) string {
+	if d == nil || !d.Deprecated {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("> **DEPRECATED:** %s\n", d.Note))
+	if d.ReplacedBy != "" {
+		sb.WriteString(fmt.Sprintf("> Use `%s` instead.\n", d.ReplacedBy))
+	}
+	sb.WriteString("\n")
+	return sb.String()
+}
+
+func formatOwnership(o *semantic.Ownership) string {
+	if o == nil || len(o.Owners) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("**Owners:** ")
+	for i, owner := range o.Owners {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		if owner.Role != "" {
+			sb.WriteString(fmt.Sprintf("%s (%s)", owner.Name, owner.Role))
+		} else {
+			sb.WriteString(owner.Name)
 		}
 	}
+	sb.WriteString("\n\n")
+	return sb.String()
+}
 
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			&mcp.TextContent{Text: output},
-		},
-	}, nil, nil
+func formatTags(tags []semantic.Tag) string {
+	if len(tags) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("**Tags:** ")
+	for i, tag := range tags {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(fmt.Sprintf("`%s`", tag.Name))
+	}
+	sb.WriteString("\n\n")
+	return sb.String()
+}
+
+func formatDomain(d *semantic.Domain) string {
+	if d == nil || d.Name == "" {
+		return ""
+	}
+	return fmt.Sprintf("**Domain:** %s\n\n", d.Name)
+}
+
+func formatGlossaryTerms(terms []semantic.GlossaryTerm) string {
+	if len(terms) == 0 {
+		return ""
+	}
+	var sb strings.Builder
+	sb.WriteString("**Glossary Terms:** ")
+	for i, term := range terms {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(fmt.Sprintf("*%s*", term.Name))
+	}
+	sb.WriteString("\n\n")
+	return sb.String()
+}
+
+func formatQuality(q *semantic.DataQuality) string {
+	if q == nil || q.Score == nil {
+		return ""
+	}
+	return fmt.Sprintf("**Data Quality Score:** %.0f%%\n\n", *q.Score)
+}
+
+// formatColumnsWithSemantics formats columns with semantic enrichment.
+func (t *Toolkit) formatColumnsWithSemantics(columns []client.ColumnDef, semantics map[string]*semantic.ColumnContext) string {
+	var sb strings.Builder
+
+	sb.WriteString("### Columns\n\n")
+	sb.WriteString("| Name | Type | Nullable | Description | Tags |\n")
+	sb.WriteString("|------|------|----------|-------------|------|\n")
+
+	for _, col := range columns {
+		nullable := col.Nullable
+		if nullable == "" {
+			nullable = "-"
+		}
+
+		description := col.Comment
+		tags := "-"
+
+		// Enrich with semantic metadata
+		if colCtx, ok := semantics[col.Name]; ok && colCtx != nil {
+			if colCtx.Description != "" {
+				description = colCtx.Description
+			}
+			if len(colCtx.Tags) > 0 {
+				tagNames := make([]string, len(colCtx.Tags))
+				for i, tag := range colCtx.Tags {
+					tagNames[i] = tag.Name
+				}
+				tags = strings.Join(tagNames, ", ")
+			}
+			if colCtx.IsSensitive {
+				if tags == "-" {
+					tags = "**SENSITIVE**"
+				} else {
+					tags += ", **SENSITIVE**"
+				}
+			}
+		}
+
+		if description == "" {
+			description = "-"
+		}
+
+		sb.WriteString(fmt.Sprintf("| `%s` | %s | %s | %s | %s |\n",
+			col.Name, col.Type, nullable, description, tags))
+	}
+
+	return sb.String()
 }
