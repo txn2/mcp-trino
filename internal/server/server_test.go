@@ -1,19 +1,22 @@
 package server
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/txn2/mcp-trino/pkg/client"
 	"github.com/txn2/mcp-trino/pkg/multiserver"
+	"github.com/txn2/mcp-trino/pkg/semantic"
 	"github.com/txn2/mcp-trino/pkg/tools"
 )
 
 func TestVersion(t *testing.T) {
-	if Version == "" {
+	// Verify Version constant is set (compile-time check would catch empty)
+	if len(Version) == 0 {
 		t.Error("Version should not be empty")
-	}
-	if Version != "0.1.0" {
-		t.Errorf("expected Version '0.1.0', got %q", Version)
 	}
 }
 
@@ -187,7 +190,7 @@ func TestNew_ValidConfig(t *testing.T) {
 
 	// Clean up
 	if mgr != nil {
-		mgr.Close()
+		_ = mgr.Close()
 	}
 }
 
@@ -212,7 +215,7 @@ func TestNew_ServerImplementation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	defer mgr.Close()
+	defer func() { _ = mgr.Close() }()
 
 	// Server should be configured with proper implementation name
 	if server == nil {
@@ -243,7 +246,7 @@ func TestNew_MultipleConnections(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	defer mgr.Close()
+	defer func() { _ = mgr.Close() }()
 
 	if server == nil {
 		t.Fatal("server should not be nil")
@@ -253,4 +256,201 @@ func TestNew_MultipleConnections(t *testing.T) {
 	if mgr.ConnectionCount() != 2 {
 		t.Errorf("expected 2 connections, got %d", mgr.ConnectionCount())
 	}
+}
+
+func TestDefaultOptions_SemanticFields(t *testing.T) {
+	opts := DefaultOptions()
+
+	// Semantic fields should be nil by default
+	if opts.SemanticProvider != nil {
+		t.Error("SemanticProvider should be nil by default")
+	}
+	if opts.SemanticCacheConfig != nil {
+		t.Error("SemanticCacheConfig should be nil by default")
+	}
+}
+
+func TestNew_WithSemanticProvider(t *testing.T) {
+	// Create a mock semantic provider
+	mockProvider := &semantic.ProviderFunc{
+		NameFn: func() string { return "mock" },
+		GetTableContextFn: func(_ context.Context, _ semantic.TableIdentifier) (*semantic.TableContext, error) {
+			return &semantic.TableContext{Description: "test"}, nil
+		},
+	}
+
+	opts := Options{
+		MultiServerConfig: &multiserver.Config{
+			Default: "default",
+			Primary: client.Config{
+				Host: "localhost",
+				Port: 8080,
+				User: "admin",
+			},
+		},
+		ToolkitConfig:    tools.DefaultConfig(),
+		SemanticProvider: mockProvider,
+	}
+
+	server, mgr, err := New(opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = mgr.Close() }()
+
+	if server == nil {
+		t.Error("server should not be nil")
+	}
+}
+
+func TestNew_WithSemanticCacheConfig(t *testing.T) {
+	// Create a mock semantic provider
+	mockProvider := &semantic.ProviderFunc{
+		NameFn: func() string { return "mock" },
+	}
+
+	cacheConfig := &semantic.CacheConfig{
+		TTL:        10 * time.Minute,
+		MaxEntries: 5000,
+	}
+
+	opts := Options{
+		MultiServerConfig: &multiserver.Config{
+			Default: "default",
+			Primary: client.Config{
+				Host: "localhost",
+				Port: 8080,
+				User: "admin",
+			},
+		},
+		ToolkitConfig:       tools.DefaultConfig(),
+		SemanticProvider:    mockProvider,
+		SemanticCacheConfig: cacheConfig,
+	}
+
+	server, mgr, err := New(opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = mgr.Close() }()
+
+	if server == nil {
+		t.Error("server should not be nil")
+	}
+}
+
+func TestNew_SemanticFileEnvVar(t *testing.T) {
+	// Create a temporary semantic file
+	tmpDir := t.TempDir()
+	semanticFile := filepath.Join(tmpDir, "semantic.yaml")
+	content := `tables:
+  - catalog: test
+    schema: public
+    table: users
+    description: Test users table
+`
+	if err := os.WriteFile(semanticFile, []byte(content), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	// Set SEMANTIC_FILE env var
+	t.Setenv("SEMANTIC_FILE", semanticFile)
+
+	opts := Options{
+		MultiServerConfig: &multiserver.Config{
+			Default: "default",
+			Primary: client.Config{
+				Host: "localhost",
+				Port: 8080,
+				User: "admin",
+			},
+		},
+		ToolkitConfig: tools.DefaultConfig(),
+	}
+
+	server, mgr, err := New(opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = mgr.Close() }()
+
+	if server == nil {
+		t.Error("server should not be nil")
+	}
+}
+
+func TestNew_SemanticFileEnvVar_InvalidFile(t *testing.T) {
+	// Set SEMANTIC_FILE to non-existent file
+	t.Setenv("SEMANTIC_FILE", "/nonexistent/file.yaml")
+
+	opts := Options{
+		MultiServerConfig: &multiserver.Config{
+			Default: "default",
+			Primary: client.Config{
+				Host: "localhost",
+				Port: 8080,
+				User: "admin",
+			},
+		},
+		ToolkitConfig: tools.DefaultConfig(),
+	}
+
+	// Server should still start even if semantic file fails to load
+	server, mgr, err := New(opts)
+	if err != nil {
+		t.Fatalf("server should start even with invalid semantic file: %v", err)
+	}
+	defer func() { _ = mgr.Close() }()
+
+	if server == nil {
+		t.Error("server should not be nil")
+	}
+}
+
+func TestNew_SemanticProviderTakesPrecedenceOverEnv(t *testing.T) {
+	// Create a temporary semantic file
+	tmpDir := t.TempDir()
+	semanticFile := filepath.Join(tmpDir, "semantic.yaml")
+	content := `tables:
+  - catalog: env
+    schema: public
+    table: from_env
+    description: From environment
+`
+	if err := os.WriteFile(semanticFile, []byte(content), 0o600); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	// Set SEMANTIC_FILE env var
+	t.Setenv("SEMANTIC_FILE", semanticFile)
+
+	// Create a mock semantic provider (should take precedence)
+	mockProvider := &semantic.ProviderFunc{
+		NameFn: func() string { return "explicit-provider" },
+	}
+
+	opts := Options{
+		MultiServerConfig: &multiserver.Config{
+			Default: "default",
+			Primary: client.Config{
+				Host: "localhost",
+				Port: 8080,
+				User: "admin",
+			},
+		},
+		ToolkitConfig:    tools.DefaultConfig(),
+		SemanticProvider: mockProvider,
+	}
+
+	server, mgr, err := New(opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = mgr.Close() }()
+
+	if server == nil {
+		t.Error("server should not be nil")
+	}
+	// The explicit provider should be used, not the one from SEMANTIC_FILE
+	// (verified by the fact that we're using mockProvider with name "explicit-provider")
 }

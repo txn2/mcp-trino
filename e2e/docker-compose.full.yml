@@ -1,0 +1,190 @@
+# E2E Test Environment - Tier 2: Full Stack
+# PostgreSQL + Trino + DataHub (full metadata catalog)
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.full.yml up -d
+#   ./scripts/start-full.sh
+#
+# Ports:
+#   - PostgreSQL: 5432
+#   - Trino: 8080
+#   - DataHub UI: 9002
+#   - DataHub GMS: 8081
+#
+# Note: DataHub requires significant resources. Recommended:
+#   - 8GB+ RAM available to Docker
+#   - 4+ CPU cores
+
+services:
+  # ==========================================================================
+  # DataHub Dependencies
+  # ==========================================================================
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: e2e-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - e2e-network
+
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: e2e-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    healthcheck:
+      test: ["CMD", "kafka-topics", "--bootstrap-server", "kafka:9092", "--list"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - e2e-network
+
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.4.0
+    container_name: e2e-schema-registry
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: kafka:9092
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/subjects"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+    networks:
+      - e2e-network
+
+  elasticsearch:
+    image: elasticsearch:7.17.9
+    container_name: e2e-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9200/_cluster/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - e2e-network
+
+  mysql:
+    image: mysql:8.0
+    container_name: e2e-mysql
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_ROOT_PASSWORD: datahub
+      MYSQL_DATABASE: datahub
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pdatahub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - e2e-network
+
+  # ==========================================================================
+  # DataHub Services
+  # ==========================================================================
+
+  datahub-gms:
+    image: acryldata/datahub-gms:v0.12.1
+    container_name: e2e-datahub-gms
+    depends_on:
+      mysql:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      DATAHUB_GMS_HOST: datahub-gms
+      DATAHUB_GMS_PORT: 8080
+      EBEAN_DATASOURCE_USERNAME: root
+      EBEAN_DATASOURCE_PASSWORD: datahub
+      EBEAN_DATASOURCE_HOST: mysql:3306
+      EBEAN_DATASOURCE_URL: jdbc:mysql://mysql:3306/datahub?verifyServerCertificate=false&useSSL=false&useUnicode=yes&characterEncoding=UTF-8&enabledTLSProtocols=TLSv1.2
+      EBEAN_DATASOURCE_DRIVER: com.mysql.jdbc.Driver
+      KAFKA_BOOTSTRAP_SERVER: kafka:9092
+      KAFKA_SCHEMAREGISTRY_URL: http://schema-registry:8081
+      ELASTICSEARCH_HOST: elasticsearch
+      ELASTICSEARCH_PORT: 9200
+      GRAPH_SERVICE_IMPL: elasticsearch
+      ENTITY_REGISTRY_CONFIG_PATH: /datahub/datahub-gms/resources/entity-registry.yml
+      MAE_CONSUMER_ENABLED: "true"
+      MCE_CONSUMER_ENABLED: "true"
+      PE_CONSUMER_ENABLED: "true"
+      DATAHUB_ANALYTICS_ENABLED: "false"
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+    networks:
+      - e2e-network
+
+  datahub-frontend:
+    image: acryldata/datahub-frontend-react:v0.12.1
+    container_name: e2e-datahub-frontend
+    depends_on:
+      datahub-gms:
+        condition: service_healthy
+    environment:
+      DATAHUB_GMS_HOST: datahub-gms
+      DATAHUB_GMS_PORT: 8080
+      DATAHUB_SECRET: YouKnowNothing
+      DATAHUB_APP_VERSION: "1.0"
+      DATAHUB_PLAY_MEM_BUFFER_SIZE: 10MB
+      JAVA_OPTS: "-Xms256m -Xmx512m"
+      AUTH_OIDC_ENABLED: "false"
+      AUTH_JAAS_ENABLED: "false"
+    ports:
+      - "9002:9002"
+    networks:
+      - e2e-network
+
+  datahub-actions:
+    image: acryldata/datahub-actions:v0.0.13
+    container_name: e2e-datahub-actions
+    depends_on:
+      datahub-gms:
+        condition: service_healthy
+    environment:
+      GMS_HOST: datahub-gms
+      GMS_PORT: 8080
+      KAFKA_BOOTSTRAP_SERVER: kafka:9092
+      SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      METADATA_AUDIT_EVENT_NAME: MetadataAuditEvent_v4
+      METADATA_CHANGE_LOG_VERSIONED_TOPIC_NAME: MetadataChangeLog_Versioned_v1
+      DATAHUB_SYSTEM_CLIENT_ID: __datahub_system
+      DATAHUB_SYSTEM_CLIENT_SECRET: JohnSnowKnowsNothing
+    networks:
+      - e2e-network
+
+networks:
+  e2e-network:
+    driver: bridge

@@ -9,6 +9,7 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/txn2/mcp-trino/pkg/multiserver"
+	"github.com/txn2/mcp-trino/pkg/semantic"
 )
 
 // Config configures the Trino toolkit behavior.
@@ -49,6 +50,10 @@ type Toolkit struct {
 	transformers    []ResultTransformer           // Result transformers
 	toolMiddlewares map[ToolName][]ToolMiddleware // Per-tool middleware
 
+	// Semantic layer (optional, zero-overhead if nil)
+	semanticProvider    semantic.Provider
+	semanticCacheConfig *semantic.CacheConfig
+
 	// Internal tracking
 	registeredTools map[ToolName]bool
 }
@@ -57,6 +62,14 @@ type Toolkit struct {
 // Accepts optional ToolkitOption arguments for middleware, interceptors, etc.
 // Maintains backwards compatibility - existing code works unchanged.
 func NewToolkit(c TrinoClient, cfg Config, opts ...ToolkitOption) *Toolkit {
+	t := newBaseToolkit(normalizeConfig(cfg))
+	t.client = c
+	applyToolkitOptions(t, opts)
+	return t
+}
+
+// normalizeConfig applies default values to a Config.
+func normalizeConfig(cfg Config) Config {
 	if cfg.DefaultLimit <= 0 {
 		cfg.DefaultLimit = 1000
 	}
@@ -69,20 +82,28 @@ func NewToolkit(c TrinoClient, cfg Config, opts ...ToolkitOption) *Toolkit {
 	if cfg.MaxTimeout <= 0 {
 		cfg.MaxTimeout = 300 * time.Second
 	}
+	return cfg
+}
 
-	t := &Toolkit{
-		client:          c,
+// newBaseToolkit creates a toolkit with common fields initialized.
+func newBaseToolkit(cfg Config) *Toolkit {
+	return &Toolkit{
 		config:          cfg,
 		toolMiddlewares: make(map[ToolName][]ToolMiddleware),
 		registeredTools: make(map[ToolName]bool),
 	}
+}
 
-	// Apply options
+// applyToolkitOptions applies options and finalizes toolkit setup.
+func applyToolkitOptions(t *Toolkit, opts []ToolkitOption) {
 	for _, opt := range opts {
 		opt(t)
 	}
 
-	return t
+	// Apply caching to semantic provider if configured
+	if t.semanticProvider != nil && t.semanticCacheConfig != nil {
+		t.semanticProvider = semantic.NewCachingProvider(t.semanticProvider, *t.semanticCacheConfig)
+	}
 }
 
 // RegisterAll adds all Trino tools to the given MCP server.
@@ -263,31 +284,9 @@ func (t *Toolkit) HasTransformers() bool {
 // NewToolkitWithManager creates a Toolkit with multi-server support.
 // Use this when you need to connect to multiple Trino servers.
 func NewToolkitWithManager(mgr *multiserver.Manager, cfg Config, opts ...ToolkitOption) *Toolkit {
-	if cfg.DefaultLimit <= 0 {
-		cfg.DefaultLimit = 1000
-	}
-	if cfg.MaxLimit <= 0 {
-		cfg.MaxLimit = 10000
-	}
-	if cfg.DefaultTimeout <= 0 {
-		cfg.DefaultTimeout = 120 * time.Second
-	}
-	if cfg.MaxTimeout <= 0 {
-		cfg.MaxTimeout = 300 * time.Second
-	}
-
-	t := &Toolkit{
-		manager:         mgr,
-		config:          cfg,
-		toolMiddlewares: make(map[ToolName][]ToolMiddleware),
-		registeredTools: make(map[ToolName]bool),
-	}
-
-	// Apply options
-	for _, opt := range opts {
-		opt(t)
-	}
-
+	t := newBaseToolkit(normalizeConfig(cfg))
+	t.manager = mgr
+	applyToolkitOptions(t, opts)
 	return t
 }
 
@@ -340,4 +339,14 @@ func (t *Toolkit) ConnectionCount() int {
 		return t.manager.ConnectionCount()
 	}
 	return 1
+}
+
+// SemanticProvider returns the configured semantic provider, or nil if not configured.
+func (t *Toolkit) SemanticProvider() semantic.Provider {
+	return t.semanticProvider
+}
+
+// HasSemanticProvider returns true if a semantic provider is configured.
+func (t *Toolkit) HasSemanticProvider() bool {
+	return t.semanticProvider != nil
 }
