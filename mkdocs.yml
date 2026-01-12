@@ -1,4 +1,4 @@
-site_name: mcp-trino
+site_name: txn2/mcp-trino
 site_url: https://mcp-trino.txn2.com
 site_description: The only composable MCP server for Trino
 site_author: Craig Johnston
@@ -40,6 +40,12 @@ nav:
     - Configuration: server/configuration.md
     - Tools: server/tools.md
     - Multi-Server: server/multi-server.md
+  - Semantic Layer:
+    - Overview: semantic/index.md
+    - DataHub Provider: semantic/datahub.md
+    - Static Provider: semantic/static.md
+    - Custom Providers: semantic/custom.md
+    - Caching: semantic/caching.md
   - Go Library:
     - Overview: library/index.md
     - Quick Start: library/quickstart.md
