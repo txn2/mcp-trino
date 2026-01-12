@@ -1,6 +1,4 @@
-# mcp-trino
-
-A Model Context Protocol (MCP) server for [Trino](https://trino.io/), enabling AI assistants like Claude to query and explore data warehouses.
+# txn2/mcp-trino
 
 [![GitHub license](https://img.shields.io/github/license/txn2/mcp-trino.svg)](https://github.com/txn2/mcp-trino/blob/main/LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/txn2/mcp-trino.svg)](https://pkg.go.dev/github.com/txn2/mcp-trino)
@@ -9,15 +7,41 @@ A Model Context Protocol (MCP) server for [Trino](https://trino.io/), enabling A
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/txn2/mcp-trino/badge)](https://scorecard.dev/viewer/?uri=github.com/txn2/mcp-trino)
 [![SLSA 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
 
-This project provides both a **standalone MCP server** and a **composable Go library**. The standalone server serves as a reference implementation, demonstrating all extensibility features including middleware, query interceptors, and result transformers. Import the `pkg/tools` and `pkg/extensions` packages into your own MCP server to add Trino capabilities with full customization for authentication, tenant isolation, audit logging, and more.
+**Full documentation at [mcp-trino.txn2.com](https://mcp-trino.txn2.com)**
+
+A Model Context Protocol (MCP) server for [Trino](https://trino.io/), enabling AI assistants to query and explore data warehouses with optional semantic context from metadata catalogs.
+
+AI assistants excel at querying data but lack organizational context: which tables are trustworthy, what metrics mean, and which columns contain sensitive data. mcp-trino bridges this gap by connecting Trino to AI assistants through the MCP protocol, with an optional semantic layer that surfaces business metadata alongside query results.
+
+## Core Capabilities
+
+**Composable Architecture**
+- Import as a Go library to build custom MCP servers
+- Add authentication, tenant isolation, audit logging without forking
+- Middleware and interceptor patterns for enterprise requirements
+
+**Semantic Context**
+- Surface business descriptions, ownership, and data quality from metadata catalogs
+- Mark sensitive columns and deprecation warnings for AI assistants
+- Connect to DataHub, static files, or build custom metadata providers
+
+**Multi-Cluster Connectivity**
+- Query multiple Trino servers from a single MCP installation
+- Unified interface across production, staging, and development environments
+
+**Secure Defaults**
+- Read-only mode prevents accidental data modification
+- Query limits and timeouts prevent runaway operations
+- SLSA Level 3 provenance for supply chain security
 
 ## Features
 
-- **SQL Query Execution**: Execute queries with configurable limits and timeouts
-- **Execution Plans**: Analyze query plans (logical, distributed, IO)
-- **Schema Discovery**: List catalogs, schemas, and tables
-- **Table Inspection**: Describe columns and sample data
-- **Composable Design**: Import as a Go package to build custom MCP servers
+- **Execute SQL Queries**: Run queries with configurable row limits and timeouts
+- **Analyze Execution Plans**: Inspect logical, distributed, and I/O query plans
+- **Discover Schema**: Browse catalogs, schemas, and tables across clusters
+- **Describe Tables**: View column definitions with optional data samples
+- **Enrich with Context**: Surface business metadata, ownership, and data quality
+- **Compose Custom Servers**: Import as a Go library with middleware and interceptors
 
 ## Installation
 
@@ -156,8 +180,35 @@ mcp-trino
 | `trino_list_catalogs` | List available catalogs |
 | `trino_list_schemas` | List schemas in a catalog |
 | `trino_list_tables` | List tables in a schema |
-| `trino_describe_table` | Get table columns and sample data |
+| `trino_describe_table` | Get columns, sample data, and semantic context (if configured) |
 | `trino_list_connections` | List all configured server connections |
+
+## Semantic Layer
+
+AI agents operate more reliably when they understand organizational context: not just table structures, but which datasets are production-ready, what business terms mean, and which columns require careful handling.
+
+mcp-trino's semantic layer integrates with metadata catalogs to surface this context alongside query results:
+
+| Metadata | Description |
+|----------|-------------|
+| **Descriptions** | Business-friendly explanations of tables and columns |
+| **Ownership** | Data stewards and technical owners |
+| **Tags & Domains** | Classification labels and business domains |
+| **Glossary Terms** | Links to formal business definitions |
+| **Data Quality** | Freshness scores and quality metrics |
+| **Sensitivity** | PII and sensitive data markers at column level |
+| **Deprecation** | Warnings with replacement guidance |
+| **Lineage** | Upstream and downstream data dependencies |
+
+### Providers
+
+| Provider | Description |
+|----------|-------------|
+| **DataHub** | Connect to DataHub's GraphQL API for enterprise metadata |
+| **Static Files** | Load metadata from YAML or JSON files with hot-reload |
+| **Custom** | Implement the `semantic.Provider` interface for any catalog |
+
+See the [Semantic Layer Documentation](https://mcp-trino.txn2.com/semantic/) for configuration, caching, and custom provider development.
 
 ## Configuration
 
