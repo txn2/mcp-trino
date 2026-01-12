@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"context"
+	"errors"
 	"strings"
 	"testing"
 
@@ -815,5 +817,211 @@ func TestFormatBasicColumns(t *testing.T) {
 	// Check default values for empty fields
 	if !strings.Contains(result, "| - |") {
 		t.Error("expected '-' for empty nullable or comment")
+	}
+}
+
+func TestEnrichWithTableContext(t *testing.T) {
+	cfg := client.Config{Host: "localhost", User: "test"}
+	trinoClient := client.NewWithDB(nil, cfg)
+
+	tests := []struct {
+		name     string
+		provider *semantic.ProviderFunc
+		contains []string
+	}{
+		{
+			name: "returns formatted context when provider returns data",
+			provider: &semantic.ProviderFunc{
+				NameFn: func() string { return "test" },
+				GetTableContextFn: func(_ context.Context, _ semantic.TableIdentifier) (*semantic.TableContext, error) {
+					return &semantic.TableContext{
+						Description: "Test table description",
+						Tags:        []semantic.Tag{{Name: "pii"}},
+					}, nil
+				},
+			},
+			contains: []string{"Test table description", "`pii`"},
+		},
+		{
+			name: "returns empty when provider returns nil",
+			provider: &semantic.ProviderFunc{
+				NameFn: func() string { return "test" },
+				GetTableContextFn: func(_ context.Context, _ semantic.TableIdentifier) (*semantic.TableContext, error) {
+					return nil, nil
+				},
+			},
+			contains: nil,
+		},
+		{
+			name: "returns empty when provider returns error",
+			provider: &semantic.ProviderFunc{
+				NameFn: func() string { return "test" },
+				GetTableContextFn: func(_ context.Context, _ semantic.TableIdentifier) (*semantic.TableContext, error) {
+					return nil, errors.New("provider error")
+				},
+			},
+			contains: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			toolkit := NewToolkit(trinoClient, DefaultConfig(), WithSemanticProvider(tt.provider))
+
+			tableID := semantic.TableIdentifier{
+				Catalog: "test",
+				Schema:  "public",
+				Table:   "users",
+			}
+
+			result := toolkit.enrichWithTableContext(context.Background(), tableID)
+
+			if len(tt.contains) == 0 {
+				if result != "" {
+					t.Errorf("expected empty string, got %q", result)
+				}
+				return
+			}
+
+			for _, substr := range tt.contains {
+				if !strings.Contains(result, substr) {
+					t.Errorf("expected result to contain %q, got %q", substr, result)
+				}
+			}
+		})
+	}
+}
+
+func TestFormatTableWithSemantics(t *testing.T) {
+	cfg := client.Config{Host: "localhost", User: "test"}
+	trinoClient := client.NewWithDB(nil, cfg)
+
+	columns := []client.ColumnDef{
+		{Name: "id", Type: "bigint", Nullable: "NO"},
+		{Name: "email", Type: "varchar", Nullable: "YES"},
+	}
+	tableInfo := &client.TableInfo{
+		Catalog: "test",
+		Schema:  "public",
+		Name:    "users",
+		Columns: columns,
+	}
+
+	input := DescribeTableInput{
+		Catalog: "test",
+		Schema:  "public",
+		Table:   "users",
+	}
+
+	tests := []struct {
+		name     string
+		provider *semantic.ProviderFunc
+		contains []string
+	}{
+		{
+			name:     "without semantic provider",
+			provider: nil,
+			contains: []string{"Columns", "`id`", "`email`", "2 columns"},
+		},
+		{
+			name: "with semantic provider returning table and column context",
+			provider: &semantic.ProviderFunc{
+				NameFn: func() string { return "test" },
+				GetTableContextFn: func(_ context.Context, _ semantic.TableIdentifier) (*semantic.TableContext, error) {
+					return &semantic.TableContext{
+						Description: "User accounts table",
+						Domain:      &semantic.Domain{Name: "Customer"},
+					}, nil
+				},
+				GetColumnsContextFn: func(_ context.Context, _ semantic.TableIdentifier) (map[string]*semantic.ColumnContext, error) {
+					return map[string]*semantic.ColumnContext{
+						"email": {
+							Description: "User email address",
+							IsSensitive: true,
+						},
+					}, nil
+				},
+			},
+			contains: []string{"User accounts table", "Customer", "User email address", "SENSITIVE", "2 columns"},
+		},
+		{
+			name: "with semantic provider returning nil",
+			provider: &semantic.ProviderFunc{
+				NameFn: func() string { return "test" },
+				GetTableContextFn: func(_ context.Context, _ semantic.TableIdentifier) (*semantic.TableContext, error) {
+					return nil, nil
+				},
+				GetColumnsContextFn: func(_ context.Context, _ semantic.TableIdentifier) (map[string]*semantic.ColumnContext, error) {
+					return nil, nil
+				},
+			},
+			contains: []string{"Columns", "`id`", "`email`", "2 columns"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var toolkit *Toolkit
+			if tt.provider != nil {
+				toolkit = NewToolkit(trinoClient, DefaultConfig(), WithSemanticProvider(tt.provider))
+			} else {
+				toolkit = NewToolkit(trinoClient, DefaultConfig())
+			}
+
+			result := toolkit.formatTableWithSemantics(context.Background(), input, tableInfo)
+
+			for _, substr := range tt.contains {
+				if !strings.Contains(result, substr) {
+					t.Errorf("expected result to contain %q, got:\n%s", substr, result)
+				}
+			}
+		})
+	}
+}
+
+func TestFormatColumns(t *testing.T) {
+	cfg := client.Config{Host: "localhost", User: "test"}
+	trinoClient := client.NewWithDB(nil, cfg)
+	toolkit := NewToolkit(trinoClient, DefaultConfig())
+
+	columns := []client.ColumnDef{
+		{Name: "id", Type: "bigint", Nullable: "NO"},
+		{Name: "name", Type: "varchar", Nullable: "YES"},
+	}
+
+	tests := []struct {
+		name      string
+		semantics map[string]*semantic.ColumnContext
+		contains  []string
+	}{
+		{
+			name:      "without semantics uses basic format",
+			semantics: nil,
+			contains:  []string{"| Name | Type | Nullable | Comment |"},
+		},
+		{
+			name:      "empty semantics uses basic format",
+			semantics: map[string]*semantic.ColumnContext{},
+			contains:  []string{"| Name | Type | Nullable | Comment |"},
+		},
+		{
+			name: "with semantics uses enriched format",
+			semantics: map[string]*semantic.ColumnContext{
+				"id": {Description: "Primary key"},
+			},
+			contains: []string{"| Name | Type | Nullable | Description | Tags |"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := toolkit.formatColumns(columns, tt.semantics)
+
+			for _, substr := range tt.contains {
+				if !strings.Contains(result, substr) {
+					t.Errorf("expected result to contain %q, got:\n%s", substr, result)
+				}
+			}
+		})
 	}
 }
