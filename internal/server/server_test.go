@@ -14,11 +14,13 @@ import (
 )
 
 func TestVersion(t *testing.T) {
-	if Version == "" {
+	// Use a variable to avoid staticcheck "always true/false" warnings
+	v := Version
+	if v == "" {
 		t.Error("Version should not be empty")
 	}
-	if Version != "0.1.0" {
-		t.Errorf("expected Version '0.1.0', got %q", Version)
+	if v != "0.1.0" {
+		t.Errorf("expected Version '0.1.0', got %q", v)
 	}
 }
 
@@ -192,7 +194,7 @@ func TestNew_ValidConfig(t *testing.T) {
 
 	// Clean up
 	if mgr != nil {
-		mgr.Close()
+		_ = mgr.Close()
 	}
 }
 
@@ -217,7 +219,7 @@ func TestNew_ServerImplementation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	defer mgr.Close()
+	defer func() { _ = mgr.Close() }()
 
 	// Server should be configured with proper implementation name
 	if server == nil {
@@ -248,7 +250,7 @@ func TestNew_MultipleConnections(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	defer mgr.Close()
+	defer func() { _ = mgr.Close() }()
 
 	if server == nil {
 		t.Fatal("server should not be nil")

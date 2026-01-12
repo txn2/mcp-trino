@@ -259,8 +259,7 @@ func (p *Provider) watch() {
 	for {
 		select {
 		case <-ticker.C:
-			// #nosec G104 -- reload errors are non-fatal, continue watching
-			p.load() //nolint:errcheck // reload errors are non-fatal
+			_ = p.load() //nolint:errcheck // reload errors are non-fatal, continue watching
 		case <-p.stopChan:
 			return
 		}
