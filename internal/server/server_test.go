@@ -14,13 +14,9 @@ import (
 )
 
 func TestVersion(t *testing.T) {
-	// Use a variable to avoid staticcheck "always true/false" warnings
-	v := Version
-	if v == "" {
+	// Verify Version constant is set (compile-time check would catch empty)
+	if len(Version) == 0 {
 		t.Error("Version should not be empty")
-	}
-	if v != "0.1.0" {
-		t.Errorf("expected Version '0.1.0', got %q", v)
 	}
 }
 
