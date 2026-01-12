@@ -374,6 +374,40 @@ toolkit.AddTransformer(metadataTransformer)    // 3rd - add metadata
 
 ---
 
+## Semantic Providers
+
+Add organizational context to tool output by integrating with metadata catalogs.
+
+```go
+import (
+    "github.com/txn2/mcp-trino/pkg/semantic"
+    "github.com/txn2/mcp-trino/pkg/semantic/providers/datahub"
+    "github.com/txn2/mcp-trino/pkg/tools"
+)
+
+// Create DataHub provider
+provider, _ := datahub.New(datahub.FromEnv())
+defer provider.Close()
+
+// Add to toolkit with caching
+toolkit := tools.NewToolkit(trinoClient, cfg,
+    tools.WithSemanticProvider(provider),
+    tools.WithSemanticCache(semantic.DefaultCacheConfig()),
+)
+```
+
+When configured, `trino_describe_table` enriches output with:
+
+- Table and column descriptions
+- Ownership information
+- Tags and domain classifications
+- Sensitivity markers (PII, sensitive data)
+- Deprecation warnings
+
+See the [Semantic Layer documentation](../semantic/index.md) for provider setup, caching, and building custom providers.
+
+---
+
 ## Built-in Extensions
 
 mcp-trino includes ready-to-use extensions:
