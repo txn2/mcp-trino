@@ -11,7 +11,7 @@ The MCP server provides these tools for querying and exploring Trino.
 | `trino_list_catalogs` | List available catalogs |
 | `trino_list_schemas` | List schemas in a catalog |
 | `trino_list_tables` | List tables in a schema |
-| `trino_describe_table` | Get table columns and sample data |
+| `trino_describe_table` | Get columns, sample data, and semantic context |
 | `trino_list_connections` | List configured server connections |
 
 ---
@@ -168,7 +168,17 @@ Uses `pattern: "%order%"`:
 
 ## trino_describe_table
 
-Get detailed information about a table including columns and sample data.
+Get detailed information about a table including columns, sample data, and semantic context from metadata catalogs.
+
+### Semantic Context
+
+When a [semantic provider](../semantic/index.md) is configured, this tool enriches the output with:
+
+- **Description**: Business-friendly explanation of the table and columns
+- **Ownership**: Data stewards and technical owners
+- **Tags & Domain**: Classification labels and business domain
+- **Sensitivity**: Columns marked as containing PII or sensitive data
+- **Deprecation**: Warnings if the table is deprecated
 
 ### Parameters
 
