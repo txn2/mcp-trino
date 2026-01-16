@@ -383,7 +383,10 @@ func formatBasicColumns(columns []client.ColumnDef) string {
 func (t *Toolkit) formatSampleData(
 	ctx context.Context, trinoClient TrinoClient, input DescribeTableInput,
 ) (string, error) {
-	sampleSQL := fmt.Sprintf("SELECT * FROM %s.%s.%s LIMIT 5", input.Catalog, input.Schema, input.Table)
+	sampleSQL := fmt.Sprintf("SELECT * FROM %s.%s.%s LIMIT 5",
+		client.QuoteIdentifier(input.Catalog),
+		client.QuoteIdentifier(input.Schema),
+		client.QuoteIdentifier(input.Table))
 	sampleOpts := client.DefaultQueryOptions()
 	sampleOpts.Limit = 5
 
