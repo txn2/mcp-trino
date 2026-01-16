@@ -285,7 +285,8 @@ func (c *Client) ListSchemas(ctx context.Context, catalog string) ([]string, err
 		catalog = c.config.Catalog
 	}
 
-	query := fmt.Sprintf("SHOW SCHEMAS FROM %s", catalog) // #nosec G201 -- catalog is from config, not user input
+	// #nosec G201 -- identifiers are safely quoted via QuoteIdentifier
+	query := fmt.Sprintf("SHOW SCHEMAS FROM %s", QuoteIdentifier(catalog))
 	rows, err := c.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list schemas: %w", err)
@@ -312,7 +313,8 @@ func (c *Client) ListTables(ctx context.Context, catalog, schema string) ([]Tabl
 		schema = c.config.Schema
 	}
 
-	query := fmt.Sprintf("SHOW TABLES FROM %s.%s", catalog, schema) // #nosec G201 -- catalog/schema are from config, not user input
+	// #nosec G201 -- identifiers are safely quoted via QuoteIdentifier
+	query := fmt.Sprintf("SHOW TABLES FROM %s.%s", QuoteIdentifier(catalog), QuoteIdentifier(schema))
 	rows, err := c.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list tables: %w", err)
@@ -344,7 +346,11 @@ func (c *Client) DescribeTable(ctx context.Context, catalog, schema, table strin
 		schema = c.config.Schema
 	}
 
-	query := fmt.Sprintf("DESCRIBE %s.%s.%s", catalog, schema, table) // #nosec G201 -- catalog/schema/table from config or validated input
+	// #nosec G201 -- identifiers are safely quoted via QuoteIdentifier
+	query := fmt.Sprintf(
+		"DESCRIBE %s.%s.%s",
+		QuoteIdentifier(catalog), QuoteIdentifier(schema), QuoteIdentifier(table),
+	)
 	rows, err := c.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe table: %w", err)
@@ -375,6 +381,15 @@ func (c *Client) DescribeTable(ctx context.Context, catalog, schema, table strin
 	}
 
 	return info, nil
+}
+
+// QuoteIdentifier wraps a SQL identifier in double quotes for safe use in queries.
+// This handles identifiers containing special characters, reserved keywords, or spaces.
+// Internal double quotes are escaped by doubling them per SQL standard.
+func QuoteIdentifier(name string) string {
+	// Escape internal double quotes by doubling them
+	escaped := strings.ReplaceAll(name, `"`, `""`)
+	return `"` + escaped + `"`
 }
 
 // convertValue converts database values to JSON-friendly types.
