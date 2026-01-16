@@ -367,3 +367,71 @@ func TestQueryOptions_Defaults(t *testing.T) {
 		t.Errorf("expected default Limit 1000, got %d", defaultOpts.Limit)
 	}
 }
+
+func TestQuoteIdentifier(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "simple identifier",
+			input:    "users",
+			expected: `"users"`,
+		},
+		{
+			name:     "identifier with space",
+			input:    "my table",
+			expected: `"my table"`,
+		},
+		{
+			name:     "reserved keyword",
+			input:    "select",
+			expected: `"select"`,
+		},
+		{
+			name:     "identifier with hyphen",
+			input:    "my-catalog",
+			expected: `"my-catalog"`,
+		},
+		{
+			name:     "identifier with dot",
+			input:    "my.schema",
+			expected: `"my.schema"`,
+		},
+		{
+			name:     "identifier with internal double quote",
+			input:    `my"table`,
+			expected: `"my""table"`,
+		},
+		{
+			name:     "identifier with multiple double quotes",
+			input:    `a"b"c`,
+			expected: `"a""b""c"`,
+		},
+		{
+			name:     "empty identifier",
+			input:    "",
+			expected: `""`,
+		},
+		{
+			name:     "identifier with mixed special chars",
+			input:    `test-schema "v2"`,
+			expected: `"test-schema ""v2"""`,
+		},
+		{
+			name:     "numeric identifier",
+			input:    "123",
+			expected: `"123"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := QuoteIdentifier(tt.input)
+			if result != tt.expected {
+				t.Errorf("QuoteIdentifier(%q) = %q, want %q", tt.input, result, tt.expected)
+			}
+		})
+	}
+}
