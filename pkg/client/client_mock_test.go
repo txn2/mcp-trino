@@ -329,7 +329,7 @@ func TestClient_ListSchemas(t *testing.T) {
 			AddRow("default").
 			AddRow("information_schema")
 
-		mock.ExpectQuery("SHOW SCHEMAS FROM hive").WillReturnRows(rows)
+		mock.ExpectQuery(`SHOW SCHEMAS FROM "hive"`).WillReturnRows(rows)
 
 		schemas, err := client.ListSchemas(context.Background(), "hive")
 		if err != nil {
@@ -343,7 +343,7 @@ func TestClient_ListSchemas(t *testing.T) {
 
 	t.Run("uses default catalog when empty", func(t *testing.T) {
 		rows := sqlmock.NewRows([]string{"Schema"}).AddRow("default")
-		mock.ExpectQuery("SHOW SCHEMAS FROM default_catalog").WillReturnRows(rows)
+		mock.ExpectQuery(`SHOW SCHEMAS FROM "default_catalog"`).WillReturnRows(rows)
 
 		schemas, err := client.ListSchemas(context.Background(), "")
 		if err != nil {
@@ -387,7 +387,7 @@ func TestClient_ListTables(t *testing.T) {
 			AddRow("orders").
 			AddRow("products")
 
-		mock.ExpectQuery("SHOW TABLES FROM hive.sales").WillReturnRows(rows)
+		mock.ExpectQuery(`SHOW TABLES FROM "hive"\."sales"`).WillReturnRows(rows)
 
 		tables, err := client.ListTables(context.Background(), "hive", "sales")
 		if err != nil {
@@ -410,7 +410,7 @@ func TestClient_ListTables(t *testing.T) {
 
 	t.Run("uses defaults when empty", func(t *testing.T) {
 		rows := sqlmock.NewRows([]string{"Table"}).AddRow("test")
-		mock.ExpectQuery("SHOW TABLES FROM default_catalog.default_schema").WillReturnRows(rows)
+		mock.ExpectQuery(`SHOW TABLES FROM "default_catalog"\."default_schema"`).WillReturnRows(rows)
 
 		tables, err := client.ListTables(context.Background(), "", "")
 		if err != nil {
@@ -454,7 +454,7 @@ func TestClient_DescribeTable(t *testing.T) {
 			AddRow("name", "varchar", "", "User name").
 			AddRow("email", "varchar", "NULL", nil)
 
-		mock.ExpectQuery("DESCRIBE hive.sales.users").WillReturnRows(rows)
+		mock.ExpectQuery(`DESCRIBE "hive"\."sales"\."users"`).WillReturnRows(rows)
 
 		info, err := client.DescribeTable(context.Background(), "hive", "sales", "users")
 		if err != nil {
@@ -485,7 +485,7 @@ func TestClient_DescribeTable(t *testing.T) {
 		rows := sqlmock.NewRows([]string{"Column", "Type", "Extra", "Comment"}).
 			AddRow("id", "int", "", nil)
 
-		mock.ExpectQuery("DESCRIBE default_catalog.default_schema.test").WillReturnRows(rows)
+		mock.ExpectQuery(`DESCRIBE "default_catalog"\."default_schema"\."test"`).WillReturnRows(rows)
 
 		info, err := client.DescribeTable(context.Background(), "", "", "test")
 		if err != nil {
