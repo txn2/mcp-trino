@@ -1,4 +1,4 @@
-# txn2/mcp-trino
+![txn2/mcp-trino](./docs/images/txn2_mcp_trino_banner.png)
 
 [![GitHub license](https://img.shields.io/github/license/txn2/mcp-trino.svg)](https://github.com/txn2/mcp-trino/blob/main/LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/txn2/mcp-trino.svg)](https://pkg.go.dev/github.com/txn2/mcp-trino)
