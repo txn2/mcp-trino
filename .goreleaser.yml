@@ -139,6 +139,16 @@ docker_signs:
       - "${artifact}"
     artifacts: all
 
+nfpms:
+  - id: default
+    file_name_template: '{{ .ProjectName }}_{{ .Arch }}'
+    homepage: https://github.com/txn2/mcp-trino
+    description: MCP server for Trino data warehouses
+    maintainer: Craig Johnston <cj@imti.co>
+    license: Apache 2.0
+    vendor: txn2
+    formats: [apk, deb, rpm]
+
 brews:
   - name: mcp-trino
     repository:
@@ -160,6 +170,7 @@ release:
     name: mcp-trino
   name_template: "{{.ProjectName}}-v{{.Version}}"
   prerelease: auto
+  draft: true
   mode: append
   footer: |
     ## Installation
