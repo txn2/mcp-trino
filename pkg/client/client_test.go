@@ -3,8 +3,11 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/trinodb/trino-go-client/trino"
 )
 
 func TestNew_InvalidConfig(t *testing.T) {
@@ -202,9 +205,10 @@ func TestQueryResult_JSON(t *testing.T) {
 		},
 		Stats: QueryStats{
 			RowCount:     2,
-			Duration:     100 * time.Millisecond,
+			DurationMs:   100,
 			Truncated:    false,
 			LimitApplied: 1000,
+			QueryID:      "20240115_123456_00001_abcde",
 		},
 	}
 
@@ -226,6 +230,9 @@ func TestQueryResult_JSON(t *testing.T) {
 	}
 	if decoded.Stats.RowCount != 2 {
 		t.Errorf("expected RowCount 2, got %d", decoded.Stats.RowCount)
+	}
+	if decoded.Stats.QueryID != "20240115_123456_00001_abcde" {
+		t.Errorf("expected QueryID '20240115_123456_00001_abcde', got %q", decoded.Stats.QueryID)
 	}
 }
 
@@ -330,14 +337,21 @@ func TestColumnDef_JSON(t *testing.T) {
 func TestQueryStats_JSON(t *testing.T) {
 	stats := QueryStats{
 		RowCount:     100,
-		Duration:     500 * time.Millisecond,
+		DurationMs:   500,
 		Truncated:    true,
 		LimitApplied: 100,
+		QueryID:      "test_query_id",
 	}
 
 	data, err := json.Marshal(stats)
 	if err != nil {
 		t.Fatalf("failed to marshal QueryStats: %v", err)
+	}
+
+	// Verify the JSON contains the correct field name and value
+	expectedJSON := `{"row_count":100,"duration_ms":500,"truncated":true,"limit_applied":100,"query_id":"test_query_id"}`
+	if string(data) != expectedJSON {
+		t.Errorf("expected JSON %s, got %s", expectedJSON, string(data))
 	}
 
 	var decoded QueryStats
@@ -348,8 +362,14 @@ func TestQueryStats_JSON(t *testing.T) {
 	if decoded.RowCount != 100 {
 		t.Errorf("expected RowCount 100, got %d", decoded.RowCount)
 	}
+	if decoded.DurationMs != 500 {
+		t.Errorf("expected DurationMs 500, got %d", decoded.DurationMs)
+	}
 	if !decoded.Truncated {
 		t.Error("expected Truncated to be true")
+	}
+	if decoded.QueryID != "test_query_id" {
+		t.Errorf("expected QueryID 'test_query_id', got %q", decoded.QueryID)
 	}
 }
 
@@ -433,5 +453,83 @@ func TestQuoteIdentifier(t *testing.T) {
 				t.Errorf("QuoteIdentifier(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestQueryProgressUpdater_Update(t *testing.T) {
+	tests := []struct {
+		name            string
+		updates         []trino.QueryProgressInfo
+		expectedQueryID string
+	}{
+		{
+			name:            "single update with query ID",
+			updates:         []trino.QueryProgressInfo{{QueryId: "20240115_123456_00001_abcde"}},
+			expectedQueryID: "20240115_123456_00001_abcde",
+		},
+		{
+			name:            "empty query ID ignored",
+			updates:         []trino.QueryProgressInfo{{QueryId: ""}},
+			expectedQueryID: "",
+		},
+		{
+			name: "multiple updates keeps last non-empty",
+			updates: []trino.QueryProgressInfo{
+				{QueryId: "first_query_id"},
+				{QueryId: "second_query_id"},
+			},
+			expectedQueryID: "second_query_id",
+		},
+		{
+			name: "empty update after valid ID keeps valid",
+			updates: []trino.QueryProgressInfo{
+				{QueryId: "valid_query_id"},
+				{QueryId: ""},
+			},
+			expectedQueryID: "valid_query_id",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			updater := &queryProgressUpdater{}
+
+			for _, update := range tt.updates {
+				updater.Update(update)
+			}
+
+			if got := updater.QueryID(); got != tt.expectedQueryID {
+				t.Errorf("QueryID() = %q, want %q", got, tt.expectedQueryID)
+			}
+		})
+	}
+}
+
+func TestQueryProgressUpdater_ConcurrentAccess(t *testing.T) {
+	updater := &queryProgressUpdater{}
+	var wg sync.WaitGroup
+
+	// Spawn multiple goroutines to test thread safety
+	for i := 0; i < 100; i++ {
+		wg.Add(2)
+
+		// Writer goroutine
+		go func() {
+			defer wg.Done()
+			updater.Update(trino.QueryProgressInfo{QueryId: "query_id"})
+		}()
+
+		// Reader goroutine
+		go func() {
+			defer wg.Done()
+			_ = updater.QueryID()
+		}()
+	}
+
+	wg.Wait()
+
+	// Should have a valid query ID after all updates
+	if got := updater.QueryID(); got != "query_id" {
+		t.Errorf("QueryID() = %q, want %q", got, "query_id")
 	}
 }

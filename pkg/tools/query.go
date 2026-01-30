@@ -165,7 +165,7 @@ func formatCSV(result *client.QueryResult) string {
 	if result.Stats.Truncated {
 		output += fmt.Sprintf(" (truncated at limit %d)", result.Stats.LimitApplied)
 	}
-	output += fmt.Sprintf(", executed in %dms", result.Stats.Duration.Milliseconds())
+	output += fmt.Sprintf(", executed in %dms", result.Stats.DurationMs)
 
 	return output
 }
@@ -209,7 +209,7 @@ func formatMarkdown(result *client.QueryResult) string {
 	if result.Stats.Truncated {
 		output += fmt.Sprintf(" (truncated at limit %d)", result.Stats.LimitApplied)
 	}
-	output += fmt.Sprintf(", executed in %dms*", result.Stats.Duration.Milliseconds())
+	output += fmt.Sprintf(", executed in %dms*", result.Stats.DurationMs)
 
 	return output
 }

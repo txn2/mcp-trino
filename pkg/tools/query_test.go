@@ -27,7 +27,7 @@ func TestFormatCSV(t *testing.T) {
 				},
 				Stats: client.QueryStats{
 					RowCount:     2,
-					Duration:     100 * time.Millisecond,
+					DurationMs:   100,
 					Truncated:    false,
 					LimitApplied: 1000,
 				},
@@ -54,7 +54,7 @@ func TestFormatCSV(t *testing.T) {
 				},
 				Stats: client.QueryStats{
 					RowCount:     1,
-					Duration:     50 * time.Millisecond,
+					DurationMs:   50,
 					Truncated:    true,
 					LimitApplied: 1,
 				},
@@ -73,8 +73,8 @@ func TestFormatCSV(t *testing.T) {
 					{"data": "with\nnewline"},
 				},
 				Stats: client.QueryStats{
-					RowCount: 3,
-					Duration: 10 * time.Millisecond,
+					RowCount:   3,
+					DurationMs: 10,
 				},
 			},
 			contains: []string{"\"hello,world\"", "\"with\"\"quotes\""},
@@ -113,7 +113,7 @@ func TestFormatMarkdown(t *testing.T) {
 				},
 				Stats: client.QueryStats{
 					RowCount:     2,
-					Duration:     100 * time.Millisecond,
+					DurationMs:   100,
 					Truncated:    false,
 					LimitApplied: 1000,
 				},
@@ -146,7 +146,7 @@ func TestFormatMarkdown(t *testing.T) {
 				},
 				Stats: client.QueryStats{
 					RowCount:     1,
-					Duration:     50 * time.Millisecond,
+					DurationMs:   50,
 					Truncated:    true,
 					LimitApplied: 1,
 				},
@@ -163,8 +163,8 @@ func TestFormatMarkdown(t *testing.T) {
 					{"nullable_col": nil},
 				},
 				Stats: client.QueryStats{
-					RowCount: 1,
-					Duration: 10 * time.Millisecond,
+					RowCount:   1,
+					DurationMs: 10,
 				},
 			},
 			contains: []string{"|  |"}, // Empty value for nil

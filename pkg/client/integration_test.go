@@ -260,22 +260,26 @@ func TestColumnDef_Fields(t *testing.T) {
 func TestQueryStats_Fields(t *testing.T) {
 	stats := QueryStats{
 		RowCount:     1000,
-		Duration:     500 * time.Millisecond,
+		DurationMs:   500,
 		Truncated:    true,
 		LimitApplied: 1000,
+		QueryID:      "test_query_123",
 	}
 
 	if stats.RowCount != 1000 {
 		t.Errorf("expected RowCount 1000, got %d", stats.RowCount)
 	}
-	if stats.Duration != 500*time.Millisecond {
-		t.Errorf("expected Duration 500ms, got %v", stats.Duration)
+	if stats.DurationMs != 500 {
+		t.Errorf("expected DurationMs 500, got %d", stats.DurationMs)
 	}
 	if !stats.Truncated {
 		t.Error("expected Truncated to be true")
 	}
 	if stats.LimitApplied != 1000 {
 		t.Errorf("expected LimitApplied 1000, got %d", stats.LimitApplied)
+	}
+	if stats.QueryID != "test_query_123" {
+		t.Errorf("expected QueryID 'test_query_123', got %q", stats.QueryID)
 	}
 }
 
