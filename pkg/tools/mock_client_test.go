@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"time"
 
 	"github.com/txn2/mcp-trino/pkg/client"
 )
@@ -59,7 +58,7 @@ func NewMockTrinoClient() *MockTrinoClient {
 				},
 				Stats: client.QueryStats{
 					RowCount:     2,
-					Duration:     100 * time.Millisecond,
+					DurationMs:   100,
 					Truncated:    false,
 					LimitApplied: 1000,
 				},
