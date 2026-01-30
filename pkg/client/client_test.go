@@ -207,7 +207,6 @@ func TestQueryResult_JSON(t *testing.T) {
 			LimitApplied: 1000,
 			QueryID:      "20240115_123456_00001_abcde",
 		},
-		Warnings: []string{"Deprecated feature used"},
 	}
 
 	data, err := json.Marshal(result)
@@ -231,9 +230,6 @@ func TestQueryResult_JSON(t *testing.T) {
 	}
 	if decoded.Stats.QueryID != "20240115_123456_00001_abcde" {
 		t.Errorf("expected QueryID '20240115_123456_00001_abcde', got %q", decoded.Stats.QueryID)
-	}
-	if len(decoded.Warnings) != 1 || decoded.Warnings[0] != "Deprecated feature used" {
-		t.Errorf("expected Warnings ['Deprecated feature used'], got %v", decoded.Warnings)
 	}
 }
 

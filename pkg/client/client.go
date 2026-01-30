@@ -66,10 +66,11 @@ func (c *Client) Config() Config {
 
 // QueryResult represents the result of a SQL query.
 type QueryResult struct {
-	Columns  []ColumnInfo     `json:"columns"`
-	Rows     []map[string]any `json:"rows"`
-	Stats    QueryStats       `json:"stats"`
-	Warnings []string         `json:"warnings,omitempty"`
+	Columns []ColumnInfo     `json:"columns"`
+	Rows    []map[string]any `json:"rows"`
+	Stats   QueryStats       `json:"stats"`
+	// Note: Trino REST API returns warnings, but trino-go-client v0.333.0
+	// does not expose them. See: https://github.com/trinodb/trino-go-client/issues
 }
 
 // ColumnInfo describes a column in the result set.
