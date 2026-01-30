@@ -3,8 +3,11 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"sync"
 	"testing"
 	"time"
+
+	"github.com/trinodb/trino-go-client/trino"
 )
 
 func TestNew_InvalidConfig(t *testing.T) {
@@ -450,5 +453,83 @@ func TestQuoteIdentifier(t *testing.T) {
 				t.Errorf("QuoteIdentifier(%q) = %q, want %q", tt.input, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestQueryProgressUpdater_Update(t *testing.T) {
+	tests := []struct {
+		name            string
+		updates         []trino.QueryProgressInfo
+		expectedQueryID string
+	}{
+		{
+			name:            "single update with query ID",
+			updates:         []trino.QueryProgressInfo{{QueryId: "20240115_123456_00001_abcde"}},
+			expectedQueryID: "20240115_123456_00001_abcde",
+		},
+		{
+			name:            "empty query ID ignored",
+			updates:         []trino.QueryProgressInfo{{QueryId: ""}},
+			expectedQueryID: "",
+		},
+		{
+			name: "multiple updates keeps last non-empty",
+			updates: []trino.QueryProgressInfo{
+				{QueryId: "first_query_id"},
+				{QueryId: "second_query_id"},
+			},
+			expectedQueryID: "second_query_id",
+		},
+		{
+			name: "empty update after valid ID keeps valid",
+			updates: []trino.QueryProgressInfo{
+				{QueryId: "valid_query_id"},
+				{QueryId: ""},
+			},
+			expectedQueryID: "valid_query_id",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			updater := &queryProgressUpdater{}
+
+			for _, update := range tt.updates {
+				updater.Update(update)
+			}
+
+			if got := updater.QueryID(); got != tt.expectedQueryID {
+				t.Errorf("QueryID() = %q, want %q", got, tt.expectedQueryID)
+			}
+		})
+	}
+}
+
+func TestQueryProgressUpdater_ConcurrentAccess(t *testing.T) {
+	updater := &queryProgressUpdater{}
+	var wg sync.WaitGroup
+
+	// Spawn multiple goroutines to test thread safety
+	for i := 0; i < 100; i++ {
+		wg.Add(2)
+
+		// Writer goroutine
+		go func() {
+			defer wg.Done()
+			updater.Update(trino.QueryProgressInfo{QueryId: "query_id"})
+		}()
+
+		// Reader goroutine
+		go func() {
+			defer wg.Done()
+			_ = updater.QueryID()
+		}()
+	}
+
+	wg.Wait()
+
+	// Should have a valid query ID after all updates
+	if got := updater.QueryID(); got != "query_id" {
+		t.Errorf("QueryID() = %q, want %q", got, "query_id")
 	}
 }
