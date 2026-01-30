@@ -202,10 +202,12 @@ func TestQueryResult_JSON(t *testing.T) {
 		},
 		Stats: QueryStats{
 			RowCount:     2,
-			Duration:     100 * time.Millisecond,
+			DurationMs:   100,
 			Truncated:    false,
 			LimitApplied: 1000,
+			QueryID:      "20240115_123456_00001_abcde",
 		},
+		Warnings: []string{"Deprecated feature used"},
 	}
 
 	data, err := json.Marshal(result)
@@ -226,6 +228,12 @@ func TestQueryResult_JSON(t *testing.T) {
 	}
 	if decoded.Stats.RowCount != 2 {
 		t.Errorf("expected RowCount 2, got %d", decoded.Stats.RowCount)
+	}
+	if decoded.Stats.QueryID != "20240115_123456_00001_abcde" {
+		t.Errorf("expected QueryID '20240115_123456_00001_abcde', got %q", decoded.Stats.QueryID)
+	}
+	if len(decoded.Warnings) != 1 || decoded.Warnings[0] != "Deprecated feature used" {
+		t.Errorf("expected Warnings ['Deprecated feature used'], got %v", decoded.Warnings)
 	}
 }
 
@@ -330,14 +338,21 @@ func TestColumnDef_JSON(t *testing.T) {
 func TestQueryStats_JSON(t *testing.T) {
 	stats := QueryStats{
 		RowCount:     100,
-		Duration:     500 * time.Millisecond,
+		DurationMs:   500,
 		Truncated:    true,
 		LimitApplied: 100,
+		QueryID:      "test_query_id",
 	}
 
 	data, err := json.Marshal(stats)
 	if err != nil {
 		t.Fatalf("failed to marshal QueryStats: %v", err)
+	}
+
+	// Verify the JSON contains the correct field name and value
+	expectedJSON := `{"row_count":100,"duration_ms":500,"truncated":true,"limit_applied":100,"query_id":"test_query_id"}`
+	if string(data) != expectedJSON {
+		t.Errorf("expected JSON %s, got %s", expectedJSON, string(data))
 	}
 
 	var decoded QueryStats
@@ -348,8 +363,14 @@ func TestQueryStats_JSON(t *testing.T) {
 	if decoded.RowCount != 100 {
 		t.Errorf("expected RowCount 100, got %d", decoded.RowCount)
 	}
+	if decoded.DurationMs != 500 {
+		t.Errorf("expected DurationMs 500, got %d", decoded.DurationMs)
+	}
 	if !decoded.Truncated {
 		t.Error("expected Truncated to be true")
+	}
+	if decoded.QueryID != "test_query_id" {
+		t.Errorf("expected QueryID 'test_query_id', got %q", decoded.QueryID)
 	}
 }
 

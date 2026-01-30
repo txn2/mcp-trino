@@ -6,9 +6,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
-	_ "github.com/trinodb/trino-go-client/trino" // Trino database driver
+	"github.com/trinodb/trino-go-client/trino"
 )
 
 // Client is a wrapper around the Trino database connection.
@@ -65,9 +66,10 @@ func (c *Client) Config() Config {
 
 // QueryResult represents the result of a SQL query.
 type QueryResult struct {
-	Columns []ColumnInfo     `json:"columns"`
-	Rows    []map[string]any `json:"rows"`
-	Stats   QueryStats       `json:"stats"`
+	Columns  []ColumnInfo     `json:"columns"`
+	Rows     []map[string]any `json:"rows"`
+	Stats    QueryStats       `json:"stats"`
+	Warnings []string         `json:"warnings,omitempty"`
 }
 
 // ColumnInfo describes a column in the result set.
@@ -79,10 +81,11 @@ type ColumnInfo struct {
 
 // QueryStats contains execution statistics.
 type QueryStats struct {
-	RowCount     int           `json:"row_count"`
-	Duration     time.Duration `json:"duration_ms"`
-	Truncated    bool          `json:"truncated"`
-	LimitApplied int           `json:"limit_applied,omitempty"`
+	RowCount     int    `json:"row_count"`
+	DurationMs   int64  `json:"duration_ms"`
+	Truncated    bool   `json:"truncated"`
+	LimitApplied int    `json:"limit_applied,omitempty"`
+	QueryID      string `json:"query_id,omitempty"`
 }
 
 // QueryOptions configures query execution.
@@ -107,6 +110,28 @@ func DefaultQueryOptions() QueryOptions {
 	}
 }
 
+// queryProgressUpdater captures the query ID from Trino progress updates.
+type queryProgressUpdater struct {
+	mu      sync.Mutex
+	queryID string
+}
+
+// Update implements the trino.ProgressUpdater interface.
+func (p *queryProgressUpdater) Update(info trino.QueryProgressInfo) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if info.QueryId != "" {
+		p.queryID = info.QueryId
+	}
+}
+
+// QueryID returns the captured query ID.
+func (p *queryProgressUpdater) QueryID() string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.queryID
+}
+
 // Query executes a SQL query and returns the results.
 func (c *Client) Query(ctx context.Context, sqlQuery string, opts QueryOptions) (*QueryResult, error) {
 	start := time.Now()
@@ -125,10 +150,28 @@ func (c *Client) Query(ctx context.Context, sqlQuery string, opts QueryOptions) 
 		limit = 1000
 	}
 
-	// Execute query
-	rows, err := c.db.QueryContext(ctx, sqlQuery)
+	// Set up progress updater to capture query ID
+	progressUpdater := &queryProgressUpdater{}
+
+	// Execute query with progress callback to capture query ID.
+	// The progress callback is a Trino-specific feature. If the driver doesn't
+	// support it (e.g., when using sqlmock for testing), fall back to a simple query.
+	rows, err := c.db.QueryContext(ctx, sqlQuery,
+		sql.Named("X-Trino-Progress-Callback", trino.ProgressUpdater(progressUpdater)),
+		sql.Named("X-Trino-Progress-Callback-Period", 100*time.Millisecond),
+	)
 	if err != nil {
-		return nil, fmt.Errorf("query failed: %w", err)
+		// Check if the error is due to unsupported argument type (e.g., when using sqlmock).
+		// In that case, retry without the progress callback.
+		if strings.Contains(err.Error(), "unsupported type") {
+			rows, err = c.db.QueryContext(ctx, sqlQuery)
+			if err != nil {
+				return nil, fmt.Errorf("query failed: %w", err)
+			}
+			progressUpdater = nil // Clear so we don't try to get QueryID
+		} else {
+			return nil, fmt.Errorf("query failed: %w", err)
+		}
 	}
 	defer func() { _ = rows.Close() }()
 
@@ -187,12 +230,16 @@ func (c *Client) Query(ctx context.Context, sqlQuery string, opts QueryOptions) 
 		return nil, fmt.Errorf("row iteration error: %w", err)
 	}
 
-	result.Stats = QueryStats{
+	stats := QueryStats{
 		RowCount:     rowCount,
-		Duration:     time.Since(start),
+		DurationMs:   time.Since(start).Milliseconds(),
 		Truncated:    truncated,
 		LimitApplied: limit,
 	}
+	if progressUpdater != nil {
+		stats.QueryID = progressUpdater.QueryID()
+	}
+	result.Stats = stats
 
 	return result, nil
 }
