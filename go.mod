@@ -4,13 +4,13 @@ go 1.24.7
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
-	github.com/modelcontextprotocol/go-sdk v1.2.0
+	github.com/modelcontextprotocol/go-sdk v1.3.0
 	github.com/trinodb/trino-go-client v0.333.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
-	github.com/google/jsonschema-go v0.3.0 // indirect
+	github.com/google/jsonschema-go v0.4.2 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
