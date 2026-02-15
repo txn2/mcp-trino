@@ -170,7 +170,6 @@ release:
     name: mcp-trino
   name_template: "{{.ProjectName}}-v{{.Version}}"
   prerelease: auto
-  draft: true
   mode: append
   footer: |
     ## Installation

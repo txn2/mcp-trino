@@ -49,8 +49,10 @@ func (t *Toolkit) registerQueryTool(server *mcp.Server, cfg *toolConfig) {
 	// Register with MCP using typed handler that calls wrapped handler
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "trino_query",
-		Description: "Execute a SQL query against Trino and return results. " +
-			"Supports SELECT queries only. Results are limited to prevent excessive data transfer.",
+		Description: "Execute a SELECT query against Trino and return results. Use the table path format " +
+			"catalog.schema.table. Results are limited to prevent excessive data transfer — use " +
+			"the limit parameter to control result size. For large tables, always include WHERE " +
+			"clauses to filter results. Consider using trino_explain first for expensive queries.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input QueryInput) (*mcp.CallToolResult, any, error) {
 		return wrappedHandler(ctx, req, input)
 	})

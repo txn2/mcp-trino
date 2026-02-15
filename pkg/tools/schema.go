@@ -250,8 +250,6 @@ type DescribeTableInput struct {
 }
 
 // registerDescribeTableTool adds the trino_describe_table tool to the server.
-//
-//nolint:dupl // Each tool registration requires distinct types for type-safe handlers.
 func (t *Toolkit) registerDescribeTableTool(server *mcp.Server, cfg *toolConfig) {
 	// Create the base handler
 	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
@@ -267,8 +265,12 @@ func (t *Toolkit) registerDescribeTableTool(server *mcp.Server, cfg *toolConfig)
 
 	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "trino_describe_table",
-		Description: "Get detailed information about a table including column names, types, and optionally a sample of data.",
+		Name: "trino_describe_table",
+		Description: "Get detailed table information with columns, types, and optional sample data. " +
+			"Set include_sample=true to see actual data values, which helps understand column " +
+			"meaning and data formats. This is the richest single-call way to understand a " +
+			"table's structure. Requires catalog, schema, and table name — use trino_list_tables " +
+			"to discover available tables if needed.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input DescribeTableInput) (*mcp.CallToolResult, any, error) {
 		return wrappedHandler(ctx, req, input)
 	})

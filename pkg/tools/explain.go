@@ -41,8 +41,10 @@ func (t *Toolkit) registerExplainTool(server *mcp.Server, cfg *toolConfig) {
 	// Register with MCP using typed handler that calls wrapped handler
 	mcp.AddTool(server, &mcp.Tool{
 		Name: "trino_explain",
-		Description: "Get the execution plan for a SQL query. " +
-			"Use this to understand how Trino will execute a query and identify potential performance issues.",
+		Description: "Get the execution plan for a SQL query to understand performance characteristics " +
+			"before running expensive queries. Use this when querying large tables (millions of " +
+			"rows) to verify the query plan uses appropriate filters. Also useful for debugging " +
+			"slow queries or understanding join strategies.",
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ExplainInput) (*mcp.CallToolResult, any, error) {
 		return wrappedHandler(ctx, req, input)
 	})
