@@ -68,6 +68,9 @@ toolkit:
   max_limit: 10000               # Optional, default: 10000
   default_timeout: 120s          # Optional, default: 120s
   max_timeout: 300s              # Optional, default: 300s
+  descriptions:                  # Optional, override tool descriptions
+    trino_query: "Custom description for the query tool"
+    trino_describe_table: "Custom description for describe"
 
 # Extension settings
 extensions:
@@ -250,7 +253,12 @@ cfg := tools.Config{
     MaxTimeout:     300 * time.Second,
 }
 
-toolkit := tools.NewToolkit(trinoClient, cfg)
+toolkit := tools.NewToolkit(trinoClient, cfg,
+    tools.WithDescriptions(map[tools.ToolName]string{
+        tools.ToolQuery:         "Query the retail analytics warehouse",
+        tools.ToolDescribeTable: "Describe retail data tables",
+    }),
+)
 ```
 
 | Field | Type | Default | Description |
@@ -259,6 +267,7 @@ toolkit := tools.NewToolkit(trinoClient, cfg)
 | `MaxLimit` | int | 10000 | Maximum row limit |
 | `DefaultTimeout` | Duration | 120s | Default query timeout |
 | `MaxTimeout` | Duration | 300s | Maximum query timeout |
+| `Descriptions` | map | (none) | Custom tool descriptions (via `WithDescriptions` option) |
 
 ---
 
