@@ -54,6 +54,9 @@ type Toolkit struct {
 	semanticProvider    semantic.Provider
 	semanticCacheConfig *semantic.CacheConfig
 
+	// Description overrides (toolkit-level)
+	descriptions map[ToolName]string
+
 	// Internal tracking
 	registeredTools map[ToolName]bool
 }
@@ -90,6 +93,7 @@ func newBaseToolkit(cfg Config) *Toolkit {
 	return &Toolkit{
 		config:          cfg,
 		toolMiddlewares: make(map[ToolName][]ToolMiddleware),
+		descriptions:    make(map[ToolName]string),
 		registeredTools: make(map[ToolName]bool),
 	}
 }

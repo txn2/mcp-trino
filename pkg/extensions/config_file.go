@@ -71,10 +71,11 @@ type TrinoConfig struct {
 
 // ToolkitConfig maps to tools.Config for file-based loading.
 type ToolkitConfig struct {
-	DefaultLimit   int      `json:"default_limit" yaml:"default_limit"`
-	MaxLimit       int      `json:"max_limit" yaml:"max_limit"`
-	DefaultTimeout Duration `json:"default_timeout" yaml:"default_timeout"`
-	MaxTimeout     Duration `json:"max_timeout" yaml:"max_timeout"`
+	DefaultLimit   int               `json:"default_limit" yaml:"default_limit"`
+	MaxLimit       int               `json:"max_limit" yaml:"max_limit"`
+	DefaultTimeout Duration          `json:"default_timeout" yaml:"default_timeout"`
+	MaxTimeout     Duration          `json:"max_timeout" yaml:"max_timeout"`
+	Descriptions   map[string]string `json:"descriptions,omitempty" yaml:"descriptions,omitempty"`
 }
 
 // ExtFileConfig maps to Config for file-based loading.
@@ -256,6 +257,19 @@ func (c ServerConfig) ToolsConfig() tools.Config {
 	}
 
 	return cfg
+}
+
+// DescriptionsMap converts the Toolkit.Descriptions string map to a tools.ToolName map.
+// Returns nil if no descriptions are configured.
+func (c ServerConfig) DescriptionsMap() map[tools.ToolName]string {
+	if len(c.Toolkit.Descriptions) == 0 {
+		return nil
+	}
+	m := make(map[tools.ToolName]string, len(c.Toolkit.Descriptions))
+	for k, v := range c.Toolkit.Descriptions {
+		m[tools.ToolName(k)] = v
+	}
+	return m
 }
 
 // ExtConfig converts the Extensions section to a Config.

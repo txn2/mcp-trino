@@ -258,6 +258,42 @@ func TestNew_MultipleConnections(t *testing.T) {
 	}
 }
 
+func TestDefaultOptions_DescriptionsNil(t *testing.T) {
+	opts := DefaultOptions()
+
+	if opts.Descriptions != nil {
+		t.Error("Descriptions should be nil by default")
+	}
+}
+
+func TestNew_WithDescriptions(t *testing.T) {
+	opts := Options{
+		MultiServerConfig: &multiserver.Config{
+			Default: "default",
+			Primary: client.Config{
+				Host: "localhost",
+				Port: 8080,
+				User: "admin",
+			},
+		},
+		ToolkitConfig: tools.DefaultConfig(),
+		Descriptions: map[tools.ToolName]string{
+			tools.ToolQuery:   "Custom query description",
+			tools.ToolExplain: "Custom explain description",
+		},
+	}
+
+	server, mgr, err := New(opts)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	defer func() { _ = mgr.Close() }()
+
+	if server == nil {
+		t.Error("server should not be nil")
+	}
+}
+
 func TestDefaultOptions_SemanticFields(t *testing.T) {
 	opts := DefaultOptions()
 

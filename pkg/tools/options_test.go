@@ -178,6 +178,66 @@ func TestWithSemanticCache(t *testing.T) {
 	}
 }
 
+func TestWithDescription(t *testing.T) {
+	cfg := &toolConfig{}
+	opt := WithDescription("Custom description")
+	opt(cfg)
+
+	if cfg.description == nil {
+		t.Fatal("expected description to be set")
+	}
+	if *cfg.description != "Custom description" {
+		t.Errorf("expected 'Custom description', got %q", *cfg.description)
+	}
+}
+
+func TestWithDescriptions(t *testing.T) {
+	clientCfg := client.Config{
+		Host: "localhost",
+		User: "test",
+	}
+	trinoClient := client.NewWithDB(nil, clientCfg)
+
+	descs := map[ToolName]string{
+		ToolQuery:   "Custom query desc",
+		ToolExplain: "Custom explain desc",
+	}
+	toolkit := NewToolkit(trinoClient, DefaultConfig(), WithDescriptions(descs))
+
+	// Verify descriptions were stored
+	if toolkit.descriptions[ToolQuery] != "Custom query desc" {
+		t.Errorf("expected 'Custom query desc', got %q", toolkit.descriptions[ToolQuery])
+	}
+	if toolkit.descriptions[ToolExplain] != "Custom explain desc" {
+		t.Errorf("expected 'Custom explain desc', got %q", toolkit.descriptions[ToolExplain])
+	}
+}
+
+func TestWithDescriptions_Merge(t *testing.T) {
+	clientCfg := client.Config{
+		Host: "localhost",
+		User: "test",
+	}
+	trinoClient := client.NewWithDB(nil, clientCfg)
+
+	// Apply two rounds of WithDescriptions — second should merge, not replace
+	toolkit := NewToolkit(trinoClient, DefaultConfig(),
+		WithDescriptions(map[ToolName]string{
+			ToolQuery: "First query desc",
+		}),
+		WithDescriptions(map[ToolName]string{
+			ToolExplain: "Explain desc",
+		}),
+	)
+
+	if toolkit.descriptions[ToolQuery] != "First query desc" {
+		t.Errorf("expected 'First query desc', got %q", toolkit.descriptions[ToolQuery])
+	}
+	if toolkit.descriptions[ToolExplain] != "Explain desc" {
+		t.Errorf("expected 'Explain desc', got %q", toolkit.descriptions[ToolExplain])
+	}
+}
+
 func TestWithSemanticCache_WithoutProvider(t *testing.T) {
 	cfg := client.Config{
 		Host: "localhost",
