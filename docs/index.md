@@ -1,6 +1,7 @@
 ---
+description: An MCP server that connects AI assistants to Trino data warehouses
 hide:
-  - toc
+  - navigation
 ---
 
 # txn2/mcp-trino

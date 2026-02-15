@@ -34,7 +34,7 @@ theme:
 
 nav:
   - Home: index.md
-  - MCP Server:
+  - Getting Started:
     - Overview: server/index.md
     - Installation: server/installation.md
     - Configuration: server/configuration.md
@@ -52,7 +52,6 @@ nav:
     - Architecture: library/architecture.md
     - Extensibility: library/extensibility.md
   - Reference:
-    - Overview: reference/index.md
     - Tools API: reference/tools-api.md
     - Configuration: reference/configuration.md
     - Security: reference/security.md
@@ -101,6 +100,12 @@ markdown_extensions:
 plugins:
   - search:
       separator: '[\s\-,:!=\[\]()"/]+|(?!\b)(?=[A-Z][a-z])|\.(?!\d)|&[lg]t;'
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/txn2/mcp-trino
+  generator: false
 
 extra_css:
   - stylesheets/extra.css
