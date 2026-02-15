@@ -126,6 +126,33 @@ mcp-trino
 
 This allows base settings in a config file with secrets from environment variables.
 
+## Tool Descriptions
+
+Customize the description that AI agents see for each tool. This is useful for adding domain-specific context (e.g., "Query the retail analytics warehouse") so the agent understands what data is available.
+
+Add a `descriptions` map under `toolkit` in your config file:
+
+```yaml
+toolkit:
+  default_limit: 1000
+  max_limit: 10000
+  descriptions:
+    trino_query: "Query the retail analytics warehouse. Tables use the hive.sales schema."
+    trino_describe_table: "Describe tables in the retail data warehouse."
+```
+
+Any tool not listed keeps its default description. The available tool name keys are:
+
+| Key | Tool |
+|-----|------|
+| `trino_query` | Execute SQL queries |
+| `trino_explain` | Get query execution plans |
+| `trino_list_catalogs` | List available catalogs |
+| `trino_list_schemas` | List schemas in a catalog |
+| `trino_list_tables` | List tables in a schema |
+| `trino_describe_table` | Describe table columns and types |
+| `trino_list_connections` | List configured server connections |
+
 ## Docker Configuration
 
 ### Environment Variables

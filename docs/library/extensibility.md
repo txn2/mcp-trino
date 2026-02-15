@@ -408,6 +408,52 @@ See the [Semantic Layer documentation](../semantic/index.md) for provider setup,
 
 ---
 
+## Tool Descriptions
+
+Override the description that AI agents see for each tool. Useful for adding domain-specific context so the agent understands what data is behind each tool.
+
+### Toolkit-Level Overrides
+
+Set descriptions for multiple tools at construction time with `WithDescriptions`:
+
+```go
+toolkit := tools.NewToolkit(trinoClient, cfg,
+    tools.WithDescriptions(map[tools.ToolName]string{
+        tools.ToolQuery:         "Query the retail analytics warehouse",
+        tools.ToolDescribeTable: "Describe tables in the retail warehouse",
+    }),
+)
+toolkit.RegisterAll(server)
+```
+
+### Per-Registration Overrides
+
+Set a description for a single tool at registration time with `WithDescription` via `RegisterWith`:
+
+```go
+toolkit.RegisterWith(server, tools.ToolQuery,
+    tools.WithDescription("Query the retail analytics warehouse"),
+)
+```
+
+### Priority Chain
+
+When multiple sources provide a description, the highest-priority source wins:
+
+```
+per-registration (WithDescription)
+        ↓ fallback
+toolkit-level (WithDescriptions)
+        ↓ fallback
+file config (toolkit.descriptions)
+        ↓ fallback
+built-in default
+```
+
+Use `tools.DefaultDescription(tools.ToolQuery)` to read the built-in default for any tool.
+
+---
+
 ## Built-in Extensions
 
 mcp-trino includes ready-to-use extensions:
