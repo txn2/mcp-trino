@@ -45,6 +45,7 @@ func WithToolMiddleware(name ToolName, m ToolMiddleware) ToolkitOption {
 // toolConfig holds per-registration configuration for a tool.
 type toolConfig struct {
 	middlewares []ToolMiddleware
+	description *string
 }
 
 // ToolOption configures a single tool during registration.
@@ -56,6 +57,40 @@ type ToolOption func(*toolConfig)
 func WithPerToolMiddleware(m ToolMiddleware) ToolOption {
 	return func(tc *toolConfig) {
 		tc.middlewares = append(tc.middlewares, m)
+	}
+}
+
+// WithDescription sets a custom description for a single tool registration.
+// Use with RegisterWith for per-registration description override.
+//
+// Example:
+//
+//	toolkit.RegisterWith(server, tools.ToolQuery,
+//	    tools.WithDescription("Query the retail analytics warehouse"),
+//	)
+func WithDescription(desc string) ToolOption {
+	return func(tc *toolConfig) {
+		tc.description = &desc
+	}
+}
+
+// WithDescriptions sets custom descriptions for multiple tools at the toolkit level.
+// These override default descriptions but are themselves overridden by per-registration
+// WithDescription calls.
+//
+// Example:
+//
+//	toolkit := tools.NewToolkit(client, cfg,
+//	    tools.WithDescriptions(map[tools.ToolName]string{
+//	        tools.ToolQuery:   "Query the retail analytics warehouse",
+//	        tools.ToolExplain: "Check query performance",
+//	    }),
+//	)
+func WithDescriptions(descs map[ToolName]string) ToolkitOption {
+	return func(t *Toolkit) {
+		for name, desc := range descs {
+			t.descriptions[name] = desc
+		}
 	}
 }
 

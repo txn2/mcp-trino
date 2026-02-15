@@ -153,7 +153,8 @@ func (c Config) ClientConfig(name string) (client.Config, error) {
 // ConnectionNames returns the names of all available connections.
 // Always includes the primary connection name as the first entry.
 func (c Config) ConnectionNames() []string {
-	names := []string{c.Default}
+	names := make([]string, 1, 1+len(c.Connections))
+	names[0] = c.Default
 	for name := range c.Connections {
 		names = append(names, name)
 	}

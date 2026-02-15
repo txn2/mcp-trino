@@ -48,9 +48,8 @@ func (t *Toolkit) registerQueryTool(server *mcp.Server, cfg *toolConfig) {
 
 	// Register with MCP using typed handler that calls wrapped handler
 	mcp.AddTool(server, &mcp.Tool{
-		Name: "trino_query",
-		Description: "Execute a SQL query against Trino and return results. " +
-			"Supports SELECT queries only. Results are limited to prevent excessive data transfer.",
+		Name:        string(ToolQuery),
+		Description: t.getDescription(ToolQuery, cfg),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input QueryInput) (*mcp.CallToolResult, any, error) {
 		return wrappedHandler(ctx, req, input)
 	})

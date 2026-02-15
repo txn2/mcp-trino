@@ -370,6 +370,67 @@ func TestEnvironmentVariableExpansion(t *testing.T) {
 	}
 }
 
+func TestFromBytes_YAML_WithDescriptions(t *testing.T) {
+	yamlConfig := `
+trino:
+  host: trino.example.com
+  user: admin
+
+toolkit:
+  default_limit: 1000
+  descriptions:
+    trino_query: "Query the retail analytics data warehouse."
+    trino_explain: "Check query performance before running."
+`
+
+	cfg, err := FromBytes([]byte(yamlConfig), ".yaml")
+	if err != nil {
+		t.Fatalf("FromBytes failed: %v", err)
+	}
+
+	if len(cfg.Toolkit.Descriptions) != 2 {
+		t.Fatalf("expected 2 descriptions, got %d", len(cfg.Toolkit.Descriptions))
+	}
+	if cfg.Toolkit.Descriptions["trino_query"] != "Query the retail analytics data warehouse." {
+		t.Errorf("unexpected query description: %q", cfg.Toolkit.Descriptions["trino_query"])
+	}
+	if cfg.Toolkit.Descriptions["trino_explain"] != "Check query performance before running." {
+		t.Errorf("unexpected explain description: %q", cfg.Toolkit.Descriptions["trino_explain"])
+	}
+}
+
+func TestDescriptionsMap(t *testing.T) {
+	cfg := ServerConfig{
+		Toolkit: ToolkitConfig{
+			Descriptions: map[string]string{
+				"trino_query":   "Custom query",
+				"trino_explain": "Custom explain",
+			},
+		},
+	}
+
+	m := cfg.DescriptionsMap()
+	if len(m) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(m))
+	}
+
+	if m["trino_query"] != "Custom query" {
+		t.Errorf("expected 'Custom query', got %q", m["trino_query"])
+	}
+	if m["trino_explain"] != "Custom explain" {
+		t.Errorf("expected 'Custom explain', got %q", m["trino_explain"])
+	}
+}
+
+func TestDescriptionsMap_Empty(t *testing.T) {
+	cfg := ServerConfig{}
+
+	m := cfg.DescriptionsMap()
+	if m != nil {
+		t.Errorf("expected nil for empty descriptions, got %v", m)
+	}
+}
+
 func TestDefaultServerConfig(t *testing.T) {
 	cfg := DefaultServerConfig()
 

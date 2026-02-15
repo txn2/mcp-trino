@@ -32,6 +32,10 @@ type Options struct {
 	// ExtensionsConfig configures middleware, interceptors, and transformers.
 	ExtensionsConfig extensions.Config
 
+	// Descriptions provides custom tool descriptions that override defaults.
+	// Keys are tool names (e.g., tools.ToolQuery), values are description strings.
+	Descriptions map[tools.ToolName]string
+
 	// SemanticProvider is an optional semantic metadata provider.
 	// If nil and SEMANTIC_FILE env var is set, a static provider will be created.
 	SemanticProvider semantic.Provider
@@ -84,6 +88,11 @@ func New(opts Options) (*mcp.Server, *multiserver.Manager, error) {
 
 	// Build toolkit options from extensions configuration
 	toolkitOpts := extensions.BuildToolkitOptions(opts.ExtensionsConfig)
+
+	// Apply description overrides if provided
+	if len(opts.Descriptions) > 0 {
+		toolkitOpts = append(toolkitOpts, tools.WithDescriptions(opts.Descriptions))
+	}
 
 	// If unconfigured, add middleware that returns helpful error for all tools
 	if configErr != nil {

@@ -37,8 +37,8 @@ func (t *Toolkit) registerListCatalogsTool(server *mcp.Server, cfg *toolConfig) 
 
 	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "trino_list_catalogs",
-		Description: "List all available catalogs in the Trino cluster. Catalogs are the top-level containers for schemas and tables.",
+		Name:        string(ToolListCatalogs),
+		Description: t.getDescription(ToolListCatalogs, cfg),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListCatalogsInput) (*mcp.CallToolResult, any, error) {
 		return wrappedHandler(ctx, req, input)
 	})
@@ -99,8 +99,8 @@ func (t *Toolkit) registerListSchemasTool(server *mcp.Server, cfg *toolConfig) {
 
 	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "trino_list_schemas",
-		Description: "List all schemas in a catalog. Schemas are containers for tables within a catalog.",
+		Name:        string(ToolListSchemas),
+		Description: t.getDescription(ToolListSchemas, cfg),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListSchemasInput) (*mcp.CallToolResult, any, error) {
 		return wrappedHandler(ctx, req, input)
 	})
@@ -169,8 +169,8 @@ func (t *Toolkit) registerListTablesTool(server *mcp.Server, cfg *toolConfig) {
 
 	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "trino_list_tables",
-		Description: "List all tables in a schema. Optionally filter by a LIKE pattern.",
+		Name:        string(ToolListTables),
+		Description: t.getDescription(ToolListTables, cfg),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListTablesInput) (*mcp.CallToolResult, any, error) {
 		return wrappedHandler(ctx, req, input)
 	})
@@ -267,8 +267,8 @@ func (t *Toolkit) registerDescribeTableTool(server *mcp.Server, cfg *toolConfig)
 
 	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        "trino_describe_table",
-		Description: "Get detailed information about a table including column names, types, and optionally a sample of data.",
+		Name:        string(ToolDescribeTable),
+		Description: t.getDescription(ToolDescribeTable, cfg),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input DescribeTableInput) (*mcp.CallToolResult, any, error) {
 		return wrappedHandler(ctx, req, input)
 	})
