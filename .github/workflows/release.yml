@@ -145,6 +145,12 @@ jobs:
           # Publish the server to the MCP registry
           mcp-publisher publish
 
+      - name: Publish release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "$GITHUB_REF_NAME" --draft=false
+
   # NOTE: SLSA provenance job removed due to false positive "private repository" detection
   # See: https://github.com/slsa-framework/slsa-github-generator/issues
   # The workflow incorrectly detects public repos as private and halts.
