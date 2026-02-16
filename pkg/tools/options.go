@@ -46,11 +46,31 @@ func WithToolMiddleware(name ToolName, m ToolMiddleware) ToolkitOption {
 	}
 }
 
+// WithIcons sets custom icons for multiple tools at the toolkit level.
+// These override default icons but are themselves overridden by per-registration
+// WithIcon calls.
+//
+// Example:
+//
+//	toolkit := tools.NewToolkit(client, cfg,
+//	    tools.WithIcons(map[tools.ToolName][]mcp.Icon{
+//	        tools.ToolQuery: {{Source: "https://example.com/query.svg", MIMEType: "image/svg+xml"}},
+//	    }),
+//	)
+func WithIcons(icons map[ToolName][]mcp.Icon) ToolkitOption {
+	return func(t *Toolkit) {
+		for name, ic := range icons {
+			t.icons[name] = ic
+		}
+	}
+}
+
 // toolConfig holds per-registration configuration for a tool.
 type toolConfig struct {
 	middlewares []ToolMiddleware
 	description *string
 	annotations *mcp.ToolAnnotations
+	icons       []mcp.Icon
 }
 
 // ToolOption configures a single tool during registration.
@@ -129,6 +149,20 @@ func WithAnnotations(anns map[ToolName]*mcp.ToolAnnotations) ToolkitOption {
 func WithAnnotation(ann *mcp.ToolAnnotations) ToolOption {
 	return func(tc *toolConfig) {
 		tc.annotations = ann
+	}
+}
+
+// WithIcon sets custom icons for a single tool registration.
+// Use with RegisterWith for per-registration icon override.
+//
+// Example:
+//
+//	toolkit.RegisterWith(server, tools.ToolQuery,
+//	    tools.WithIcon([]mcp.Icon{{Source: "https://example.com/query.svg", MIMEType: "image/svg+xml"}}),
+//	)
+func WithIcon(icons []mcp.Icon) ToolOption {
+	return func(tc *toolConfig) {
+		tc.icons = icons
 	}
 }
 

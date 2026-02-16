@@ -51,6 +51,7 @@ func (t *Toolkit) registerQueryTool(server *mcp.Server, cfg *toolConfig) {
 		Name:        string(ToolQuery),
 		Description: t.getDescription(ToolQuery, cfg),
 		Annotations: t.getAnnotations(ToolQuery, cfg),
+		Icons:       t.getIcons(ToolQuery, cfg),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input QueryInput) (*mcp.CallToolResult, *QueryOutput, error) {
 		result, out, err := wrappedHandler(ctx, req, input)
 		if typed, ok := out.(*QueryOutput); ok {

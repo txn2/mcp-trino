@@ -303,6 +303,64 @@ func TestWithAnnotations_Merge(t *testing.T) {
 	}
 }
 
+func TestWithIcon(t *testing.T) {
+	cfg := &toolConfig{}
+	icons := []mcp.Icon{{Source: "https://example.com/icon.svg", MIMEType: "image/svg+xml"}}
+	opt := WithIcon(icons)
+	opt(cfg)
+
+	if len(cfg.icons) != 1 {
+		t.Fatalf("expected 1 icon, got %d", len(cfg.icons))
+	}
+	if cfg.icons[0].Source != "https://example.com/icon.svg" {
+		t.Errorf("expected custom icon source, got %s", cfg.icons[0].Source)
+	}
+}
+
+func TestWithIcons(t *testing.T) {
+	clientCfg := client.Config{
+		Host: "localhost",
+		User: "test",
+	}
+	trinoClient := client.NewWithDB(nil, clientCfg)
+
+	icons := map[ToolName][]mcp.Icon{
+		ToolQuery: {{Source: "https://example.com/query.svg", MIMEType: "image/svg+xml"}},
+	}
+	toolkit := NewToolkit(trinoClient, DefaultConfig(), WithIcons(icons))
+
+	if len(toolkit.icons[ToolQuery]) != 1 {
+		t.Fatalf("expected 1 icon for ToolQuery, got %d", len(toolkit.icons[ToolQuery]))
+	}
+	if toolkit.icons[ToolQuery][0].Source != "https://example.com/query.svg" {
+		t.Errorf("expected custom icon source, got %s", toolkit.icons[ToolQuery][0].Source)
+	}
+}
+
+func TestWithIcons_Merge(t *testing.T) {
+	clientCfg := client.Config{
+		Host: "localhost",
+		User: "test",
+	}
+	trinoClient := client.NewWithDB(nil, clientCfg)
+
+	toolkit := NewToolkit(trinoClient, DefaultConfig(),
+		WithIcons(map[ToolName][]mcp.Icon{
+			ToolQuery: {{Source: "https://example.com/query.svg"}},
+		}),
+		WithIcons(map[ToolName][]mcp.Icon{
+			ToolExplain: {{Source: "https://example.com/explain.svg"}},
+		}),
+	)
+
+	if len(toolkit.icons[ToolQuery]) != 1 {
+		t.Error("expected ToolQuery icon to survive merge")
+	}
+	if len(toolkit.icons[ToolExplain]) != 1 {
+		t.Error("expected ToolExplain icon from second call")
+	}
+}
+
 func TestWithSemanticCache_WithoutProvider(t *testing.T) {
 	cfg := client.Config{
 		Host: "localhost",
