@@ -238,6 +238,71 @@ func TestWithDescriptions_Merge(t *testing.T) {
 	}
 }
 
+func TestWithAnnotation(t *testing.T) {
+	cfg := &toolConfig{}
+	ann := &mcp.ToolAnnotations{ReadOnlyHint: true, IdempotentHint: true}
+	opt := WithAnnotation(ann)
+	opt(cfg)
+
+	if cfg.annotations == nil {
+		t.Fatal("expected annotations to be set")
+	}
+	if !cfg.annotations.ReadOnlyHint {
+		t.Error("expected ReadOnlyHint=true")
+	}
+	if !cfg.annotations.IdempotentHint {
+		t.Error("expected IdempotentHint=true")
+	}
+}
+
+func TestWithAnnotations(t *testing.T) {
+	clientCfg := client.Config{
+		Host: "localhost",
+		User: "test",
+	}
+	trinoClient := client.NewWithDB(nil, clientCfg)
+
+	anns := map[ToolName]*mcp.ToolAnnotations{
+		ToolQuery:   {ReadOnlyHint: true},
+		ToolExplain: {IdempotentHint: false},
+	}
+	toolkit := NewToolkit(trinoClient, DefaultConfig(), WithAnnotations(anns))
+
+	if toolkit.annotations[ToolQuery] == nil || !toolkit.annotations[ToolQuery].ReadOnlyHint {
+		t.Error("expected ToolQuery annotation ReadOnlyHint=true")
+	}
+	if toolkit.annotations[ToolExplain] == nil {
+		t.Fatal("expected ToolExplain annotation to be set")
+	}
+	if toolkit.annotations[ToolExplain].IdempotentHint {
+		t.Error("expected ToolExplain annotation IdempotentHint=false")
+	}
+}
+
+func TestWithAnnotations_Merge(t *testing.T) {
+	clientCfg := client.Config{
+		Host: "localhost",
+		User: "test",
+	}
+	trinoClient := client.NewWithDB(nil, clientCfg)
+
+	toolkit := NewToolkit(trinoClient, DefaultConfig(),
+		WithAnnotations(map[ToolName]*mcp.ToolAnnotations{
+			ToolQuery: {ReadOnlyHint: true},
+		}),
+		WithAnnotations(map[ToolName]*mcp.ToolAnnotations{
+			ToolExplain: {IdempotentHint: true},
+		}),
+	)
+
+	if toolkit.annotations[ToolQuery] == nil {
+		t.Error("expected ToolQuery annotation to survive merge")
+	}
+	if toolkit.annotations[ToolExplain] == nil {
+		t.Error("expected ToolExplain annotation from second call")
+	}
+}
+
 func TestWithSemanticCache_WithoutProvider(t *testing.T) {
 	cfg := client.Config{
 		Host: "localhost",
