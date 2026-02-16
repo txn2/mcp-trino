@@ -153,6 +153,12 @@ Any tool not listed keeps its default description. The available tool name keys 
 | `trino_describe_table` | Describe table columns and types |
 | `trino_list_connections` | List configured server connections |
 
+## Tool Annotations
+
+All tools include MCP behavioral annotations (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`) by default. These help AI agents understand tool side effects without executing them.
+
+Schema-browsing tools are marked read-only and idempotent. `trino_query` is marked non-destructive but not read-only (since the SQL content varies). See the [Extensibility guide](../library/extensibility.md#tool-annotations) for the full default table and how to override annotations via the Go API.
+
 ## Docker Configuration
 
 ### Environment Variables

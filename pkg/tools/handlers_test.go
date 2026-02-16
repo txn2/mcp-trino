@@ -801,3 +801,97 @@ func TestQueryTimeoutEnforcement(t *testing.T) {
 		})
 	}
 }
+
+// TestRegisteredToolInvocation exercises the full registration + MCP dispatch path
+// for all tools, covering the typed-output wrapper closures in register*Tool functions.
+func TestRegisteredToolInvocation(t *testing.T) {
+	ctx := context.Background()
+	mock := NewMockTrinoClient()
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	toolkit.RegisterAll(server)
+
+	// Connect client and server via in-memory transport
+	t1, t2 := mcp.NewInMemoryTransports()
+	serverSession, err := server.Connect(ctx, t1, nil)
+	if err != nil {
+		t.Fatalf("server connect: %v", err)
+	}
+	defer serverSession.Close()
+
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "1.0"}, nil)
+	clientSession, err := mcpClient.Connect(ctx, t2, nil)
+	if err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer clientSession.Close()
+
+	tests := []struct {
+		name   string
+		params mcp.CallToolParams
+	}{
+		{
+			name: "trino_query",
+			params: mcp.CallToolParams{
+				Name:      "trino_query",
+				Arguments: map[string]any{"sql": "SELECT 1"},
+			},
+		},
+		{
+			name: "trino_explain",
+			params: mcp.CallToolParams{
+				Name:      "trino_explain",
+				Arguments: map[string]any{"sql": "SELECT 1"},
+			},
+		},
+		{
+			name: "trino_list_catalogs",
+			params: mcp.CallToolParams{
+				Name: "trino_list_catalogs",
+			},
+		},
+		{
+			name: "trino_list_schemas",
+			params: mcp.CallToolParams{
+				Name:      "trino_list_schemas",
+				Arguments: map[string]any{"catalog": "memory"},
+			},
+		},
+		{
+			name: "trino_list_tables",
+			params: mcp.CallToolParams{
+				Name:      "trino_list_tables",
+				Arguments: map[string]any{"catalog": "memory", "schema": "default"},
+			},
+		},
+		{
+			name: "trino_describe_table",
+			params: mcp.CallToolParams{
+				Name:      "trino_describe_table",
+				Arguments: map[string]any{"catalog": "memory", "schema": "default", "table": "users"},
+			},
+		},
+		{
+			name: "trino_list_connections",
+			params: mcp.CallToolParams{
+				Name: "trino_list_connections",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := clientSession.CallTool(ctx, &tt.params)
+			if err != nil {
+				t.Fatalf("CallTool(%s) error: %v", tt.name, err)
+			}
+			if result == nil {
+				t.Fatalf("CallTool(%s) returned nil result", tt.name)
+			}
+			if len(result.Content) == 0 {
+				t.Errorf("CallTool(%s) returned empty content", tt.name)
+			}
+		})
+	}
+}

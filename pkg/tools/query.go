@@ -50,8 +50,13 @@ func (t *Toolkit) registerQueryTool(server *mcp.Server, cfg *toolConfig) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        string(ToolQuery),
 		Description: t.getDescription(ToolQuery, cfg),
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input QueryInput) (*mcp.CallToolResult, any, error) {
-		return wrappedHandler(ctx, req, input)
+		Annotations: t.getAnnotations(ToolQuery, cfg),
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input QueryInput) (*mcp.CallToolResult, *QueryOutput, error) {
+		result, out, err := wrappedHandler(ctx, req, input)
+		if typed, ok := out.(*QueryOutput); ok {
+			return result, typed, err
+		}
+		return result, nil, err
 	})
 }
 
@@ -122,11 +127,33 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 		output = string(data)
 	}
 
+	// Build structured output
+	queryOutput := buildQueryOutput(result)
+
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: output},
 		},
-	}, nil, nil
+	}, &queryOutput, nil
+}
+
+// buildQueryOutput converts a client.QueryResult to a QueryOutput.
+func buildQueryOutput(r *client.QueryResult) QueryOutput {
+	cols := make([]QueryColumn, len(r.Columns))
+	for i, c := range r.Columns {
+		cols[i] = QueryColumn{Name: c.Name, Type: c.Type}
+	}
+	return QueryOutput{
+		Columns:  cols,
+		Rows:     r.Rows,
+		RowCount: r.Stats.RowCount,
+		Stats: QueryStats{
+			RowCount:     r.Stats.RowCount,
+			Truncated:    r.Stats.Truncated,
+			LimitApplied: r.Stats.LimitApplied,
+			DurationMs:   r.Stats.DurationMs,
+		},
+	}
 }
 
 // formatCSV formats query results as CSV.

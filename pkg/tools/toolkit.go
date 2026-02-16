@@ -57,6 +57,9 @@ type Toolkit struct {
 	// Description overrides (toolkit-level)
 	descriptions map[ToolName]string
 
+	// Annotation overrides (toolkit-level)
+	annotations map[ToolName]*mcp.ToolAnnotations
+
 	// Internal tracking
 	registeredTools map[ToolName]bool
 }
@@ -94,6 +97,7 @@ func newBaseToolkit(cfg Config) *Toolkit {
 		config:          cfg,
 		toolMiddlewares: make(map[ToolName][]ToolMiddleware),
 		descriptions:    make(map[ToolName]string),
+		annotations:     make(map[ToolName]*mcp.ToolAnnotations),
 		registeredTools: make(map[ToolName]bool),
 	}
 }

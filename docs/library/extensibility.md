@@ -454,6 +454,109 @@ Use `tools.DefaultDescription(tools.ToolQuery)` to read the built-in default for
 
 ---
 
+## Tool Annotations
+
+Declare behavioral hints on tools so that AI agents understand side effects without executing them. Annotations follow the [MCP specification](https://spec.modelcontextprotocol.io/) and include `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint`.
+
+All built-in tools ship with sensible default annotations. Schema-browsing tools are marked read-only and idempotent; `trino_query` is marked non-destructive but not read-only (since the SQL could be anything).
+
+### Default Annotations
+
+| Tool | ReadOnly | Destructive | Idempotent | OpenWorld |
+|------|----------|-------------|------------|-----------|
+| `trino_query` | false | **false** | false | false |
+| `trino_explain` | true | — | true | false |
+| `trino_list_catalogs` | true | — | true | false |
+| `trino_list_schemas` | true | — | true | false |
+| `trino_list_tables` | true | — | true | false |
+| `trino_describe_table` | true | — | true | false |
+| `trino_list_connections` | true | — | true | false |
+
+Read the built-in default for any tool:
+
+```go
+ann := tools.DefaultAnnotations(tools.ToolQuery)
+// ann.DestructiveHint => *false
+```
+
+### Toolkit-Level Overrides
+
+Set annotations for multiple tools at construction time with `WithAnnotations`:
+
+```go
+toolkit := tools.NewToolkit(trinoClient, cfg,
+    tools.WithAnnotations(map[tools.ToolName]*mcp.ToolAnnotations{
+        tools.ToolQuery: {
+            ReadOnlyHint:   true,  // e.g., if a read-only interceptor is active
+            IdempotentHint: true,
+        },
+    }),
+)
+toolkit.RegisterAll(server)
+```
+
+### Per-Registration Overrides
+
+Set annotations for a single tool at registration time with `WithAnnotation` via `RegisterWith`:
+
+```go
+toolkit.RegisterWith(server, tools.ToolQuery,
+    tools.WithAnnotation(&mcp.ToolAnnotations{
+        ReadOnlyHint:   true,
+        IdempotentHint: true,
+    }),
+)
+```
+
+### Priority Chain
+
+When multiple sources provide annotations, the highest-priority source wins:
+
+```
+per-registration (WithAnnotation)
+        ↓ fallback
+toolkit-level (WithAnnotations)
+        ↓ fallback
+built-in default
+```
+
+---
+
+## Structured Outputs
+
+All tool handlers return typed output structs alongside the human-readable `TextContent` result. This enables downstream consumers (middleware, platform wrappers, programmatic clients) to access structured data without parsing text.
+
+### Output Types
+
+| Tool | Output Type | Key Fields |
+|------|------------|------------|
+| `trino_query` | `QueryOutput` | `columns`, `rows`, `row_count`, `stats` |
+| `trino_explain` | `ExplainOutput` | `plan`, `type` |
+| `trino_list_catalogs` | `ListCatalogsOutput` | `catalogs`, `count` |
+| `trino_list_schemas` | `ListSchemasOutput` | `catalog`, `schemas`, `count` |
+| `trino_list_tables` | `ListTablesOutput` | `catalog`, `schema`, `tables`, `count`, `pattern` |
+| `trino_describe_table` | `DescribeTableOutput` | `catalog`, `schema`, `table`, `columns`, `column_count` |
+| `trino_list_connections` | `ListConnectionsOutput` | `connections`, `count` |
+
+### Accessing Structured Output
+
+Tool handlers return `(*mcp.CallToolResult, *OutputType, error)`. The second return value carries the structured output:
+
+```go
+// In middleware or a wrapping handler, the typed output is available
+// as the second return value from the handler function.
+//
+// Example: QueryOutput
+// {
+//   "columns": [{"name": "id", "type": "bigint"}, ...],
+//   "rows": [{"id": 1, "name": "alice"}, ...],
+//   "row_count": 2,
+//   "stats": {"row_count": 2, "truncated": false, "duration_ms": 42}
+// }
+```
+
+---
+
 ## Built-in Extensions
 
 mcp-trino includes ready-to-use extensions:
