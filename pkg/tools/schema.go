@@ -39,8 +39,13 @@ func (t *Toolkit) registerListCatalogsTool(server *mcp.Server, cfg *toolConfig) 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        string(ToolListCatalogs),
 		Description: t.getDescription(ToolListCatalogs, cfg),
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListCatalogsInput) (*mcp.CallToolResult, any, error) {
-		return wrappedHandler(ctx, req, input)
+		Annotations: t.getAnnotations(ToolListCatalogs, cfg),
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListCatalogsInput) (*mcp.CallToolResult, *ListCatalogsOutput, error) {
+		result, out, err := wrappedHandler(ctx, req, input)
+		if typed, ok := out.(*ListCatalogsOutput); ok {
+			return result, typed, err
+		}
+		return result, nil, err
 	})
 }
 
@@ -64,11 +69,16 @@ func (t *Toolkit) handleListCatalogs(
 	}
 	output += fmt.Sprintf("\n*%d catalogs found*", len(catalogs))
 
+	catalogsOutput := ListCatalogsOutput{
+		Catalogs: catalogs,
+		Count:    len(catalogs),
+	}
+
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: output},
 		},
-	}, nil, nil
+	}, &catalogsOutput, nil
 }
 
 // ListSchemasInput defines the input for the trino_list_schemas tool.
@@ -101,8 +111,13 @@ func (t *Toolkit) registerListSchemasTool(server *mcp.Server, cfg *toolConfig) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        string(ToolListSchemas),
 		Description: t.getDescription(ToolListSchemas, cfg),
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListSchemasInput) (*mcp.CallToolResult, any, error) {
-		return wrappedHandler(ctx, req, input)
+		Annotations: t.getAnnotations(ToolListSchemas, cfg),
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListSchemasInput) (*mcp.CallToolResult, *ListSchemasOutput, error) {
+		result, out, err := wrappedHandler(ctx, req, input)
+		if typed, ok := out.(*ListSchemasOutput); ok {
+			return result, typed, err
+		}
+		return result, nil, err
 	})
 }
 
@@ -128,11 +143,17 @@ func (t *Toolkit) handleListSchemas(ctx context.Context, _ *mcp.CallToolRequest,
 	}
 	output += fmt.Sprintf("\n*%d schemas found*", len(schemas))
 
+	schemasOutput := ListSchemasOutput{
+		Catalog: input.Catalog,
+		Schemas: schemas,
+		Count:   len(schemas),
+	}
+
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: output},
 		},
-	}, nil, nil
+	}, &schemasOutput, nil
 }
 
 // ListTablesInput defines the input for the trino_list_tables tool.
@@ -171,8 +192,13 @@ func (t *Toolkit) registerListTablesTool(server *mcp.Server, cfg *toolConfig) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        string(ToolListTables),
 		Description: t.getDescription(ToolListTables, cfg),
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListTablesInput) (*mcp.CallToolResult, any, error) {
-		return wrappedHandler(ctx, req, input)
+		Annotations: t.getAnnotations(ToolListTables, cfg),
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListTablesInput) (*mcp.CallToolResult, *ListTablesOutput, error) {
+		result, out, err := wrappedHandler(ctx, req, input)
+		if typed, ok := out.(*ListTablesOutput); ok {
+			return result, typed, err
+		}
+		return result, nil, err
 	})
 }
 
@@ -195,39 +221,45 @@ func (t *Toolkit) handleListTables(ctx context.Context, _ *mcp.CallToolRequest, 
 		return ErrorResult(fmt.Sprintf("Failed to list tables: %v", err)), nil, nil
 	}
 
-	// Filter by pattern if provided
+	// Collect table names, optionally filtering by pattern
+	var tableNames []string
+	var output string
+
 	if input.Pattern != "" {
 		pattern := strings.ToLower(input.Pattern)
 		pattern = strings.ReplaceAll(pattern, "%", "")
-		filtered := make([]string, 0)
 		for _, tbl := range tables {
 			if strings.Contains(strings.ToLower(tbl.Name), pattern) {
-				filtered = append(filtered, tbl.Name)
+				tableNames = append(tableNames, tbl.Name)
 			}
 		}
-		output := fmt.Sprintf("## Tables in `%s.%s` matching '%s'\n\n", input.Catalog, input.Schema, input.Pattern)
-		for _, name := range filtered {
-			output += fmt.Sprintf("- `%s`\n", name)
+		output = fmt.Sprintf("## Tables in `%s.%s` matching '%s'\n\n", input.Catalog, input.Schema, input.Pattern)
+	} else {
+		tableNames = make([]string, len(tables))
+		for i, tbl := range tables {
+			tableNames[i] = tbl.Name
 		}
-		output += fmt.Sprintf("\n*%d tables found*", len(filtered))
-		return &mcp.CallToolResult{
-			Content: []mcp.Content{
-				&mcp.TextContent{Text: output},
-			},
-		}, nil, nil
+		output = fmt.Sprintf("## Tables in `%s.%s`\n\n", input.Catalog, input.Schema)
 	}
 
-	output := fmt.Sprintf("## Tables in `%s.%s`\n\n", input.Catalog, input.Schema)
-	for _, tbl := range tables {
-		output += fmt.Sprintf("- `%s`\n", tbl.Name)
+	for _, name := range tableNames {
+		output += fmt.Sprintf("- `%s`\n", name)
 	}
-	output += fmt.Sprintf("\n*%d tables found*", len(tables))
+	output += fmt.Sprintf("\n*%d tables found*", len(tableNames))
+
+	tablesOutput := ListTablesOutput{
+		Catalog: input.Catalog,
+		Schema:  input.Schema,
+		Tables:  tableNames,
+		Count:   len(tableNames),
+		Pattern: input.Pattern,
+	}
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: output},
 		},
-	}, nil, nil
+	}, &tablesOutput, nil
 }
 
 // DescribeTableInput defines the input for the trino_describe_table tool.
@@ -269,8 +301,13 @@ func (t *Toolkit) registerDescribeTableTool(server *mcp.Server, cfg *toolConfig)
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        string(ToolDescribeTable),
 		Description: t.getDescription(ToolDescribeTable, cfg),
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input DescribeTableInput) (*mcp.CallToolResult, any, error) {
-		return wrappedHandler(ctx, req, input)
+		Annotations: t.getAnnotations(ToolDescribeTable, cfg),
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input DescribeTableInput) (*mcp.CallToolResult, *DescribeTableOutput, error) {
+		result, out, err := wrappedHandler(ctx, req, input)
+		if typed, ok := out.(*DescribeTableOutput); ok {
+			return result, typed, err
+		}
+		return result, nil, err
 	})
 }
 
@@ -294,6 +331,9 @@ func (t *Toolkit) handleDescribeTable(
 	output := fmt.Sprintf("## Table: `%s.%s.%s`\n\n", info.Catalog, info.Schema, info.Name)
 	output += t.formatTableWithSemantics(ctx, input, info)
 
+	// Build structured output
+	describeOutput := buildDescribeOutput(input, info)
+
 	if input.IncludeSample {
 		sampleOutput, err := t.formatSampleData(ctx, trinoClient, input)
 		if err != nil {
@@ -306,7 +346,7 @@ func (t *Toolkit) handleDescribeTable(
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: output},
 		},
-	}, nil, nil
+	}, &describeOutput, nil
 }
 
 func validateDescribeTableInput(input DescribeTableInput) error {
@@ -320,6 +360,25 @@ func validateDescribeTableInput(input DescribeTableInput) error {
 		return fmt.Errorf("table parameter is required")
 	}
 	return nil
+}
+
+func buildDescribeOutput(input DescribeTableInput, info *client.TableInfo) DescribeTableOutput {
+	cols := make([]DescribeColumn, len(info.Columns))
+	for i, c := range info.Columns {
+		cols[i] = DescribeColumn{
+			Name:     c.Name,
+			Type:     c.Type,
+			Nullable: c.Nullable,
+			Comment:  c.Comment,
+		}
+	}
+	return DescribeTableOutput{
+		Catalog: input.Catalog,
+		Schema:  input.Schema,
+		Table:   input.Table,
+		Columns: cols,
+		Count:   len(cols),
+	}
 }
 
 func (t *Toolkit) formatTableWithSemantics(

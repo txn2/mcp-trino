@@ -42,8 +42,13 @@ func (t *Toolkit) registerExplainTool(server *mcp.Server, cfg *toolConfig) {
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        string(ToolExplain),
 		Description: t.getDescription(ToolExplain, cfg),
-	}, func(ctx context.Context, req *mcp.CallToolRequest, input ExplainInput) (*mcp.CallToolResult, any, error) {
-		return wrappedHandler(ctx, req, input)
+		Annotations: t.getAnnotations(ToolExplain, cfg),
+	}, func(ctx context.Context, req *mcp.CallToolRequest, input ExplainInput) (*mcp.CallToolResult, *ExplainOutput, error) {
+		result, out, err := wrappedHandler(ctx, req, input)
+		if typed, ok := out.(*ExplainOutput); ok {
+			return result, typed, err
+		}
+		return result, nil, err
 	})
 }
 
@@ -84,9 +89,14 @@ func (t *Toolkit) handleExplain(ctx context.Context, _ *mcp.CallToolRequest, inp
 
 	output := fmt.Sprintf("## Execution Plan (%s)\n\n```\n%s\n```", result.Type, result.Plan)
 
+	explainOutput := ExplainOutput{
+		Plan: result.Plan,
+		Type: string(result.Type),
+	}
+
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
 			&mcp.TextContent{Text: output},
 		},
-	}, nil, nil
+	}, &explainOutput, nil
 }

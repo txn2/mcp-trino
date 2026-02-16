@@ -1,6 +1,10 @@
 package tools
 
-import "github.com/txn2/mcp-trino/pkg/semantic"
+import (
+	"github.com/modelcontextprotocol/go-sdk/mcp"
+
+	"github.com/txn2/mcp-trino/pkg/semantic"
+)
 
 // ToolkitOption configures a Toolkit during construction.
 // Use with NewToolkit to add middleware, interceptors, and transformers.
@@ -46,6 +50,7 @@ func WithToolMiddleware(name ToolName, m ToolMiddleware) ToolkitOption {
 type toolConfig struct {
 	middlewares []ToolMiddleware
 	description *string
+	annotations *mcp.ToolAnnotations
 }
 
 // ToolOption configures a single tool during registration.
@@ -91,6 +96,39 @@ func WithDescriptions(descs map[ToolName]string) ToolkitOption {
 		for name, desc := range descs {
 			t.descriptions[name] = desc
 		}
+	}
+}
+
+// WithAnnotations sets custom annotations for multiple tools at the toolkit level.
+// These override default annotations but are themselves overridden by per-registration
+// WithAnnotation calls.
+//
+// Example:
+//
+//	toolkit := tools.NewToolkit(client, cfg,
+//	    tools.WithAnnotations(map[tools.ToolName]*mcp.ToolAnnotations{
+//	        tools.ToolQuery: {ReadOnlyHint: true},
+//	    }),
+//	)
+func WithAnnotations(anns map[ToolName]*mcp.ToolAnnotations) ToolkitOption {
+	return func(t *Toolkit) {
+		for name, ann := range anns {
+			t.annotations[name] = ann
+		}
+	}
+}
+
+// WithAnnotation sets custom annotations for a single tool registration.
+// Use with RegisterWith for per-registration annotation override.
+//
+// Example:
+//
+//	toolkit.RegisterWith(server, tools.ToolQuery,
+//	    tools.WithAnnotation(&mcp.ToolAnnotations{ReadOnlyHint: true}),
+//	)
+func WithAnnotation(ann *mcp.ToolAnnotations) ToolOption {
+	return func(tc *toolConfig) {
+		tc.annotations = ann
 	}
 }
 
