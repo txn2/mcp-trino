@@ -40,6 +40,7 @@ func (t *Toolkit) registerListCatalogsTool(server *mcp.Server, cfg *toolConfig) 
 		Name:        string(ToolListCatalogs),
 		Description: t.getDescription(ToolListCatalogs, cfg),
 		Annotations: t.getAnnotations(ToolListCatalogs, cfg),
+		Icons:       t.getIcons(ToolListCatalogs, cfg),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListCatalogsInput) (*mcp.CallToolResult, *ListCatalogsOutput, error) {
 		result, out, err := wrappedHandler(ctx, req, input)
 		if typed, ok := out.(*ListCatalogsOutput); ok {
@@ -112,6 +113,7 @@ func (t *Toolkit) registerListSchemasTool(server *mcp.Server, cfg *toolConfig) {
 		Name:        string(ToolListSchemas),
 		Description: t.getDescription(ToolListSchemas, cfg),
 		Annotations: t.getAnnotations(ToolListSchemas, cfg),
+		Icons:       t.getIcons(ToolListSchemas, cfg),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListSchemasInput) (*mcp.CallToolResult, *ListSchemasOutput, error) {
 		result, out, err := wrappedHandler(ctx, req, input)
 		if typed, ok := out.(*ListSchemasOutput); ok {
@@ -193,6 +195,7 @@ func (t *Toolkit) registerListTablesTool(server *mcp.Server, cfg *toolConfig) {
 		Name:        string(ToolListTables),
 		Description: t.getDescription(ToolListTables, cfg),
 		Annotations: t.getAnnotations(ToolListTables, cfg),
+		Icons:       t.getIcons(ToolListTables, cfg),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ListTablesInput) (*mcp.CallToolResult, *ListTablesOutput, error) {
 		result, out, err := wrappedHandler(ctx, req, input)
 		if typed, ok := out.(*ListTablesOutput); ok {
@@ -302,6 +305,7 @@ func (t *Toolkit) registerDescribeTableTool(server *mcp.Server, cfg *toolConfig)
 		Name:        string(ToolDescribeTable),
 		Description: t.getDescription(ToolDescribeTable, cfg),
 		Annotations: t.getAnnotations(ToolDescribeTable, cfg),
+		Icons:       t.getIcons(ToolDescribeTable, cfg),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input DescribeTableInput) (*mcp.CallToolResult, *DescribeTableOutput, error) {
 		result, out, err := wrappedHandler(ctx, req, input)
 		if typed, ok := out.(*DescribeTableOutput); ok {
