@@ -2,6 +2,26 @@
 
 Complete parameter and response specifications for all mcp-trino tools.
 
+## Tool Annotations
+
+All tools declare MCP behavioral annotations that help AI agents understand side effects:
+
+| Tool | ReadOnly | Destructive | Idempotent | OpenWorld |
+|------|----------|-------------|------------|-----------|
+| `trino_query` | false | **false** | false | false |
+| `trino_explain` | true | — | true | false |
+| `trino_list_catalogs` | true | — | true | false |
+| `trino_list_schemas` | true | — | true | false |
+| `trino_list_tables` | true | — | true | false |
+| `trino_describe_table` | true | — | true | false |
+| `trino_list_connections` | true | — | true | false |
+
+Annotations can be overridden at the toolkit or per-registration level. See [Extensibility: Tool Annotations](../library/extensibility.md#tool-annotations).
+
+## Structured Outputs
+
+All tools return typed structured output alongside the human-readable text response. This enables programmatic access to results without parsing text. Output types are documented in each tool's section below.
+
 ---
 
 ## trino_query
@@ -61,6 +81,22 @@ id,name,created_at
 | `QUERY_ERROR` | Query execution failed | Trino error |
 | `READ_ONLY` | Write operation blocked | INSERT/UPDATE/DELETE in read-only mode |
 
+### Structured Output (`QueryOutput`)
+
+```json
+{
+  "columns": [{"name": "id", "type": "bigint"}, {"name": "name", "type": "varchar"}],
+  "rows": [{"id": 1, "name": "Alice"}, {"id": 2, "name": "Bob"}],
+  "row_count": 2,
+  "stats": {
+    "row_count": 2,
+    "truncated": false,
+    "limit_applied": 1000,
+    "duration_ms": 42
+  }
+}
+```
+
 ---
 
 ## trino_explain
@@ -101,6 +137,15 @@ Get query execution plan without running the query.
 | `INVALID_TYPE` | Invalid explain type | Unknown type value |
 | `PLAN_ERROR` | Failed to generate plan | Invalid SQL syntax |
 
+### Structured Output (`ExplainOutput`)
+
+```json
+{
+  "plan": "- Output[columnNames = [id, name]] => ...",
+  "type": "LOGICAL"
+}
+```
+
 ---
 
 ## trino_list_catalogs
@@ -118,6 +163,15 @@ List all available data catalogs.
 ```json
 {
   "catalogs": ["hive", "iceberg", "memory", "system"]
+}
+```
+
+### Structured Output (`ListCatalogsOutput`)
+
+```json
+{
+  "catalogs": ["hive", "iceberg", "memory", "system"],
+  "count": 4
 }
 ```
 
@@ -149,6 +203,16 @@ List schemas within a catalog.
 |------|---------|-------|
 | `CATALOG_REQUIRED` | Catalog is required | Empty `catalog` |
 | `CATALOG_NOT_FOUND` | Catalog not found | Invalid catalog name |
+
+### Structured Output (`ListSchemasOutput`)
+
+```json
+{
+  "catalog": "hive",
+  "schemas": ["default", "sales", "marketing", "analytics"],
+  "count": 4
+}
+```
 
 ---
 
@@ -192,6 +256,18 @@ List tables in a schema with optional filtering.
 | `CATALOG_REQUIRED` | Catalog is required | Empty `catalog` |
 | `SCHEMA_REQUIRED` | Schema is required | Empty `schema` |
 | `SCHEMA_NOT_FOUND` | Schema not found | Invalid schema name |
+
+### Structured Output (`ListTablesOutput`)
+
+```json
+{
+  "catalog": "hive",
+  "schema": "sales",
+  "tables": ["customers", "orders", "order_items"],
+  "count": 3,
+  "pattern": ""
+}
+```
 
 ---
 
@@ -251,6 +327,22 @@ Get table structure and optional sample data.
 | `TABLE_REQUIRED` | Table is required | Empty `table` |
 | `TABLE_NOT_FOUND` | Table not found | Invalid table name |
 
+### Structured Output (`DescribeTableOutput`)
+
+```json
+{
+  "catalog": "hive",
+  "schema": "sales",
+  "table": "customers",
+  "columns": [
+    {"name": "id", "type": "bigint", "nullable": "NO", "comment": "Primary key"},
+    {"name": "name", "type": "varchar(255)", "nullable": "YES"},
+    {"name": "email", "type": "varchar(255)", "nullable": "YES", "comment": "Contact email"}
+  ],
+  "column_count": 3
+}
+```
+
 ---
 
 ## trino_list_connections
@@ -289,6 +381,18 @@ None.
     }
   ],
   "default": "default"
+}
+```
+
+### Structured Output (`ListConnectionsOutput`)
+
+```json
+{
+  "connections": [
+    {"name": "default", "host": "prod.trino.example.com", "port": 443, "catalog": "hive", "ssl": true, "is_default": true},
+    {"name": "staging", "host": "staging.trino.example.com", "port": 443, "catalog": "hive", "ssl": true, "is_default": false}
+  ],
+  "count": 2
 }
 ```
 

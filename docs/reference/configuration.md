@@ -258,6 +258,9 @@ toolkit := tools.NewToolkit(trinoClient, cfg,
         tools.ToolQuery:         "Query the retail analytics warehouse",
         tools.ToolDescribeTable: "Describe retail data tables",
     }),
+    tools.WithAnnotations(map[tools.ToolName]*mcp.ToolAnnotations{
+        tools.ToolQuery: {ReadOnlyHint: true, IdempotentHint: true},
+    }),
 )
 ```
 
@@ -268,6 +271,7 @@ toolkit := tools.NewToolkit(trinoClient, cfg,
 | `DefaultTimeout` | Duration | 120s | Default query timeout |
 | `MaxTimeout` | Duration | 300s | Maximum query timeout |
 | `Descriptions` | map | (none) | Custom tool descriptions (via `WithDescriptions` option) |
+| `Annotations` | map | (defaults) | Custom tool annotations (via `WithAnnotations` option) |
 
 ---
 
