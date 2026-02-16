@@ -96,6 +96,10 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 		return ErrorResult(fmt.Sprintf("Connection error: %v", err)), nil, nil
 	}
 
+	// Send progress notification: executing query
+	notifier := GetProgressNotifier(ctx)
+	notifyProgress(ctx, notifier, 0, 3, "Executing query...")
+
 	// Execute query
 	opts := client.QueryOptions{
 		Limit:   limit,
@@ -106,6 +110,10 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 	if err != nil {
 		return ErrorResult(fmt.Sprintf("Query failed: %v", err)), nil, nil
 	}
+
+	// Send progress notification: formatting results
+	notifyProgress(ctx, notifier, 1, 3,
+		fmt.Sprintf("Query returned %d rows, formatting...", result.Stats.RowCount))
 
 	// Format output
 	format := input.Format
@@ -127,6 +135,9 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 		output = string(data)
 	}
 
+	// Send progress notification: query complete
+	notifyProgress(ctx, notifier, 2, 3, "Query complete")
+
 	// Build structured output
 	queryOutput := buildQueryOutput(result)
 
@@ -135,6 +146,16 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 			&mcp.TextContent{Text: output},
 		},
 	}, &queryOutput, nil
+}
+
+// notifyProgress sends a progress notification if a notifier is available.
+// Errors are intentionally ignored — progress is best-effort.
+//
+//nolint:unparam // total is always 3 currently but kept for interface generality
+func notifyProgress(ctx context.Context, notifier ProgressNotifier, progress, total float64, message string) {
+	if notifier != nil {
+		_ = notifier.Notify(ctx, progress, total, message) //nolint:errcheck // progress is best-effort
+	}
 }
 
 // buildQueryOutput converts a client.QueryResult to a QueryOutput.
