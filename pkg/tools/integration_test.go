@@ -338,6 +338,70 @@ func TestHandleQuery_LimitEnforcement(t *testing.T) {
 	}
 }
 
+// TestReadOnlyEnforcement_MCPDispatch tests that trino_query rejects write SQL
+// and trino_execute allows it through the full MCP dispatch path.
+func TestReadOnlyEnforcement_MCPDispatch(t *testing.T) {
+	ctx := context.Background()
+	mock := NewMockTrinoClient()
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	toolkit.RegisterAll(server)
+
+	// Connect client and server via in-memory transport
+	t1, t2 := mcp.NewInMemoryTransports()
+	serverSession, err := server.Connect(ctx, t1, nil)
+	if err != nil {
+		t.Fatalf("server connect: %v", err)
+	}
+	defer serverSession.Close()
+
+	mcpClient := mcp.NewClient(&mcp.Implementation{Name: "test-client", Version: "1.0"}, nil)
+	clientSession, err := mcpClient.Connect(ctx, t2, nil)
+	if err != nil {
+		t.Fatalf("client connect: %v", err)
+	}
+	defer clientSession.Close()
+
+	// trino_query should reject INSERT
+	result, err := clientSession.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "trino_query",
+		Arguments: map[string]any{"sql": "INSERT INTO users VALUES (1, 'Test')"},
+	})
+	if err != nil {
+		t.Fatalf("CallTool(trino_query) error: %v", err)
+	}
+	if !result.IsError {
+		t.Error("trino_query should reject INSERT SQL")
+	}
+
+	// trino_query should allow SELECT
+	mock.QueryCalled = false
+	result, err = clientSession.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "trino_query",
+		Arguments: map[string]any{"sql": "SELECT * FROM users"},
+	})
+	if err != nil {
+		t.Fatalf("CallTool(trino_query SELECT) error: %v", err)
+	}
+	if result.IsError {
+		t.Error("trino_query should allow SELECT SQL")
+	}
+
+	// trino_execute should allow INSERT
+	mock.QueryCalled = false
+	result, err = clientSession.CallTool(ctx, &mcp.CallToolParams{
+		Name:      "trino_execute",
+		Arguments: map[string]any{"sql": "INSERT INTO users VALUES (1, 'Test')"},
+	})
+	if err != nil {
+		t.Fatalf("CallTool(trino_execute INSERT) error: %v", err)
+	}
+	if result.IsError {
+		t.Error("trino_execute should allow INSERT SQL")
+	}
+}
+
 // TestExplainTypeMapping tests the mapping of explain types.
 func TestExplainTypeMapping(t *testing.T) {
 	tests := []struct {

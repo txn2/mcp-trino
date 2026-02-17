@@ -12,6 +12,7 @@ func TestDefaultAnnotations(t *testing.T) {
 		wantNil bool
 	}{
 		{ToolQuery, false},
+		{ToolExecute, false},
 		{ToolExplain, false},
 		{ToolListCatalogs, false},
 		{ToolListSchemas, false},
@@ -44,6 +45,7 @@ func TestDefaultAnnotations_AllToolsCovered(t *testing.T) {
 
 func TestDefaultAnnotations_ReadOnlyTools(t *testing.T) {
 	readOnlyTools := []ToolName{
+		ToolQuery,
 		ToolExplain,
 		ToolListCatalogs,
 		ToolListSchemas,
@@ -70,14 +72,30 @@ func TestDefaultAnnotations_ReadOnlyTools(t *testing.T) {
 
 func TestDefaultAnnotations_QueryTool(t *testing.T) {
 	ann := DefaultAnnotations(ToolQuery)
-	if ann.ReadOnlyHint {
-		t.Error("expected ReadOnlyHint=false for trino_query")
+	if !ann.ReadOnlyHint {
+		t.Error("expected ReadOnlyHint=true for trino_query (read-only tool)")
+	}
+	if !ann.IdempotentHint {
+		t.Error("expected IdempotentHint=true for trino_query")
 	}
 	if ann.DestructiveHint == nil || *ann.DestructiveHint {
 		t.Error("expected DestructiveHint=false for trino_query")
 	}
 	if ann.OpenWorldHint == nil || *ann.OpenWorldHint {
 		t.Error("expected OpenWorldHint=false for trino_query")
+	}
+}
+
+func TestDefaultAnnotations_ExecuteTool(t *testing.T) {
+	ann := DefaultAnnotations(ToolExecute)
+	if ann.ReadOnlyHint {
+		t.Error("expected ReadOnlyHint=false for trino_execute")
+	}
+	if ann.DestructiveHint == nil || !*ann.DestructiveHint {
+		t.Error("expected DestructiveHint=true for trino_execute")
+	}
+	if ann.OpenWorldHint == nil || *ann.OpenWorldHint {
+		t.Error("expected OpenWorldHint=false for trino_execute")
 	}
 }
 

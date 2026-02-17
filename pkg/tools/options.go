@@ -20,7 +20,7 @@ func WithMiddleware(m ToolMiddleware) ToolkitOption {
 
 // WithQueryInterceptor adds a query interceptor for SQL tools.
 // Interceptors are executed in the order added.
-// Only applies to ToolQuery and ToolExplain.
+// Only applies to ToolQuery, ToolExecute, and ToolExplain.
 func WithQueryInterceptor(i QueryInterceptor) ToolkitOption {
 	return func(t *Toolkit) {
 		t.interceptors = append(t.interceptors, i)

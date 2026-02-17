@@ -107,7 +107,8 @@ toolkit.RegisterAll(yourMCPServer)
 
 | Tool | Description |
 |------|-------------|
-| `trino_query` | Execute SQL, returns JSON/CSV/markdown |
+| `trino_query` | Execute read-only SQL (SELECT/SHOW/DESCRIBE), returns JSON/CSV/markdown |
+| `trino_execute` | Execute any SQL including write ops (INSERT/UPDATE/DELETE/CREATE/DROP) |
 | `trino_explain` | Get execution plan |
 | `trino_list_catalogs` | List available catalogs |
 | `trino_list_schemas` | List schemas in catalog |

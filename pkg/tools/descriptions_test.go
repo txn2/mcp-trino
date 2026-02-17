@@ -8,6 +8,7 @@ func TestDefaultDescription(t *testing.T) {
 		wantNon bool // expect non-empty
 	}{
 		{ToolQuery, true},
+		{ToolExecute, true},
 		{ToolExplain, true},
 		{ToolListCatalogs, true},
 		{ToolListSchemas, true},

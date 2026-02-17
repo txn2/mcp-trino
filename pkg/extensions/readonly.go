@@ -48,8 +48,8 @@ func NewReadOnlyInterceptor() *ReadOnlyInterceptor {
 
 // Intercept checks if the SQL is a modification statement and blocks it.
 func (ri *ReadOnlyInterceptor) Intercept(_ context.Context, sql string, toolName tools.ToolName) (string, error) {
-	// Only check query and explain tools
-	if toolName != tools.ToolQuery && toolName != tools.ToolExplain {
+	// Only check SQL-executing tools
+	if toolName != tools.ToolQuery && toolName != tools.ToolExecute && toolName != tools.ToolExplain {
 		return sql, nil
 	}
 

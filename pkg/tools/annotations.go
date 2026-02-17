@@ -15,7 +15,13 @@ func boolPtr(b bool) *bool {
 //   - OpenWorldHint (*bool, default true): tool interacts with external entities
 var defaultAnnotations = map[ToolName]*mcp.ToolAnnotations{
 	ToolQuery: {
+		ReadOnlyHint:    true,
+		IdempotentHint:  true,
 		DestructiveHint: boolPtr(false),
+		OpenWorldHint:   boolPtr(false),
+	},
+	ToolExecute: {
+		DestructiveHint: boolPtr(true),
 		OpenWorldHint:   boolPtr(false),
 	},
 	ToolExplain: {

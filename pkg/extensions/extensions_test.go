@@ -406,6 +406,30 @@ func TestReadOnlyInterceptor_IgnoresNonQueryTools(t *testing.T) {
 	}
 }
 
+func TestReadOnlyInterceptor_BlocksExecuteTool(t *testing.T) {
+	ri := NewReadOnlyInterceptor()
+
+	// ReadOnlyInterceptor should also block writes via trino_execute when enabled
+	sql := "INSERT INTO table VALUES (1)"
+	_, err := ri.Intercept(context.Background(), sql, tools.ToolExecute)
+	if err == nil {
+		t.Error("ReadOnlyInterceptor should block writes on ToolExecute")
+	}
+	if !errors.Is(err, ErrModificationBlocked) {
+		t.Errorf("expected ErrModificationBlocked, got: %v", err)
+	}
+
+	// But allows selects via ToolExecute
+	selectSQL := "SELECT * FROM table"
+	result, err := ri.Intercept(context.Background(), selectSQL, tools.ToolExecute)
+	if err != nil {
+		t.Errorf("ReadOnlyInterceptor should allow SELECT on ToolExecute: %v", err)
+	}
+	if result != selectSQL {
+		t.Error("Should return SQL unchanged for SELECT")
+	}
+}
+
 // ============================================================================
 // QueryLog Interceptor Tests
 // ============================================================================

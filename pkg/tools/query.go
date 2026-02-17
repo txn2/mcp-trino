@@ -4,12 +4,33 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/txn2/mcp-trino/pkg/client"
 )
+
+// writeKeywords are SQL statement prefixes that modify data or schema.
+var writeKeywords = []string{
+	"INSERT", "UPDATE", "DELETE", "DROP", "CREATE", "ALTER",
+	"TRUNCATE", "GRANT", "REVOKE", "MERGE", "CALL", "EXECUTE",
+}
+
+// writePattern matches SQL statements that begin with a write keyword,
+// allowing for leading whitespace and SQL comments.
+var writePattern = regexp.MustCompile(
+	`(?i)^\s*(?:--[^\n]*\n\s*|/\*[\s\S]*?\*/\s*)*\s*(` +
+		strings.Join(writeKeywords, "|") +
+		`)(?:\s|$|;|\()`,
+)
+
+// IsWriteSQL returns true if the SQL statement is a write operation.
+func IsWriteSQL(sql string) bool {
+	return writePattern.MatchString(sql)
+}
 
 // QueryInput defines the input for the trino_query tool.
 type QueryInput struct {
@@ -65,6 +86,13 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 	// Validate SQL is provided
 	if input.SQL == "" {
 		return ErrorResult("sql parameter is required"), nil, nil
+	}
+
+	// Enforce read-only: trino_query only allows read operations.
+	// For write operations, use trino_execute.
+	if IsWriteSQL(input.SQL) {
+		return ErrorResult("trino_query is read-only — write operations (INSERT, UPDATE, DELETE, " +
+			"CREATE, DROP, etc.) are not allowed. Use trino_execute for write operations."), nil, nil
 	}
 
 	// Apply query interceptors
