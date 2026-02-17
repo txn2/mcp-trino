@@ -150,15 +150,15 @@ func TestHandleQuery_WithInterceptor(t *testing.T) {
 func TestHandleQuery_InterceptorRejects(t *testing.T) {
 	mock := NewMockTrinoClient()
 	interceptor := QueryInterceptorFunc(func(_ context.Context, sql string, _ ToolName) (string, error) {
-		if strings.Contains(strings.ToUpper(sql), "DROP") {
-			return "", errors.New("DROP statements not allowed")
+		if strings.Contains(strings.ToUpper(sql), "RESTRICTED_TABLE") {
+			return "", errors.New("access to RESTRICTED_TABLE is not allowed")
 		}
 		return sql, nil
 	})
 	toolkit := NewToolkit(mock, DefaultConfig(), WithQueryInterceptor(interceptor))
 
 	result, _, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
-		SQL: "DROP TABLE users",
+		SQL: "SELECT * FROM RESTRICTED_TABLE",
 	})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -802,6 +802,285 @@ func TestQueryTimeoutEnforcement(t *testing.T) {
 	}
 }
 
+// TestHandleQuery_ReadOnlyEnforcement tests that trino_query blocks write SQL.
+func TestHandleQuery_ReadOnlyEnforcement(t *testing.T) {
+	writeSQLs := []struct {
+		name string
+		sql  string
+	}{
+		{"INSERT", "INSERT INTO users VALUES (1, 'Alice')"},
+		{"UPDATE", "UPDATE users SET name = 'Bob' WHERE id = 1"},
+		{"DELETE", "DELETE FROM users WHERE id = 1"},
+		{"DROP", "DROP TABLE users"},
+		{"CREATE", "CREATE TABLE new_table (id INT)"},
+		{"ALTER", "ALTER TABLE users ADD COLUMN email VARCHAR"},
+		{"TRUNCATE", "TRUNCATE TABLE users"},
+		{"GRANT", "GRANT SELECT ON users TO analyst"},
+		{"REVOKE", "REVOKE SELECT ON users FROM analyst"},
+		{"MERGE", "MERGE INTO target USING source ON target.id = source.id"},
+		{"lowercase", "insert into users values (1, 'Alice')"},
+		{"leading whitespace", "  INSERT INTO users VALUES (1)"},
+		{"with comment", "-- comment\nINSERT INTO users VALUES (1)"},
+	}
+
+	for _, tt := range writeSQLs {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := NewMockTrinoClient()
+			toolkit := NewToolkit(mock, DefaultConfig())
+
+			result, _, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
+				SQL: tt.sql,
+			})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !result.IsError {
+				t.Error("expected error result for write SQL in trino_query")
+			}
+			textContent, ok := result.Content[0].(*mcp.TextContent)
+			if !ok {
+				t.Fatal("expected TextContent")
+			}
+			if !strings.Contains(textContent.Text, "read-only") {
+				t.Errorf("expected read-only error message, got: %s", textContent.Text)
+			}
+			if !strings.Contains(textContent.Text, "trino_execute") {
+				t.Errorf("expected reference to trino_execute, got: %s", textContent.Text)
+			}
+			if mock.QueryCalled {
+				t.Error("Query should not be called for write SQL in trino_query")
+			}
+		})
+	}
+}
+
+// TestHandleQuery_AllowsReadSQL tests that trino_query allows read operations.
+func TestHandleQuery_AllowsReadSQL(t *testing.T) {
+	readSQLs := []struct {
+		name string
+		sql  string
+	}{
+		{"SELECT", "SELECT * FROM users"},
+		{"SHOW", "SHOW TABLES"},
+		{"DESCRIBE", "DESCRIBE users"},
+		{"EXPLAIN", "EXPLAIN SELECT * FROM users"},
+		{"WITH", "WITH cte AS (SELECT 1) SELECT * FROM cte"},
+		{"select lowercase", "select id from users"},
+	}
+
+	for _, tt := range readSQLs {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := NewMockTrinoClient()
+			toolkit := NewToolkit(mock, DefaultConfig())
+
+			result, _, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
+				SQL: tt.sql,
+			})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if result.IsError {
+				textContent, ok := result.Content[0].(*mcp.TextContent)
+				if ok {
+					t.Errorf("expected success for read SQL %q, got error: %s", tt.sql, textContent.Text)
+				}
+			}
+			if !mock.QueryCalled {
+				t.Errorf("Query should be called for read SQL %q", tt.sql)
+			}
+		})
+	}
+}
+
+// TestHandleExecute_Success tests successful execute execution.
+func TestHandleExecute_Success(t *testing.T) {
+	mock := NewMockTrinoClient()
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	result, _, err := toolkit.handleExecute(context.Background(), nil, ExecuteInput{
+		SQL:    "INSERT INTO users VALUES (3, 'Charlie')",
+		Format: "json",
+	})
+
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result == nil {
+		t.Fatal("expected result, got nil")
+	}
+	if result.IsError {
+		t.Error("expected success result")
+	}
+	if !mock.QueryCalled {
+		t.Error("Query was not called on mock client")
+	}
+	if mock.QuerySQL != "INSERT INTO users VALUES (3, 'Charlie')" {
+		t.Errorf("expected SQL 'INSERT INTO users VALUES (3, 'Charlie')', got '%s'", mock.QuerySQL)
+	}
+}
+
+// TestHandleExecute_AllowsWriteSQL tests that trino_execute allows write operations.
+func TestHandleExecute_AllowsWriteSQL(t *testing.T) {
+	writeSQLs := []string{
+		"INSERT INTO users VALUES (1)",
+		"UPDATE users SET name = 'Bob'",
+		"DELETE FROM users WHERE id = 1",
+		"DROP TABLE temp_table",
+		"CREATE TABLE new_table (id INT)",
+	}
+
+	for _, sql := range writeSQLs {
+		t.Run(sql[:6], func(t *testing.T) {
+			mock := NewMockTrinoClient()
+			toolkit := NewToolkit(mock, DefaultConfig())
+
+			result, _, err := toolkit.handleExecute(context.Background(), nil, ExecuteInput{SQL: sql})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if result.IsError {
+				t.Errorf("trino_execute should allow write SQL: %s", sql)
+			}
+			if !mock.QueryCalled {
+				t.Error("Query should be called")
+			}
+		})
+	}
+}
+
+// TestHandleExecute_AllowsReadSQL tests that trino_execute also allows read operations.
+func TestHandleExecute_AllowsReadSQL(t *testing.T) {
+	mock := NewMockTrinoClient()
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	result, _, err := toolkit.handleExecute(context.Background(), nil, ExecuteInput{
+		SQL: "SELECT * FROM users",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.IsError {
+		t.Error("trino_execute should allow read SQL too")
+	}
+}
+
+// TestHandleExecute_EmptySQL tests error for empty SQL.
+func TestHandleExecute_EmptySQL(t *testing.T) {
+	mock := NewMockTrinoClient()
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	result, _, err := toolkit.handleExecute(context.Background(), nil, ExecuteInput{SQL: ""})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.IsError {
+		t.Error("expected error for empty SQL")
+	}
+}
+
+// TestHandleExecute_Error tests execute error handling.
+func TestHandleExecute_Error(t *testing.T) {
+	mock := NewMockTrinoClient()
+	mock.QueryFunc = func(_ context.Context, _ string, _ client.QueryOptions) (*client.QueryResult, error) {
+		return nil, errors.New("table not found")
+	}
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	result, _, err := toolkit.handleExecute(context.Background(), nil, ExecuteInput{
+		SQL: "INSERT INTO nonexistent VALUES (1)",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
+	if !strings.Contains(textContent.Text, "Execution failed") {
+		t.Error("expected error message")
+	}
+}
+
+// TestHandleExecute_WithInterceptor tests SQL interception for execute.
+func TestHandleExecute_WithInterceptor(t *testing.T) {
+	mock := NewMockTrinoClient()
+	interceptor := QueryInterceptorFunc(func(_ context.Context, sql string, _ ToolName) (string, error) {
+		return sql + " /* audited */", nil
+	})
+	toolkit := NewToolkit(mock, DefaultConfig(), WithQueryInterceptor(interceptor))
+
+	_, _, err := toolkit.handleExecute(context.Background(), nil, ExecuteInput{
+		SQL: "INSERT INTO users VALUES (1)",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if mock.QuerySQL != "INSERT INTO users VALUES (1) /* audited */" {
+		t.Errorf("expected intercepted SQL, got '%s'", mock.QuerySQL)
+	}
+}
+
+// TestHandleExecute_CSVFormat tests CSV output format for execute.
+func TestHandleExecute_CSVFormat(t *testing.T) {
+	mock := NewMockTrinoClient()
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	result, _, err := toolkit.handleExecute(context.Background(), nil, ExecuteInput{
+		SQL:    "SELECT * FROM users",
+		Format: "csv",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
+	if !strings.Contains(textContent.Text, "id,name") {
+		t.Error("expected CSV header")
+	}
+}
+
+// TestHandleExecute_MarkdownFormat tests markdown output format for execute.
+func TestHandleExecute_MarkdownFormat(t *testing.T) {
+	mock := NewMockTrinoClient()
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	result, _, err := toolkit.handleExecute(context.Background(), nil, ExecuteInput{
+		SQL:    "SELECT * FROM users",
+		Format: "markdown",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
+	if !strings.Contains(textContent.Text, "| id |") {
+		t.Error("expected markdown table header")
+	}
+}
+
+// TestHandleExecute_ConnectionError tests connection error handling.
+func TestHandleExecute_ConnectionError(t *testing.T) {
+	toolkit := NewToolkit(nil, DefaultConfig()) // nil client
+
+	result, _, err := toolkit.handleExecute(context.Background(), nil, ExecuteInput{
+		SQL: "SELECT 1",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.IsError {
+		t.Error("expected error for nil client")
+	}
+}
+
 // TestRegisteredToolInvocation exercises the full registration + MCP dispatch path
 // for all tools, covering the typed-output wrapper closures in register*Tool functions.
 func TestRegisteredToolInvocation(t *testing.T) {
@@ -836,6 +1115,13 @@ func TestRegisteredToolInvocation(t *testing.T) {
 			params: mcp.CallToolParams{
 				Name:      "trino_query",
 				Arguments: map[string]any{"sql": "SELECT 1"},
+			},
+		},
+		{
+			name: "trino_execute",
+			params: mcp.CallToolParams{
+				Name:      "trino_execute",
+				Arguments: map[string]any{"sql": "INSERT INTO users VALUES (1, 'Test')"},
 			},
 		},
 		{

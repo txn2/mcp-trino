@@ -161,6 +161,8 @@ func (t *Toolkit) registerTool(server *mcp.Server, name ToolName, cfg *toolConfi
 	switch name {
 	case ToolQuery:
 		t.registerQueryTool(server, cfg)
+	case ToolExecute:
+		t.registerExecuteTool(server, cfg)
 	case ToolExplain:
 		t.registerExplainTool(server, cfg)
 	case ToolListCatalogs:

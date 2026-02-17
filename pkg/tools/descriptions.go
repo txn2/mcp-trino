@@ -3,10 +3,18 @@ package tools
 // defaultDescriptions holds the default description for each built-in tool.
 // These are used when no override is provided via WithDescription or WithDescriptions.
 var defaultDescriptions = map[ToolName]string{
-	ToolQuery: "Execute a SELECT query against Trino and return results. Use the table path format " +
-		"catalog.schema.table. Results are limited to prevent excessive data transfer — use " +
-		"the limit parameter to control result size. For large tables, always include WHERE " +
-		"clauses to filter results. Consider using trino_explain first for expensive queries.",
+	ToolQuery: "Execute a read-only SQL query against Trino and return results. " +
+		"Only SELECT, SHOW, DESCRIBE, EXPLAIN, and WITH statements are allowed. " +
+		"Use the table path format catalog.schema.table. Results are limited to prevent " +
+		"excessive data transfer — use the limit parameter to control result size. " +
+		"For large tables, always include WHERE clauses to filter results. " +
+		"Consider using trino_explain first for expensive queries. " +
+		"For write operations (INSERT, CREATE, etc.), use trino_execute instead.",
+
+	ToolExecute: "Execute a SQL statement against Trino, including write operations " +
+		"(INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, etc.). Returns affected row " +
+		"counts or query results. Use trino_query for read-only SELECT queries. " +
+		"This tool should be used when you need to modify data or schema.",
 
 	ToolExplain: "Get the execution plan for a SQL query to understand performance characteristics " +
 		"before running expensive queries. Use this when querying large tables (millions of " +

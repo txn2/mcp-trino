@@ -6,6 +6,7 @@ type ToolName string
 // Built-in tool names.
 const (
 	ToolQuery           ToolName = "trino_query"
+	ToolExecute         ToolName = "trino_execute"
 	ToolExplain         ToolName = "trino_explain"
 	ToolListCatalogs    ToolName = "trino_list_catalogs"
 	ToolListSchemas     ToolName = "trino_list_schemas"
@@ -18,6 +19,7 @@ const (
 func AllTools() []ToolName {
 	return []ToolName{
 		ToolQuery,
+		ToolExecute,
 		ToolExplain,
 		ToolListCatalogs,
 		ToolListSchemas,
@@ -32,6 +34,7 @@ func AllTools() []ToolName {
 func QueryTools() []ToolName {
 	return []ToolName{
 		ToolQuery,
+		ToolExecute,
 		ToolExplain,
 	}
 }

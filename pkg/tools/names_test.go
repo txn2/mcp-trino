@@ -10,6 +10,7 @@ func TestToolName_String(t *testing.T) {
 		expected string
 	}{
 		{ToolQuery, "trino_query"},
+		{ToolExecute, "trino_execute"},
 		{ToolExplain, "trino_explain"},
 		{ToolListCatalogs, "trino_list_catalogs"},
 		{ToolListSchemas, "trino_list_schemas"},
@@ -30,13 +31,14 @@ func TestToolName_String(t *testing.T) {
 func TestAllTools(t *testing.T) {
 	tools := AllTools()
 
-	if len(tools) != 7 {
-		t.Errorf("expected 7 tools, got %d", len(tools))
+	if len(tools) != 8 {
+		t.Errorf("expected 8 tools, got %d", len(tools))
 	}
 
 	// Verify all expected tools are present
 	expected := map[ToolName]bool{
 		ToolQuery:           false,
+		ToolExecute:         false,
 		ToolExplain:         false,
 		ToolListCatalogs:    false,
 		ToolListSchemas:     false,
@@ -62,18 +64,21 @@ func TestAllTools(t *testing.T) {
 func TestQueryTools(t *testing.T) {
 	tools := QueryTools()
 
-	if len(tools) != 2 {
-		t.Errorf("expected 2 query tools, got %d", len(tools))
+	if len(tools) != 3 {
+		t.Errorf("expected 3 query tools, got %d", len(tools))
 	}
 
-	// Should contain ToolQuery and ToolExplain
+	// Should contain ToolQuery, ToolExecute, and ToolExplain
 	hasQuery := false
+	hasExecute := false
 	hasExplain := false
 
 	for _, tool := range tools {
 		switch tool {
 		case ToolQuery:
 			hasQuery = true
+		case ToolExecute:
+			hasExecute = true
 		case ToolExplain:
 			hasExplain = true
 		default:
@@ -83,6 +88,9 @@ func TestQueryTools(t *testing.T) {
 
 	if !hasQuery {
 		t.Error("missing ToolQuery")
+	}
+	if !hasExecute {
+		t.Error("missing ToolExecute")
 	}
 	if !hasExplain {
 		t.Error("missing ToolExplain")
