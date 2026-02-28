@@ -63,8 +63,8 @@ func TestDefaultAnnotations_ReadOnlyTools(t *testing.T) {
 			if !ann.IdempotentHint {
 				t.Errorf("expected IdempotentHint=true for %s", name)
 			}
-			if ann.OpenWorldHint == nil || *ann.OpenWorldHint {
-				t.Errorf("expected OpenWorldHint=false for %s", name)
+			if ann.OpenWorldHint == nil || !*ann.OpenWorldHint {
+				t.Errorf("expected OpenWorldHint=true for %s", name)
 			}
 		})
 	}
@@ -81,8 +81,8 @@ func TestDefaultAnnotations_QueryTool(t *testing.T) {
 	if ann.DestructiveHint == nil || *ann.DestructiveHint {
 		t.Error("expected DestructiveHint=false for trino_query")
 	}
-	if ann.OpenWorldHint == nil || *ann.OpenWorldHint {
-		t.Error("expected OpenWorldHint=false for trino_query")
+	if ann.OpenWorldHint == nil || !*ann.OpenWorldHint {
+		t.Error("expected OpenWorldHint=true for trino_query (connects to external Trino cluster)")
 	}
 }
 
@@ -94,8 +94,22 @@ func TestDefaultAnnotations_ExecuteTool(t *testing.T) {
 	if ann.DestructiveHint == nil || !*ann.DestructiveHint {
 		t.Error("expected DestructiveHint=true for trino_execute")
 	}
-	if ann.OpenWorldHint == nil || *ann.OpenWorldHint {
-		t.Error("expected OpenWorldHint=false for trino_execute")
+	if ann.OpenWorldHint == nil || !*ann.OpenWorldHint {
+		t.Error("expected OpenWorldHint=true for trino_execute (connects to external Trino cluster)")
+	}
+}
+
+func TestDefaultAnnotations_AllToolsOpenWorld(t *testing.T) {
+	for _, name := range AllTools() {
+		t.Run(string(name), func(t *testing.T) {
+			ann := DefaultAnnotations(name)
+			if ann == nil {
+				t.Fatalf("expected non-nil annotations for %s", name)
+			}
+			if ann.OpenWorldHint == nil || !*ann.OpenWorldHint {
+				t.Errorf("expected OpenWorldHint=true for %s (all tools connect to external Trino cluster)", name)
+			}
+		})
 	}
 }
 

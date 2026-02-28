@@ -41,6 +41,7 @@ func (t *Toolkit) registerExplainTool(server *mcp.Server, cfg *toolConfig) {
 	// Register with MCP using typed handler that calls wrapped handler
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        string(ToolExplain),
+		Title:       t.getTitle(ToolExplain, cfg),
 		Description: t.getDescription(ToolExplain, cfg),
 		Annotations: t.getAnnotations(ToolExplain, cfg),
 		Icons:       t.getIcons(ToolExplain, cfg),

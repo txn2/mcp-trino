@@ -29,6 +29,8 @@ type ConnectionInfoOutput struct {
 }
 
 // registerListConnectionsTool adds the trino_list_connections tool to the server.
+//
+//nolint:dupl // Each tool registration requires distinct types for type-safe handlers.
 func (t *Toolkit) registerListConnectionsTool(server *mcp.Server, cfg *toolConfig) {
 	// Create the base handler
 	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
@@ -41,6 +43,7 @@ func (t *Toolkit) registerListConnectionsTool(server *mcp.Server, cfg *toolConfi
 	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        string(ToolListConnections),
+		Title:       t.getTitle(ToolListConnections, cfg),
 		Description: t.getDescription(ToolListConnections, cfg),
 		Annotations: t.getAnnotations(ToolListConnections, cfg),
 		Icons:       t.getIcons(ToolListConnections, cfg),

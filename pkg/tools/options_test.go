@@ -178,6 +178,65 @@ func TestWithSemanticCache(t *testing.T) {
 	}
 }
 
+func TestWithTitle(t *testing.T) {
+	cfg := &toolConfig{}
+	opt := WithTitle("Custom Title")
+	opt(cfg)
+
+	if cfg.title == nil {
+		t.Fatal("expected title to be set")
+	}
+	if *cfg.title != "Custom Title" {
+		t.Errorf("expected 'Custom Title', got %q", *cfg.title)
+	}
+}
+
+func TestWithTitles(t *testing.T) {
+	clientCfg := client.Config{
+		Host: "localhost",
+		User: "test",
+	}
+	trinoClient := client.NewWithDB(nil, clientCfg)
+
+	titles := map[ToolName]string{
+		ToolQuery:   "Custom Query Title",
+		ToolExplain: "Custom Explain Title",
+	}
+	toolkit := NewToolkit(trinoClient, DefaultConfig(), WithTitles(titles))
+
+	if toolkit.titles[ToolQuery] != "Custom Query Title" {
+		t.Errorf("expected 'Custom Query Title', got %q", toolkit.titles[ToolQuery])
+	}
+	if toolkit.titles[ToolExplain] != "Custom Explain Title" {
+		t.Errorf("expected 'Custom Explain Title', got %q", toolkit.titles[ToolExplain])
+	}
+}
+
+func TestWithTitles_Merge(t *testing.T) {
+	clientCfg := client.Config{
+		Host: "localhost",
+		User: "test",
+	}
+	trinoClient := client.NewWithDB(nil, clientCfg)
+
+	// Apply two rounds of WithTitles — second should merge, not replace
+	toolkit := NewToolkit(trinoClient, DefaultConfig(),
+		WithTitles(map[ToolName]string{
+			ToolQuery: "First Query Title",
+		}),
+		WithTitles(map[ToolName]string{
+			ToolExplain: "Explain Title",
+		}),
+	)
+
+	if toolkit.titles[ToolQuery] != "First Query Title" {
+		t.Errorf("expected 'First Query Title', got %q", toolkit.titles[ToolQuery])
+	}
+	if toolkit.titles[ToolExplain] != "Explain Title" {
+		t.Errorf("expected 'Explain Title', got %q", toolkit.titles[ToolExplain])
+	}
+}
+
 func TestWithDescription(t *testing.T) {
 	cfg := &toolConfig{}
 	opt := WithDescription("Custom description")

@@ -38,6 +38,7 @@ func (t *Toolkit) registerListCatalogsTool(server *mcp.Server, cfg *toolConfig) 
 	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        string(ToolListCatalogs),
+		Title:       t.getTitle(ToolListCatalogs, cfg),
 		Description: t.getDescription(ToolListCatalogs, cfg),
 		Annotations: t.getAnnotations(ToolListCatalogs, cfg),
 		Icons:       t.getIcons(ToolListCatalogs, cfg),
@@ -111,6 +112,7 @@ func (t *Toolkit) registerListSchemasTool(server *mcp.Server, cfg *toolConfig) {
 	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        string(ToolListSchemas),
+		Title:       t.getTitle(ToolListSchemas, cfg),
 		Description: t.getDescription(ToolListSchemas, cfg),
 		Annotations: t.getAnnotations(ToolListSchemas, cfg),
 		Icons:       t.getIcons(ToolListSchemas, cfg),
@@ -193,6 +195,7 @@ func (t *Toolkit) registerListTablesTool(server *mcp.Server, cfg *toolConfig) {
 	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        string(ToolListTables),
+		Title:       t.getTitle(ToolListTables, cfg),
 		Description: t.getDescription(ToolListTables, cfg),
 		Annotations: t.getAnnotations(ToolListTables, cfg),
 		Icons:       t.getIcons(ToolListTables, cfg),
@@ -303,6 +306,7 @@ func (t *Toolkit) registerDescribeTableTool(server *mcp.Server, cfg *toolConfig)
 	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
 		Name:        string(ToolDescribeTable),
+		Title:       t.getTitle(ToolDescribeTable, cfg),
 		Description: t.getDescription(ToolDescribeTable, cfg),
 		Annotations: t.getAnnotations(ToolDescribeTable, cfg),
 		Icons:       t.getIcons(ToolDescribeTable, cfg),
