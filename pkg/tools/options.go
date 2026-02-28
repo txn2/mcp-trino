@@ -46,6 +46,40 @@ func WithToolMiddleware(name ToolName, m ToolMiddleware) ToolkitOption {
 	}
 }
 
+// WithTitle sets a custom human-readable title for a single tool registration.
+// Use with RegisterWith for per-registration title override.
+//
+// Example:
+//
+//	toolkit.RegisterWith(server, tools.ToolQuery,
+//	    tools.WithTitle("Query the Retail Warehouse"),
+//	)
+func WithTitle(title string) ToolOption {
+	return func(tc *toolConfig) {
+		tc.title = &title
+	}
+}
+
+// WithTitles sets custom human-readable titles for multiple tools at the toolkit level.
+// These override default titles but are themselves overridden by per-registration
+// WithTitle calls.
+//
+// Example:
+//
+//	toolkit := tools.NewToolkit(client, cfg,
+//	    tools.WithTitles(map[tools.ToolName]string{
+//	        tools.ToolQuery:   "Query Retail Warehouse",
+//	        tools.ToolExplain: "Check Query Performance",
+//	    }),
+//	)
+func WithTitles(titles map[ToolName]string) ToolkitOption {
+	return func(t *Toolkit) {
+		for name, title := range titles {
+			t.titles[name] = title
+		}
+	}
+}
+
 // WithIcons sets custom icons for multiple tools at the toolkit level.
 // These override default icons but are themselves overridden by per-registration
 // WithIcon calls.
@@ -68,6 +102,7 @@ func WithIcons(icons map[ToolName][]mcp.Icon) ToolkitOption {
 // toolConfig holds per-registration configuration for a tool.
 type toolConfig struct {
 	middlewares []ToolMiddleware
+	title       *string
 	description *string
 	annotations *mcp.ToolAnnotations
 	icons       []mcp.Icon

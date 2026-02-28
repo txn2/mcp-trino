@@ -54,6 +54,9 @@ type Toolkit struct {
 	semanticProvider    semantic.Provider
 	semanticCacheConfig *semantic.CacheConfig
 
+	// Title overrides (toolkit-level)
+	titles map[ToolName]string
+
 	// Description overrides (toolkit-level)
 	descriptions map[ToolName]string
 
@@ -99,6 +102,7 @@ func newBaseToolkit(cfg Config) *Toolkit {
 	return &Toolkit{
 		config:          cfg,
 		toolMiddlewares: make(map[ToolName][]ToolMiddleware),
+		titles:          make(map[ToolName]string),
 		descriptions:    make(map[ToolName]string),
 		annotations:     make(map[ToolName]*mcp.ToolAnnotations),
 		icons:           make(map[ToolName][]mcp.Icon),
