@@ -110,9 +110,7 @@ toolkit.RegisterAll(yourMCPServer)
 | `trino_query` | Execute read-only SQL (SELECT/SHOW/DESCRIBE), returns JSON/CSV/markdown |
 | `trino_execute` | Execute any SQL including write ops (INSERT/UPDATE/DELETE/CREATE/DROP) |
 | `trino_explain` | Get execution plan |
-| `trino_list_catalogs` | List available catalogs |
-| `trino_list_schemas` | List schemas in catalog |
-| `trino_list_tables` | List tables in schema |
+| `trino_browse` | Browse catalog hierarchy (catalogs → schemas → tables) |
 | `trino_describe_table` | Get column definitions |
 
 ## Configuration Reference

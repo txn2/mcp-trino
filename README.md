@@ -178,9 +178,7 @@ mcp-trino
 | `trino_query` | Execute read-only SQL queries (SELECT, SHOW, DESCRIBE) with limit/timeout control |
 | `trino_execute` | Execute any SQL including write operations (INSERT, UPDATE, DELETE, CREATE, DROP) |
 | `trino_explain` | Get execution plans (logical/distributed/io/validate) |
-| `trino_list_catalogs` | List available catalogs |
-| `trino_list_schemas` | List schemas in a catalog |
-| `trino_list_tables` | List tables in a schema |
+| `trino_browse` | Browse catalog hierarchy: list catalogs, schemas, or tables |
 | `trino_describe_table` | Get columns, sample data, and semantic context (if configured) |
 | `trino_list_connections` | List all configured server connections |
 

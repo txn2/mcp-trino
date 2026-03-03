@@ -65,16 +65,8 @@
       "description": "Get execution plans for SQL queries (logical, distributed, IO, validate)"
     },
     {
-      "name": "trino_list_catalogs",
-      "description": "List all available catalogs in the Trino cluster"
-    },
-    {
-      "name": "trino_list_schemas",
-      "description": "List schemas within a catalog"
-    },
-    {
-      "name": "trino_list_tables",
-      "description": "List tables in a schema with optional pattern filtering"
+      "name": "trino_browse",
+      "description": "Browse the catalog hierarchy: list catalogs, schemas, or tables depending on parameters provided"
     },
     {
       "name": "trino_describe_table",

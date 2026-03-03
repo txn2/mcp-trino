@@ -147,9 +147,7 @@ Any tool not listed keeps its default description. The available tool name keys 
 |-----|------|
 | `trino_query` | Execute SQL queries |
 | `trino_explain` | Get query execution plans |
-| `trino_list_catalogs` | List available catalogs |
-| `trino_list_schemas` | List schemas in a catalog |
-| `trino_list_tables` | List tables in a schema |
+| `trino_browse` | Browse catalog hierarchy (catalogs/schemas/tables) |
 | `trino_describe_table` | Describe table columns and types |
 | `trino_list_connections` | List configured server connections |
 

@@ -466,9 +466,7 @@ All built-in tools ship with sensible default annotations. Schema-browsing tools
 |------|----------|-------------|------------|-----------|
 | `trino_query` | false | **false** | false | false |
 | `trino_explain` | true | — | true | false |
-| `trino_list_catalogs` | true | — | true | false |
-| `trino_list_schemas` | true | — | true | false |
-| `trino_list_tables` | true | — | true | false |
+| `trino_browse` | true | — | true | false |
 | `trino_describe_table` | true | — | true | false |
 | `trino_list_connections` | true | — | true | false |
 
@@ -532,9 +530,7 @@ All tool handlers return typed output structs alongside the human-readable `Text
 |------|------------|------------|
 | `trino_query` | `QueryOutput` | `columns`, `rows`, `row_count`, `stats` |
 | `trino_explain` | `ExplainOutput` | `plan`, `type` |
-| `trino_list_catalogs` | `ListCatalogsOutput` | `catalogs`, `count` |
-| `trino_list_schemas` | `ListSchemasOutput` | `catalog`, `schemas`, `count` |
-| `trino_list_tables` | `ListTablesOutput` | `catalog`, `schema`, `tables`, `count`, `pattern` |
+| `trino_browse` | `BrowseOutput` | `level`, `catalog`, `schema`, `items`, `count`, `pattern` |
 | `trino_describe_table` | `DescribeTableOutput` | `catalog`, `schema`, `table`, `columns`, `column_count` |
 | `trino_list_connections` | `ListConnectionsOutput` | `connections`, `count` |
 
