@@ -169,12 +169,8 @@ func (t *Toolkit) registerTool(server *mcp.Server, name ToolName, cfg *toolConfi
 		t.registerExecuteTool(server, cfg)
 	case ToolExplain:
 		t.registerExplainTool(server, cfg)
-	case ToolListCatalogs:
-		t.registerListCatalogsTool(server, cfg)
-	case ToolListSchemas:
-		t.registerListSchemasTool(server, cfg)
-	case ToolListTables:
-		t.registerListTablesTool(server, cfg)
+	case ToolBrowse:
+		t.registerBrowseTool(server, cfg)
 	case ToolDescribeTable:
 		t.registerDescribeTableTool(server, cfg)
 	case ToolListConnections:

@@ -395,11 +395,11 @@ func TestReadOnlyInterceptor_BlocksModifications(t *testing.T) {
 func TestReadOnlyInterceptor_IgnoresNonQueryTools(t *testing.T) {
 	ri := NewReadOnlyInterceptor()
 
-	// Should not block for list tools (they don't execute SQL)
+	// Should not block for browse tools (they don't execute SQL)
 	sql := "INSERT INTO table VALUES (1)"
-	result, err := ri.Intercept(context.Background(), sql, tools.ToolListTables)
+	result, err := ri.Intercept(context.Background(), sql, tools.ToolBrowse)
 	if err != nil {
-		t.Errorf("Should not block for ToolListTables: %v", err)
+		t.Errorf("Should not block for ToolBrowse: %v", err)
 	}
 	if result != sql {
 		t.Error("Should return SQL unchanged for non-query tools")
@@ -532,9 +532,9 @@ func TestErrorEnricher_AddsHints(t *testing.T) {
 		errorMsg     string
 		expectedHint string
 	}{
-		{"Table not found: users", "trino_list_tables"},
-		{"Schema not found: test", "trino_list_schemas"},
-		{"Catalog not found: hive", "trino_list_catalogs"},
+		{"Table not found: users", "trino_browse"},
+		{"Schema not found: test", "trino_browse"},
+		{"Catalog not found: hive", "trino_browse"},
 		{"Access denied", "permissions"},
 		{"Syntax error at line 1", "syntax"},
 		{"Column not found: foo", "trino_describe_table"},

@@ -8,9 +8,7 @@ The MCP server provides these tools for querying and exploring Trino.
 |------|-------------|
 | `trino_query` | Execute SQL queries |
 | `trino_explain` | Analyze execution plans |
-| `trino_list_catalogs` | List available catalogs |
-| `trino_list_schemas` | List schemas in a catalog |
-| `trino_list_tables` | List tables in a schema |
+| `trino_browse` | Browse catalog hierarchy (catalogs → schemas → tables) |
 | `trino_describe_table` | Get columns, sample data, and semantic context |
 | `trino_list_connections` | List configured server connections |
 
@@ -85,65 +83,27 @@ Uses `type: "IO"` to see estimated bytes scanned.
 
 ---
 
-## trino_list_catalogs
+## trino_browse
 
-List all available data catalogs.
-
-### Parameters
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `connection` | string | No | default | Server connection |
-
-### Example
-
-> "What databases are available?"
-
-Response:
-```json
-{
-  "catalogs": ["hive", "iceberg", "memory", "system"]
-}
-```
-
----
-
-## trino_list_schemas
-
-List schemas within a catalog.
+Browse the Trino catalog hierarchy. The browsing level is determined by which parameters are provided.
 
 ### Parameters
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `catalog` | string | Yes | - | Catalog name |
+| `catalog` | string | No | - | Catalog name. Omit to list all catalogs. |
+| `schema` | string | No | - | Schema name. Requires catalog. Omit to list schemas. |
+| `pattern` | string | No | - | LIKE pattern to filter tables (only when listing tables) |
 | `connection` | string | No | default | Server connection |
 
-### Example
+### Modes
 
-> "Show me the schemas in hive"
-
-Response:
-```json
-{
-  "schemas": ["default", "sales", "marketing", "analytics"]
-}
-```
-
----
-
-## trino_list_tables
-
-List tables in a schema with optional pattern filtering.
-
-### Parameters
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `catalog` | string | Yes | - | Catalog name |
-| `schema` | string | Yes | - | Schema name |
-| `pattern` | string | No | - | LIKE pattern |
-| `connection` | string | No | default | Server connection |
+| Parameters Provided | Action |
+|---------------------|--------|
+| *(none)* | List all catalogs |
+| `catalog` | List schemas in that catalog |
+| `catalog` + `schema` | List tables in that schema |
+| `catalog` + `schema` + `pattern` | List tables matching the pattern |
 
 ### Pattern Syntax
 
@@ -153,14 +113,29 @@ List tables in a schema with optional pattern filtering.
 | `%log` | Tables ending with "log" |
 | `%event%` | Tables containing "event" |
 
-### Example
+### Examples
+
+> "What databases are available?"
+
+```json
+{
+  "level": "catalogs",
+  "items": ["hive", "iceberg", "memory", "system"],
+  "count": 4
+}
+```
 
 > "Show me tables related to orders"
 
-Uses `pattern: "%order%"`:
+Uses `catalog: "hive"`, `schema: "default"`, `pattern: "%order%"`:
 ```json
 {
-  "tables": ["orders", "order_items", "order_history"]
+  "level": "tables",
+  "catalog": "hive",
+  "schema": "default",
+  "items": ["orders", "order_items", "order_history"],
+  "count": 3,
+  "pattern": "%order%"
 }
 ```
 
@@ -242,9 +217,9 @@ Response:
 
 ### Data Exploration
 
-1. `trino_list_catalogs` - See available databases
-2. `trino_list_schemas` - Browse catalog
-3. `trino_list_tables` - Find relevant tables
+1. `trino_browse` - See available catalogs
+2. `trino_browse` (with catalog) - Browse schemas
+3. `trino_browse` (with catalog + schema) - Find relevant tables
 4. `trino_describe_table` - Understand structure
 5. `trino_query` - Query the data
 

@@ -10,9 +10,7 @@ All tools declare MCP behavioral annotations that help AI agents understand side
 |------|----------|-------------|------------|-----------|
 | `trino_query` | false | **false** | false | false |
 | `trino_explain` | true | — | true | false |
-| `trino_list_catalogs` | true | — | true | false |
-| `trino_list_schemas` | true | — | true | false |
-| `trino_list_tables` | true | — | true | false |
+| `trino_browse` | true | — | true | false |
 | `trino_describe_table` | true | — | true | false |
 | `trino_list_connections` | true | — | true | false |
 
@@ -148,126 +146,56 @@ Get query execution plan without running the query.
 
 ---
 
-## trino_list_catalogs
+## trino_browse
 
-List all available data catalogs.
-
-### Parameters
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `connection` | string | No | `default` | Server connection |
-
-### Response
-
-```json
-{
-  "catalogs": ["hive", "iceberg", "memory", "system"]
-}
-```
-
-### Structured Output (`ListCatalogsOutput`)
-
-```json
-{
-  "catalogs": ["hive", "iceberg", "memory", "system"],
-  "count": 4
-}
-```
-
----
-
-## trino_list_schemas
-
-List schemas within a catalog.
+Browse the Trino catalog hierarchy. The browsing level is determined by which parameters are provided.
 
 ### Parameters
 
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
-| `catalog` | string | **Yes** | - | Catalog name |
+| `catalog` | string | No | - | Catalog name. Omit to list all catalogs. |
+| `schema` | string | No | - | Schema name. Requires catalog. Omit to list schemas. |
+| `pattern` | string | No | - | LIKE pattern to filter tables (only when listing tables) |
 | `connection` | string | No | `default` | Server connection |
 
-### Response
+### Modes
 
-```json
-{
-  "catalog": "hive",
-  "schemas": ["default", "sales", "marketing", "analytics"]
-}
-```
+| Parameters | Action |
+|------------|--------|
+| *(none)* | List all catalogs |
+| `catalog` | List schemas in that catalog |
+| `catalog` + `schema` | List tables in that schema |
 
-### Errors
-
-| Code | Message | Cause |
-|------|---------|-------|
-| `CATALOG_REQUIRED` | Catalog is required | Empty `catalog` |
-| `CATALOG_NOT_FOUND` | Catalog not found | Invalid catalog name |
-
-### Structured Output (`ListSchemasOutput`)
-
-```json
-{
-  "catalog": "hive",
-  "schemas": ["default", "sales", "marketing", "analytics"],
-  "count": 4
-}
-```
-
----
-
-## trino_list_tables
-
-List tables in a schema with optional filtering.
-
-### Parameters
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `catalog` | string | **Yes** | - | Catalog name |
-| `schema` | string | **Yes** | - | Schema name |
-| `pattern` | string | No | - | LIKE pattern filter |
-| `connection` | string | No | `default` | Server connection |
-
-### Pattern Syntax
+### Pattern Syntax (tables mode)
 
 | Pattern | Matches |
 |---------|---------|
 | `order%` | Tables starting with "order" |
 | `%log` | Tables ending with "log" |
 | `%event%` | Tables containing "event" |
-| `user_` | Tables like "user_1", "user_a" |
-
-### Response
-
-```json
-{
-  "catalog": "hive",
-  "schema": "sales",
-  "tables": ["customers", "orders", "order_items"],
-  "pattern": null
-}
-```
 
 ### Errors
 
-| Code | Message | Cause |
-|------|---------|-------|
-| `CATALOG_REQUIRED` | Catalog is required | Empty `catalog` |
-| `SCHEMA_REQUIRED` | Schema is required | Empty `schema` |
-| `SCHEMA_NOT_FOUND` | Schema not found | Invalid schema name |
+| Message | Cause |
+|---------|-------|
+| `schema requires catalog` | `schema` provided without `catalog` |
+| `pattern requires both catalog and schema` | `pattern` provided without both `catalog` and `schema` |
 
-### Structured Output (`ListTablesOutput`)
+### Structured Output (`BrowseOutput`)
 
 ```json
 {
+  "level": "tables",
   "catalog": "hive",
   "schema": "sales",
-  "tables": ["customers", "orders", "order_items"],
+  "items": ["customers", "orders", "order_items"],
   "count": 3,
-  "pattern": ""
+  "pattern": "%order%"
 }
 ```
+
+The `level` field indicates which mode was used: `"catalogs"`, `"schemas"`, or `"tables"`.
 
 ---
 

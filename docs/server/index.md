@@ -27,7 +27,7 @@ Once installed, ask your AI assistant:
 
 > "What tables are in the sales schema?"
 
-The assistant uses `trino_list_tables` to show available tables.
+The assistant uses `trino_browse` to show available tables.
 
 > "Show me the top 10 customers by order value"
 

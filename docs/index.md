@@ -97,9 +97,7 @@ Unlike other MCP servers, mcp-trino is designed as a composable Go library. Impo
 |------|-------------|
 | `trino_query` | Execute SQL with limits and format options |
 | `trino_explain` | Analyze execution plans |
-| `trino_list_catalogs` | Discover available catalogs |
-| `trino_list_schemas` | Browse schemas in a catalog |
-| `trino_list_tables` | Find tables with pattern matching |
+| `trino_browse` | Browse catalog hierarchy (catalogs → schemas → tables) |
 | `trino_describe_table` | Get columns and sample data |
 | `trino_list_connections` | See configured connections |
 

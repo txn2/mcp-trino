@@ -28,24 +28,12 @@ type ExplainOutput struct {
 	Type string `json:"type"`
 }
 
-// ListCatalogsOutput defines the structured output of the trino_list_catalogs tool.
-type ListCatalogsOutput struct {
-	Catalogs []string `json:"catalogs"`
-	Count    int      `json:"count"`
-}
-
-// ListSchemasOutput defines the structured output of the trino_list_schemas tool.
-type ListSchemasOutput struct {
-	Catalog string   `json:"catalog"`
-	Schemas []string `json:"schemas"`
-	Count   int      `json:"count"`
-}
-
-// ListTablesOutput defines the structured output of the trino_list_tables tool.
-type ListTablesOutput struct {
-	Catalog string   `json:"catalog"`
-	Schema  string   `json:"schema"`
-	Tables  []string `json:"tables"`
+// BrowseOutput defines the structured output of the trino_browse tool.
+type BrowseOutput struct {
+	Level   string   `json:"level"`
+	Catalog string   `json:"catalog,omitempty"`
+	Schema  string   `json:"schema,omitempty"`
+	Items   []string `json:"items"`
 	Count   int      `json:"count"`
 	Pattern string   `json:"pattern,omitempty"`
 }

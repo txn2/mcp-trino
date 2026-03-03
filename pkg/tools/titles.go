@@ -7,9 +7,7 @@ var defaultTitles = map[ToolName]string{
 	ToolQuery:           "Execute SQL Query",
 	ToolExecute:         "Execute SQL (Write)",
 	ToolExplain:         "Explain Query Plan",
-	ToolListCatalogs:    "List Catalogs",
-	ToolListSchemas:     "List Schemas",
-	ToolListTables:      "List Tables",
+	ToolBrowse:          "Browse Catalog",
 	ToolDescribeTable:   "Describe Table",
 	ToolListConnections: "List Connections",
 }

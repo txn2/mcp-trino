@@ -218,9 +218,7 @@ The toolkit registers these MCP tools:
 |------|--------|-------------|
 | `trino_query` | `RegisterQuery` | Execute SQL queries |
 | `trino_explain` | `RegisterExplain` | Analyze query plans |
-| `trino_list_catalogs` | `RegisterListCatalogs` | List catalogs |
-| `trino_list_schemas` | `RegisterListSchemas` | List schemas |
-| `trino_list_tables` | `RegisterListTables` | List tables |
+| `trino_browse` | `RegisterBrowse` | Browse catalogs/schemas/tables |
 | `trino_describe_table` | `RegisterDescribeTable` | Describe table |
 | `trino_list_connections` | `RegisterListConnections` | List connections |
 
