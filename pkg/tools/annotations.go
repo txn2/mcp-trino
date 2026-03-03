@@ -33,17 +33,7 @@ var defaultAnnotations = map[ToolName]*mcp.ToolAnnotations{
 		IdempotentHint: true,
 		OpenWorldHint:  boolPtr(true),
 	},
-	ToolListCatalogs: {
-		ReadOnlyHint:   true,
-		IdempotentHint: true,
-		OpenWorldHint:  boolPtr(true),
-	},
-	ToolListSchemas: {
-		ReadOnlyHint:   true,
-		IdempotentHint: true,
-		OpenWorldHint:  boolPtr(true),
-	},
-	ToolListTables: {
+	ToolBrowse: {
 		ReadOnlyHint:   true,
 		IdempotentHint: true,
 		OpenWorldHint:  boolPtr(true),

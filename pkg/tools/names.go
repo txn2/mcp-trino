@@ -8,9 +8,7 @@ const (
 	ToolQuery           ToolName = "trino_query"
 	ToolExecute         ToolName = "trino_execute"
 	ToolExplain         ToolName = "trino_explain"
-	ToolListCatalogs    ToolName = "trino_list_catalogs"
-	ToolListSchemas     ToolName = "trino_list_schemas"
-	ToolListTables      ToolName = "trino_list_tables"
+	ToolBrowse          ToolName = "trino_browse"
 	ToolDescribeTable   ToolName = "trino_describe_table"
 	ToolListConnections ToolName = "trino_list_connections"
 )
@@ -21,9 +19,7 @@ func AllTools() []ToolName {
 		ToolQuery,
 		ToolExecute,
 		ToolExplain,
-		ToolListCatalogs,
-		ToolListSchemas,
-		ToolListTables,
+		ToolBrowse,
 		ToolDescribeTable,
 		ToolListConnections,
 	}
@@ -42,9 +38,7 @@ func QueryTools() []ToolName {
 // SchemaTools returns tools that query schema metadata.
 func SchemaTools() []ToolName {
 	return []ToolName{
-		ToolListCatalogs,
-		ToolListSchemas,
-		ToolListTables,
+		ToolBrowse,
 		ToolDescribeTable,
 	}
 }

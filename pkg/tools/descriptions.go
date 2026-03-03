@@ -21,17 +21,15 @@ var defaultDescriptions = map[ToolName]string{
 		"rows) to verify the query plan uses appropriate filters. Also useful for debugging " +
 		"slow queries or understanding join strategies.",
 
-	ToolListCatalogs: "List all available catalogs in the Trino cluster. Catalogs are the top-level " +
-		"containers for schemas and tables.",
-
-	ToolListSchemas: "List all schemas in a catalog. Schemas are containers for tables within a catalog.",
-
-	ToolListTables: "List all tables in a schema. Optionally filter by a LIKE pattern.",
+	ToolBrowse: "Browse the Trino catalog hierarchy. " +
+		"Omit all parameters to list catalogs. " +
+		"Provide catalog to list schemas. " +
+		"Provide catalog and schema to list tables (with optional pattern filter).",
 
 	ToolDescribeTable: "Get detailed table information with columns, types, and optional sample data. " +
 		"Set include_sample=true to see actual data values, which helps understand column " +
 		"meaning and data formats. This is the richest single-call way to understand a " +
-		"table's structure. Requires catalog, schema, and table name — use trino_list_tables " +
+		"table's structure. Requires catalog, schema, and table name — use trino_browse " +
 		"to discover available tables if needed.",
 
 	ToolListConnections: "List all configured Trino server connections. " +

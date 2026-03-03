@@ -20,10 +20,10 @@ func NewErrorEnricher() *ErrorEnricher {
 	return &ErrorEnricher{
 		hints: map[string]string{
 			// Table/schema/catalog not found
-			"table not found":   "Hint: Use trino_list_tables to see available tables in the schema.",
-			"schema not found":  "Hint: Use trino_list_schemas to see available schemas in the catalog.",
-			"catalog not found": "Hint: Use trino_list_catalogs to see available catalogs.",
-			"does not exist":    "Hint: Verify the object name and use the list tools to explore available objects.",
+			"table not found":   "Hint: Use trino_browse with catalog and schema to see available tables.",
+			"schema not found":  "Hint: Use trino_browse with catalog to see available schemas.",
+			"catalog not found": "Hint: Use trino_browse to see available catalogs.",
+			"does not exist":    "Hint: Verify the object name and use trino_browse to explore available objects.",
 
 			// Permission errors
 			"access denied":     "Hint: Check your Trino user permissions for this operation.",
