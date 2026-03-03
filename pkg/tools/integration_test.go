@@ -149,8 +149,8 @@ func TestHandleExplain_MissingSQL(t *testing.T) {
 	}
 }
 
-// TestHandleListSchemas_MissingCatalog tests the list schemas handler with missing catalog.
-func TestHandleListSchemas_MissingCatalog(t *testing.T) {
+// TestHandleBrowse_SchemaWithoutCatalog_Integration tests browse validation.
+func TestHandleBrowse_SchemaWithoutCatalog_Integration(t *testing.T) {
 	cfg := client.Config{
 		Host:    "localhost",
 		Port:    8080,
@@ -168,57 +168,13 @@ func TestHandleListSchemas_MissingCatalog(t *testing.T) {
 
 	toolkit := NewToolkit(trinoClient, DefaultConfig())
 
-	result, _, err := toolkit.handleListSchemas(context.Background(), nil, ListSchemasInput{Catalog: ""})
+	result, _, err := toolkit.handleBrowse(context.Background(), nil, BrowseInput{Schema: "default"})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
 	if !result.IsError {
-		t.Error("expected error result for missing catalog")
-	}
-}
-
-// TestHandleListTables_MissingParams tests the list tables handler with missing parameters.
-func TestHandleListTables_MissingParams(t *testing.T) {
-	cfg := client.Config{
-		Host:    "localhost",
-		Port:    8080,
-		User:    "test",
-		SSL:     false,
-		Catalog: "memory",
-		Schema:  "default",
-	}
-
-	trinoClient, err := client.New(cfg)
-	if err != nil {
-		t.Fatalf("failed to create client: %v", err)
-	}
-	defer trinoClient.Close()
-
-	toolkit := NewToolkit(trinoClient, DefaultConfig())
-
-	// Missing catalog
-	result, _, err := toolkit.handleListTables(context.Background(), nil, ListTablesInput{
-		Catalog: "",
-		Schema:  "default",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !result.IsError {
-		t.Error("expected error result for missing catalog")
-	}
-
-	// Missing schema
-	result, _, err = toolkit.handleListTables(context.Background(), nil, ListTablesInput{
-		Catalog: "memory",
-		Schema:  "",
-	})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !result.IsError {
-		t.Error("expected error result for missing schema")
+		t.Error("expected error result for schema without catalog")
 	}
 }
 

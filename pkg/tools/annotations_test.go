@@ -14,9 +14,7 @@ func TestDefaultAnnotations(t *testing.T) {
 		{ToolQuery, false},
 		{ToolExecute, false},
 		{ToolExplain, false},
-		{ToolListCatalogs, false},
-		{ToolListSchemas, false},
-		{ToolListTables, false},
+		{ToolBrowse, false},
 		{ToolDescribeTable, false},
 		{ToolListConnections, false},
 		{ToolName("unknown_tool"), true},
@@ -47,9 +45,7 @@ func TestDefaultAnnotations_ReadOnlyTools(t *testing.T) {
 	readOnlyTools := []ToolName{
 		ToolQuery,
 		ToolExplain,
-		ToolListCatalogs,
-		ToolListSchemas,
-		ToolListTables,
+		ToolBrowse,
 		ToolDescribeTable,
 		ToolListConnections,
 	}
@@ -159,7 +155,7 @@ func TestGetAnnotations_Priority(t *testing.T) {
 				ToolExplain: {ReadOnlyHint: false},
 			},
 			cfgAnns:      nil,
-			toolName:     ToolListCatalogs,
+			toolName:     ToolBrowse,
 			wantReadOnly: true,
 		},
 	}

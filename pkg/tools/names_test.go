@@ -12,9 +12,7 @@ func TestToolName_String(t *testing.T) {
 		{ToolQuery, "trino_query"},
 		{ToolExecute, "trino_execute"},
 		{ToolExplain, "trino_explain"},
-		{ToolListCatalogs, "trino_list_catalogs"},
-		{ToolListSchemas, "trino_list_schemas"},
-		{ToolListTables, "trino_list_tables"},
+		{ToolBrowse, "trino_browse"},
 		{ToolDescribeTable, "trino_describe_table"},
 		{ToolListConnections, "trino_list_connections"},
 	}
@@ -31,8 +29,8 @@ func TestToolName_String(t *testing.T) {
 func TestAllTools(t *testing.T) {
 	tools := AllTools()
 
-	if len(tools) != 8 {
-		t.Errorf("expected 8 tools, got %d", len(tools))
+	if len(tools) != 6 {
+		t.Errorf("expected 6 tools, got %d", len(tools))
 	}
 
 	// Verify all expected tools are present
@@ -40,9 +38,7 @@ func TestAllTools(t *testing.T) {
 		ToolQuery:           false,
 		ToolExecute:         false,
 		ToolExplain:         false,
-		ToolListCatalogs:    false,
-		ToolListSchemas:     false,
-		ToolListTables:      false,
+		ToolBrowse:          false,
 		ToolDescribeTable:   false,
 		ToolListConnections: false,
 	}
@@ -100,14 +96,12 @@ func TestQueryTools(t *testing.T) {
 func TestSchemaTools(t *testing.T) {
 	tools := SchemaTools()
 
-	if len(tools) != 4 {
-		t.Errorf("expected 4 schema tools, got %d", len(tools))
+	if len(tools) != 2 {
+		t.Errorf("expected 2 schema tools, got %d", len(tools))
 	}
 
 	expected := map[ToolName]bool{
-		ToolListCatalogs:  false,
-		ToolListSchemas:   false,
-		ToolListTables:    false,
+		ToolBrowse:        false,
 		ToolDescribeTable: false,
 	}
 

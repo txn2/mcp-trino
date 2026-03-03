@@ -282,12 +282,12 @@ func TestHandleExplain_WithInterceptor(t *testing.T) {
 	}
 }
 
-// TestHandleListCatalogs_Success tests successful catalog listing.
-func TestHandleListCatalogs_Success(t *testing.T) {
+// TestHandleBrowse_Catalogs tests browsing catalogs (no catalog provided).
+func TestHandleBrowse_Catalogs(t *testing.T) {
 	mock := NewMockTrinoClient()
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, err := toolkit.handleListCatalogs(context.Background(), nil, ListCatalogsInput{})
+	result, _, err := toolkit.handleBrowse(context.Background(), nil, BrowseInput{})
 
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -308,15 +308,15 @@ func TestHandleListCatalogs_Success(t *testing.T) {
 	}
 }
 
-// TestHandleListCatalogs_Error tests catalog listing error.
-func TestHandleListCatalogs_Error(t *testing.T) {
+// TestHandleBrowse_Catalogs_Error tests catalog listing error.
+func TestHandleBrowse_Catalogs_Error(t *testing.T) {
 	mock := NewMockTrinoClient()
 	mock.ListCatalogsFunc = func(_ context.Context) ([]string, error) {
 		return nil, errors.New("permission denied")
 	}
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, err := toolkit.handleListCatalogs(context.Background(), nil, ListCatalogsInput{})
+	result, _, err := toolkit.handleBrowse(context.Background(), nil, BrowseInput{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -330,12 +330,12 @@ func TestHandleListCatalogs_Error(t *testing.T) {
 	}
 }
 
-// TestHandleListSchemas_Success tests successful schema listing.
-func TestHandleListSchemas_Success(t *testing.T) {
+// TestHandleBrowse_Schemas tests browsing schemas (catalog provided).
+func TestHandleBrowse_Schemas(t *testing.T) {
 	mock := NewMockTrinoClient()
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, err := toolkit.handleListSchemas(context.Background(), nil, ListSchemasInput{
+	result, _, err := toolkit.handleBrowse(context.Background(), nil, BrowseInput{
 		Catalog: "memory",
 	})
 
@@ -355,15 +355,15 @@ func TestHandleListSchemas_Success(t *testing.T) {
 	}
 }
 
-// TestHandleListSchemas_Error tests schema listing error.
-func TestHandleListSchemas_Error(t *testing.T) {
+// TestHandleBrowse_Schemas_Error tests schema listing error.
+func TestHandleBrowse_Schemas_Error(t *testing.T) {
 	mock := NewMockTrinoClient()
 	mock.ListSchemasFunc = func(_ context.Context, _ string) ([]string, error) {
 		return nil, errors.New("catalog not found")
 	}
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, err := toolkit.handleListSchemas(context.Background(), nil, ListSchemasInput{
+	result, _, err := toolkit.handleBrowse(context.Background(), nil, BrowseInput{
 		Catalog: "nonexistent",
 	})
 	if err != nil {
@@ -379,12 +379,12 @@ func TestHandleListSchemas_Error(t *testing.T) {
 	}
 }
 
-// TestHandleListTables_Success tests successful table listing.
-func TestHandleListTables_Success(t *testing.T) {
+// TestHandleBrowse_Tables tests browsing tables (catalog + schema provided).
+func TestHandleBrowse_Tables(t *testing.T) {
 	mock := NewMockTrinoClient()
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, err := toolkit.handleListTables(context.Background(), nil, ListTablesInput{
+	result, _, err := toolkit.handleBrowse(context.Background(), nil, BrowseInput{
 		Catalog: "memory",
 		Schema:  "default",
 	})
@@ -411,12 +411,12 @@ func TestHandleListTables_Success(t *testing.T) {
 	}
 }
 
-// TestHandleListTables_WithPattern tests table listing with pattern filter.
-func TestHandleListTables_WithPattern(t *testing.T) {
+// TestHandleBrowse_Tables_WithPattern tests table listing with pattern filter.
+func TestHandleBrowse_Tables_WithPattern(t *testing.T) {
 	mock := NewMockTrinoClient()
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, err := toolkit.handleListTables(context.Background(), nil, ListTablesInput{
+	result, _, err := toolkit.handleBrowse(context.Background(), nil, BrowseInput{
 		Catalog: "memory",
 		Schema:  "default",
 		Pattern: "%user%",
@@ -437,15 +437,15 @@ func TestHandleListTables_WithPattern(t *testing.T) {
 	}
 }
 
-// TestHandleListTables_Error tests table listing error.
-func TestHandleListTables_Error(t *testing.T) {
+// TestHandleBrowse_Tables_Error tests table listing error.
+func TestHandleBrowse_Tables_Error(t *testing.T) {
 	mock := NewMockTrinoClient()
 	mock.ListTablesFunc = func(_ context.Context, _, _ string) ([]client.TableInfo, error) {
 		return nil, errors.New("schema not found")
 	}
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	result, _, err := toolkit.handleListTables(context.Background(), nil, ListTablesInput{
+	result, _, err := toolkit.handleBrowse(context.Background(), nil, BrowseInput{
 		Catalog: "memory",
 		Schema:  "nonexistent",
 	})
@@ -459,6 +459,40 @@ func TestHandleListTables_Error(t *testing.T) {
 	}
 	if !strings.Contains(textContent.Text, "Failed to list tables") {
 		t.Error("expected error message")
+	}
+}
+
+// TestHandleBrowse_SchemaWithoutCatalog tests error when schema provided without catalog.
+func TestHandleBrowse_SchemaWithoutCatalog(t *testing.T) {
+	mock := NewMockTrinoClient()
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	result, _, err := toolkit.handleBrowse(context.Background(), nil, BrowseInput{
+		Schema: "default",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
+	if !strings.Contains(textContent.Text, "schema requires catalog") {
+		t.Error("expected validation error")
+	}
+}
+
+// TestHandleBrowse_ConnectionError tests connection error handling.
+func TestHandleBrowse_ConnectionError(t *testing.T) {
+	toolkit := NewToolkit(nil, DefaultConfig()) // nil client
+
+	result, _, err := toolkit.handleBrowse(context.Background(), nil, BrowseInput{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.IsError {
+		t.Error("expected error for nil client")
 	}
 }
 
@@ -1132,22 +1166,22 @@ func TestRegisteredToolInvocation(t *testing.T) {
 			},
 		},
 		{
-			name: "trino_list_catalogs",
+			name: "trino_browse_catalogs",
 			params: mcp.CallToolParams{
-				Name: "trino_list_catalogs",
+				Name: "trino_browse",
 			},
 		},
 		{
-			name: "trino_list_schemas",
+			name: "trino_browse_schemas",
 			params: mcp.CallToolParams{
-				Name:      "trino_list_schemas",
+				Name:      "trino_browse",
 				Arguments: map[string]any{"catalog": "memory"},
 			},
 		},
 		{
-			name: "trino_list_tables",
+			name: "trino_browse_tables",
 			params: mcp.CallToolParams{
-				Name:      "trino_list_tables",
+				Name:      "trino_browse",
 				Arguments: map[string]any{"catalog": "memory", "schema": "default"},
 			},
 		},
