@@ -1,4 +1,4 @@
-![txn2/mcp-trino](./docs/images/txn2_mcp_trino_banner.png)
+[![txn2/mcp-trino](docs/images/MCP-trino-logo-banner.svg)](https://mcp-trino.txn2.com)
 
 [![GitHub license](https://img.shields.io/github/license/txn2/mcp-trino.svg)](https://github.com/txn2/mcp-trino/blob/main/LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/txn2/mcp-trino.svg)](https://pkg.go.dev/github.com/txn2/mcp-trino)
@@ -7,11 +7,19 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/txn2/mcp-trino/badge)](https://scorecard.dev/viewer/?uri=github.com/txn2/mcp-trino)
 [![SLSA 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
 
-**Full documentation at [mcp-trino.txn2.com](https://mcp-trino.txn2.com)**
+**[mcp-trino.txn2.com](https://mcp-trino.txn2.com)** | **[Installation](https://mcp-trino.txn2.com/server/installation/)** | **[Library Docs](https://mcp-trino.txn2.com/library/)**
 
 A Model Context Protocol (MCP) server for [Trino](https://trino.io/), enabling AI assistants to query and explore data warehouses with optional semantic context from metadata catalogs.
 
 AI assistants excel at querying data but lack organizational context: which tables are trustworthy, what metrics mean, and which columns contain sensitive data. mcp-trino bridges this gap by connecting Trino to AI assistants through the MCP protocol, with an optional semantic layer that surfaces business metadata alongside query results.
+
+## MCP Data Platform Ecosystem
+
+mcp-trino is part of a broader suite of open-source MCP servers designed to work together as a composable data platform. Each component can run standalone or be combined to give AI assistants unified access to storage, query engines, and metadata catalogs.
+
+- [txn2/mcp-data-platform](https://github.com/txn2/mcp-data-platform/)
+- [txn2/mcp-datahub](https://github.com/txn2/mcp-datahub/)
+- [txn2/mcp-s3](https://github.com/txn2/mcp-s3/)
 
 ## Core Capabilities
 
@@ -471,12 +479,6 @@ We welcome contributions for bug fixes, tests, and documentation. See [CONTRIBUT
 ## License
 
 [Apache License 2.0](LICENSE)
-
-## Related Projects
-
-- [Model Context Protocol](https://modelcontextprotocol.io/) - The MCP specification
-- [Trino](https://trino.io/) - Distributed SQL query engine
-- [Official Go MCP SDK](https://github.com/modelcontextprotocol/go-sdk) - Go SDK for MCP
 
 ---
 
