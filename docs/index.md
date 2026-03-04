@@ -1,10 +1,11 @@
 ---
 description: An MCP server that connects AI assistants to Trino data warehouses
 hide:
+  - toc
   - navigation
 ---
 
-# txn2/mcp-trino
+# ![txn2/mcp-trino](images/MCP-trino-logo-banner-black-transparent.svg#only-light)![txn2/mcp-trino](images/MCP-trino-logo-banner-white-transparent.svg#only-dark)
 
 An MCP server that connects AI assistants to Trino data warehouses. Execute SQL queries, explore schemas, and describe tables with optional semantic context from metadata catalogs like DataHub.
 
