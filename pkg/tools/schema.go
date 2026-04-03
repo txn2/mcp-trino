@@ -186,7 +186,7 @@ func formatBasicColumns(columns []client.ColumnDef) string {
 		if comment == "" {
 			comment = "-"
 		}
-		sb.WriteString(fmt.Sprintf("| `%s` | %s | %s | %s |\n", col.Name, col.Type, nullable, comment))
+		fmt.Fprintf(&sb, "| `%s` | %s | %s | %s |\n", col.Name, col.Type, nullable, comment)
 	}
 	return sb.String()
 }
@@ -217,7 +217,6 @@ func (t *Toolkit) formatSampleData(
 func (t *Toolkit) formatTableSemantics(tc *semantic.TableContext) string {
 	var sb strings.Builder
 	sb.WriteString(formatDescription(tc.Description))
-	sb.WriteString(formatDeprecation(tc.Deprecation))
 	sb.WriteString(formatOwnership(tc.Ownership))
 	sb.WriteString(formatTags(tc.Tags))
 	sb.WriteString(formatDomain(tc.Domain))
@@ -233,19 +232,6 @@ func formatDescription(desc string) string {
 	return fmt.Sprintf("**Description:** %s\n\n", desc)
 }
 
-func formatDeprecation(d *semantic.Deprecation) string {
-	if d == nil || !d.Deprecated {
-		return ""
-	}
-	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("> **DEPRECATED:** %s\n", d.Note))
-	if d.ReplacedBy != "" {
-		sb.WriteString(fmt.Sprintf("> Use `%s` instead.\n", d.ReplacedBy))
-	}
-	sb.WriteString("\n")
-	return sb.String()
-}
-
 func formatOwnership(o *semantic.Ownership) string {
 	if o == nil || len(o.Owners) == 0 {
 		return ""
@@ -257,7 +243,7 @@ func formatOwnership(o *semantic.Ownership) string {
 			sb.WriteString(", ")
 		}
 		if owner.Role != "" {
-			sb.WriteString(fmt.Sprintf("%s (%s)", owner.Name, owner.Role))
+			fmt.Fprintf(&sb, "%s (%s)", owner.Name, owner.Role)
 		} else {
 			sb.WriteString(owner.Name)
 		}
@@ -276,7 +262,7 @@ func formatTags(tags []semantic.Tag) string {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		sb.WriteString(fmt.Sprintf("`%s`", tag.Name))
+		fmt.Fprintf(&sb, "`%s`", tag.Name)
 	}
 	sb.WriteString("\n\n")
 	return sb.String()
@@ -299,7 +285,7 @@ func formatGlossaryTerms(terms []semantic.GlossaryTerm) string {
 		if i > 0 {
 			sb.WriteString(", ")
 		}
-		sb.WriteString(fmt.Sprintf("*%s*", term.Name))
+		fmt.Fprintf(&sb, "*%s*", term.Name)
 	}
 	sb.WriteString("\n\n")
 	return sb.String()
@@ -354,8 +340,8 @@ func (t *Toolkit) formatColumnsWithSemantics(columns []client.ColumnDef, semanti
 			description = "-"
 		}
 
-		sb.WriteString(fmt.Sprintf("| `%s` | %s | %s | %s | %s |\n",
-			col.Name, col.Type, nullable, description, tags))
+		fmt.Fprintf(&sb, "| `%s` | %s | %s | %s | %s |\n",
+			col.Name, col.Type, nullable, description, tags)
 	}
 
 	return sb.String()

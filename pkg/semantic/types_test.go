@@ -133,9 +133,6 @@ func TestSearchFilter_Defaults(t *testing.T) {
 	if filter.Limit != 0 {
 		t.Errorf("default Limit should be 0, got %d", filter.Limit)
 	}
-	if filter.IncludeDeprecated {
-		t.Error("default IncludeDeprecated should be false")
-	}
 }
 
 func TestTableContext_Fields(t *testing.T) {
@@ -164,11 +161,6 @@ func TestTableContext_Fields(t *testing.T) {
 			URN:  "urn:domain:1",
 			Name: "Customer Analytics",
 		},
-		Deprecation: &Deprecation{
-			Deprecated: true,
-			Note:       "Use v2 table",
-			ReplacedBy: "users_v2",
-		},
 		Quality: &DataQuality{
 			Score: &score,
 		},
@@ -196,9 +188,6 @@ func TestTableContext_Fields(t *testing.T) {
 	}
 	if tc.Domain.Name != "Customer Analytics" {
 		t.Errorf("unexpected domain name: %s", tc.Domain.Name)
-	}
-	if !tc.Deprecation.Deprecated {
-		t.Error("expected deprecated to be true")
 	}
 	if *tc.Quality.Score != 95.5 {
 		t.Errorf("unexpected quality score: %f", *tc.Quality.Score)

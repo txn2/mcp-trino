@@ -66,7 +66,6 @@ The provider retrieves the following metadata from DataHub:
 | Tags | Global tags with descriptions |
 | Glossary Terms | Glossary term associations |
 | Domain | Domain assignment |
-| Deprecation | Deprecation aspect |
 
 ### Column-Level
 

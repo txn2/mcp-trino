@@ -402,7 +402,6 @@ When configured, `trino_describe_table` enriches output with:
 - Ownership information
 - Tags and domain classifications
 - Sensitivity markers (PII, sensitive data)
-- Deprecation warnings
 
 See the [Semantic Layer documentation](../semantic/index.md) for provider setup, caching, and building custom providers.
 

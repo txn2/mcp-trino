@@ -87,21 +87,29 @@ func (m *Manager) DefaultClient() (*client.Client, error) {
 
 // Connections returns the names of all configured connections.
 func (m *Manager) Connections() []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.config.ConnectionNames()
 }
 
 // ConnectionInfos returns information about all configured connections.
 func (m *Manager) ConnectionInfos() []ConnectionInfo {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.config.ConnectionInfos()
 }
 
 // ConnectionCount returns the number of configured connections.
 func (m *Manager) ConnectionCount() int {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.config.ConnectionCount()
 }
 
 // HasConnection returns true if the named connection exists.
 func (m *Manager) HasConnection(name string) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	if name == "" || name == m.config.Default {
 		return true
 	}
@@ -109,9 +117,66 @@ func (m *Manager) HasConnection(name string) bool {
 	return ok
 }
 
-// Config returns the manager's configuration.
+// Config returns a copy of the manager's configuration.
 func (m *Manager) Config() Config {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	return m.config
+}
+
+// AddConnection adds or replaces a named connection configuration.
+// If a cached client exists for this name, it is closed so a new client
+// will be created with the updated config on next access.
+// The primary/default connection cannot be replaced via this method.
+func (m *Manager) AddConnection(name string, conn ConnectionConfig) error {
+	if name == "" {
+		return fmt.Errorf("connection name must not be empty")
+	}
+	if name == m.config.Default {
+		return fmt.Errorf("cannot replace the default connection %q via AddConnection", name)
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Close existing cached client if present
+	if c, ok := m.clients[name]; ok {
+		_ = c.Close()
+		delete(m.clients, name)
+	}
+
+	if m.config.Connections == nil {
+		m.config.Connections = make(map[string]ConnectionConfig)
+	}
+	m.config.Connections[name] = conn
+	return nil
+}
+
+// RemoveConnection removes a named connection and closes its cached client.
+// The primary/default connection cannot be removed.
+func (m *Manager) RemoveConnection(name string) error {
+	if name == "" {
+		return fmt.Errorf("connection name must not be empty")
+	}
+	if name == m.config.Default {
+		return fmt.Errorf("cannot remove the default connection %q", name)
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, ok := m.config.Connections[name]; !ok {
+		return fmt.Errorf("connection %q not found", name)
+	}
+
+	// Close cached client if present
+	if c, ok := m.clients[name]; ok {
+		_ = c.Close()
+		delete(m.clients, name)
+	}
+
+	delete(m.config.Connections, name)
+	return nil
 }
 
 // Close closes all open client connections.

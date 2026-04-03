@@ -109,21 +109,6 @@ type Domain struct {
 	Description string `json:"description,omitempty" yaml:"description,omitempty"`
 }
 
-// Deprecation indicates if a data asset is deprecated.
-type Deprecation struct {
-	// Deprecated is true if the asset is deprecated.
-	Deprecated bool `json:"deprecated" yaml:"deprecated"`
-
-	// Note explains why the asset is deprecated.
-	Note string `json:"note,omitempty" yaml:"note,omitempty"`
-
-	// ReplacedBy is the identifier of the replacement asset.
-	ReplacedBy string `json:"replaced_by,omitempty" yaml:"replaced_by,omitempty"`
-
-	// DecommissionTime is when the asset will be removed.
-	DecommissionTime *time.Time `json:"decommission_time,omitempty" yaml:"decommission_time,omitempty"`
-}
-
 // DataQuality contains data quality metrics for an asset.
 type DataQuality struct {
 	// Score is the overall quality score (0-100).
@@ -185,9 +170,6 @@ type TableContext struct {
 
 	// Domain is the data domain classification.
 	Domain *Domain `json:"domain,omitempty" yaml:"domain,omitempty"`
-
-	// Deprecation indicates deprecation status.
-	Deprecation *Deprecation `json:"deprecation,omitempty" yaml:"deprecation,omitempty"`
 
 	// Quality contains data quality information.
 	Quality *DataQuality `json:"quality,omitempty" yaml:"quality,omitempty"`
@@ -304,9 +286,6 @@ type SearchFilter struct {
 
 	// Schema filters by schema name.
 	Schema string `json:"schema,omitempty" yaml:"schema,omitempty"`
-
-	// IncludeDeprecated includes deprecated assets (default: false).
-	IncludeDeprecated bool `json:"include_deprecated,omitempty" yaml:"include_deprecated,omitempty"`
 
 	// Limit is the maximum number of results to return.
 	Limit int `json:"limit,omitempty" yaml:"limit,omitempty"`

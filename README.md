@@ -30,7 +30,7 @@ mcp-trino is part of a broader suite of open-source MCP servers designed to work
 
 **Semantic Context**
 - Surface business descriptions, ownership, and data quality from metadata catalogs
-- Mark sensitive columns and deprecation warnings for AI assistants
+- Mark sensitive columns for AI assistants
 - Connect to DataHub, static files, or build custom metadata providers
 
 **Multi-Cluster Connectivity**
@@ -204,7 +204,6 @@ mcp-trino's semantic layer integrates with metadata catalogs to surface this con
 | **Glossary Terms** | Links to formal business definitions |
 | **Data Quality** | Freshness scores and quality metrics |
 | **Sensitivity** | PII and sensitive data markers at column level |
-| **Deprecation** | Warnings with replacement guidance |
 | **Lineage** | Upstream and downstream data dependencies |
 
 ### Providers

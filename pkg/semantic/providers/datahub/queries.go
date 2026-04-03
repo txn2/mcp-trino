@@ -70,11 +70,6 @@ query getDataset($urn: String!) {
         }
       }
     }
-    deprecation {
-      deprecated
-      note
-      decommissionTime
-    }
   }
 }
 `

@@ -62,7 +62,6 @@ type datasetData struct {
 	Tags          *tagsData          `json:"tags"`
 	GlossaryTerms *glossaryTermsData `json:"glossaryTerms"`
 	Domain        *domainData        `json:"domain"`
-	Deprecation   *deprecationData   `json:"deprecation"`
 }
 
 type datasetProperties struct {
@@ -130,12 +129,6 @@ type domainData struct {
 			Description string `json:"description"`
 		} `json:"properties"`
 	} `json:"domain"`
-}
-
-type deprecationData struct {
-	Deprecated       bool   `json:"deprecated"`
-	Note             string `json:"note"`
-	DecommissionTime int64  `json:"decommissionTime"`
 }
 
 type schemaResponse struct {
@@ -212,12 +205,11 @@ func mapDatasetToTableContext(data *datasetData, table semantic.TableIdentifier)
 		ctx.Description = data.Properties.Description
 	}
 
-	// Map ownership, tags, glossary terms, domain, and deprecation
+	// Map ownership, tags, glossary terms, and domain
 	ctx.Ownership = mapOwnership(data.Ownership)
 	ctx.Tags = mapTags(data.Tags)
 	ctx.GlossaryTerms = mapGlossaryTerms(data.GlossaryTerms)
 	ctx.Domain = mapDomain(data.Domain)
-	ctx.Deprecation = mapDeprecation(data.Deprecation)
 
 	return ctx
 }
@@ -319,23 +311,6 @@ func mapDomain(data *domainData) *semantic.Domain {
 		domain.Description = data.Domain.Properties.Description
 	}
 	return domain
-}
-
-// mapDeprecation converts DataHub deprecation data to semantic.Deprecation.
-func mapDeprecation(data *deprecationData) *semantic.Deprecation {
-	if data == nil || !data.Deprecated {
-		return nil
-	}
-
-	deprecation := &semantic.Deprecation{
-		Deprecated: true,
-		Note:       data.Note,
-	}
-	if data.DecommissionTime > 0 {
-		t := time.UnixMilli(data.DecommissionTime)
-		deprecation.DecommissionTime = &t
-	}
-	return deprecation
 }
 
 // mapSchemaToColumnContexts converts DataHub schema data to column contexts.

@@ -81,6 +81,31 @@ export TRINO_ADDITIONAL_SERVERS='{
 }'
 ```
 
+## Dynamic Connections (Library Use)
+
+When using mcp-trino as a library, connections can be added and removed at runtime via the `multiserver.Manager`:
+
+```go
+import "github.com/txn2/mcp-trino/pkg/multiserver"
+
+mgr, _ := multiserver.NewManagerFromEnv()
+toolkit := tools.NewToolkitWithManager(mgr, tools.DefaultConfig())
+
+// Add a connection at runtime
+mgr.AddConnection("analytics", multiserver.ConnectionConfig{
+    Host:    "analytics.trino.example.com",
+    Catalog: "iceberg",
+})
+
+// Remove a connection (closes any cached client)
+mgr.RemoveConnection("analytics")
+```
+
+- `AddConnection` replaces an existing connection if one with the same name exists
+- Cached clients are automatically closed and recreated on next access
+- The primary/default connection cannot be added or removed via these methods
+- All operations are thread-safe
+
 ## Usage
 
 ### Connection Parameter

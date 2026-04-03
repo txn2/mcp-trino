@@ -1,6 +1,7 @@
 package multiserver
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/txn2/mcp-trino/pkg/client"
@@ -668,5 +669,182 @@ func TestManager_Client_InvalidConfig(t *testing.T) {
 	_, err := mgr.Client("invalid")
 	if err == nil {
 		t.Error("expected error for invalid config")
+	}
+}
+
+func TestManager_AddConnection(t *testing.T) {
+	cfg := Config{
+		Default: "default",
+		Primary: client.Config{Host: "localhost", Port: 8080, User: "admin", SSL: false},
+	}
+	mgr := NewManager(cfg)
+
+	// Add a new connection
+	err := mgr.AddConnection("staging", ConnectionConfig{Host: "staging.example.com"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if !mgr.HasConnection("staging") {
+		t.Error("expected HasConnection(\"staging\") to return true after add")
+	}
+	if mgr.ConnectionCount() != 2 {
+		t.Errorf("expected 2 connections, got %d", mgr.ConnectionCount())
+	}
+
+	// Verify the connection is usable via Client (config is resolved)
+	// We can't fully test without a real Trino server, but we can verify
+	// the config is correctly stored by checking ConnectionInfos
+	infos := mgr.ConnectionInfos()
+	var found bool
+	for _, info := range infos {
+		if info.Name == "staging" && info.Host == "staging.example.com" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("staging connection not found in ConnectionInfos")
+	}
+}
+
+func TestManager_AddConnection_Replace(t *testing.T) {
+	cfg := Config{
+		Default: "default",
+		Primary: client.Config{Host: "localhost", Port: 8080, User: "admin", SSL: false},
+		Connections: map[string]ConnectionConfig{
+			"staging": {Host: "old-staging.example.com"},
+		},
+	}
+	mgr := NewManager(cfg)
+
+	// Replace existing connection
+	err := mgr.AddConnection("staging", ConnectionConfig{Host: "new-staging.example.com"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if mgr.ConnectionCount() != 2 {
+		t.Errorf("expected 2 connections, got %d", mgr.ConnectionCount())
+	}
+
+	infos := mgr.ConnectionInfos()
+	for _, info := range infos {
+		if info.Name == "staging" {
+			if info.Host != "new-staging.example.com" {
+				t.Errorf("expected host new-staging.example.com, got %q", info.Host)
+			}
+			break
+		}
+	}
+}
+
+func TestManager_AddConnection_EmptyName(t *testing.T) {
+	mgr := NewManager(Config{Default: "default", Primary: client.Config{Host: "localhost"}})
+	err := mgr.AddConnection("", ConnectionConfig{Host: "test.example.com"})
+	if err == nil {
+		t.Error("expected error for empty connection name")
+	}
+}
+
+func TestManager_AddConnection_DefaultName(t *testing.T) {
+	mgr := NewManager(Config{Default: "default", Primary: client.Config{Host: "localhost"}})
+	err := mgr.AddConnection("default", ConnectionConfig{Host: "test.example.com"})
+	if err == nil {
+		t.Error("expected error when trying to replace default connection")
+	}
+}
+
+func TestManager_RemoveConnection(t *testing.T) {
+	cfg := Config{
+		Default: "default",
+		Primary: client.Config{Host: "localhost", Port: 8080, User: "admin", SSL: false},
+		Connections: map[string]ConnectionConfig{
+			"staging": {Host: "staging.example.com"},
+			"dev":     {Host: "dev.example.com"},
+		},
+	}
+	mgr := NewManager(cfg)
+
+	if mgr.ConnectionCount() != 3 {
+		t.Fatalf("expected 3 connections, got %d", mgr.ConnectionCount())
+	}
+
+	err := mgr.RemoveConnection("staging")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if mgr.HasConnection("staging") {
+		t.Error("expected HasConnection(\"staging\") to return false after remove")
+	}
+	if mgr.ConnectionCount() != 2 {
+		t.Errorf("expected 2 connections, got %d", mgr.ConnectionCount())
+	}
+}
+
+func TestManager_RemoveConnection_NotFound(t *testing.T) {
+	mgr := NewManager(Config{
+		Default:     "default",
+		Primary:     client.Config{Host: "localhost"},
+		Connections: map[string]ConnectionConfig{},
+	})
+	err := mgr.RemoveConnection("nonexistent")
+	if err == nil {
+		t.Error("expected error for nonexistent connection")
+	}
+}
+
+func TestManager_RemoveConnection_EmptyName(t *testing.T) {
+	mgr := NewManager(Config{Default: "default", Primary: client.Config{Host: "localhost"}})
+	err := mgr.RemoveConnection("")
+	if err == nil {
+		t.Error("expected error for empty connection name")
+	}
+}
+
+func TestManager_RemoveConnection_Default(t *testing.T) {
+	mgr := NewManager(Config{Default: "default", Primary: client.Config{Host: "localhost"}})
+	err := mgr.RemoveConnection("default")
+	if err == nil {
+		t.Error("expected error when trying to remove default connection")
+	}
+}
+
+func TestManager_AddRemove_Concurrent(_ *testing.T) {
+	cfg := Config{
+		Default: "default",
+		Primary: client.Config{Host: "localhost", Port: 8080, User: "admin", SSL: false},
+		Connections: map[string]ConnectionConfig{
+			"existing": {Host: "existing.example.com"},
+		},
+	}
+	mgr := NewManager(cfg)
+	defer mgr.Close()
+
+	done := make(chan bool, 20)
+
+	// Concurrent adds
+	for i := 0; i < 10; i++ {
+		go func(idx int) {
+			name := fmt.Sprintf("conn-%d", idx)
+			//nolint:errcheck // testing concurrent safety, not error values
+			mgr.AddConnection(name, ConnectionConfig{Host: fmt.Sprintf("host-%d.example.com", idx)})
+			done <- true
+		}(i)
+	}
+
+	// Concurrent reads
+	for i := 0; i < 10; i++ {
+		go func() {
+			_ = mgr.Connections()
+			_ = mgr.ConnectionCount()
+			_ = mgr.ConnectionInfos()
+			done <- true
+		}()
+	}
+
+	for i := 0; i < 20; i++ {
+		<-done
 	}
 }

@@ -4,7 +4,7 @@
 //
 // The Provider interface enables tools to be enriched with business
 // context: descriptions, ownership, tags, glossary terms, data quality scores,
-// deprecation status, and lineage information.
+// and lineage information.
 //
 // # Design Principles
 //
