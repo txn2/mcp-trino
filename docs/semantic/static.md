@@ -61,14 +61,6 @@ tables:
         glossary_terms:
           - urn:glossary:subscription-tier
 
-  - catalog: analytics
-    schema: public
-    table: orders_legacy
-    description: Legacy orders table
-    deprecated: true
-    deprecation_note: Migrated to iceberg.sales.orders
-    replaced_by: iceberg.sales.orders
-
 glossary:
   - urn: urn:glossary:customer
     name: Customer
@@ -120,9 +112,6 @@ glossary:
 | `tags` | array | List of tags |
 | `domain` | object | Domain assignment |
 | `glossary_terms` | array | URNs of associated terms |
-| `deprecated` | boolean | Deprecation flag |
-| `deprecation_note` | string | Deprecation explanation |
-| `replaced_by` | string | Replacement table identifier |
 | `columns` | object | Column metadata (keyed by name) |
 | `custom_properties` | object | Additional key-value metadata |
 

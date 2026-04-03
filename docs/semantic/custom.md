@@ -203,10 +203,6 @@ overrides := semantic.ProviderFunc{
             return &semantic.TableContext{
                 Identifier:  t,
                 Description: "OVERRIDE: Use v2_customers instead",
-                Deprecation: &semantic.Deprecation{
-                    Deprecated: true,
-                    ReplacedBy: "v2_customers",
-                },
             }, nil
         }
         return nil, nil  // Fall through to next provider

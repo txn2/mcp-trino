@@ -135,59 +135,6 @@ func TestFormatDescription(t *testing.T) {
 	}
 }
 
-func TestFormatDeprecation(t *testing.T) {
-	tests := []struct {
-		name     string
-		depr     *semantic.Deprecation
-		contains []string
-	}{
-		{
-			name:     "nil deprecation",
-			depr:     nil,
-			contains: nil,
-		},
-		{
-			name:     "not deprecated",
-			depr:     &semantic.Deprecation{Deprecated: false},
-			contains: nil,
-		},
-		{
-			name: "deprecated with note",
-			depr: &semantic.Deprecation{
-				Deprecated: true,
-				Note:       "This table is obsolete",
-			},
-			contains: []string{"DEPRECATED", "This table is obsolete"},
-		},
-		{
-			name: "deprecated with replacement",
-			depr: &semantic.Deprecation{
-				Deprecated: true,
-				Note:       "Old schema",
-				ReplacedBy: "new_users",
-			},
-			contains: []string{"DEPRECATED", "Old schema", "new_users", "instead"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatDeprecation(tt.depr)
-			if len(tt.contains) == 0 {
-				if result != "" {
-					t.Errorf("expected empty string, got %q", result)
-				}
-				return
-			}
-			for _, substr := range tt.contains {
-				if !strings.Contains(result, substr) {
-					t.Errorf("expected result to contain %q, got %q", substr, result)
-				}
-			}
-		})
-	}
-}
-
 func TestFormatOwnership(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -463,10 +410,6 @@ func TestFormatTableSemantics(t *testing.T) {
 				GlossaryTerms: []semantic.GlossaryTerm{
 					{Name: "Customer ID"},
 				},
-				Deprecation: &semantic.Deprecation{
-					Deprecated: true,
-					Note:       "Use v2",
-				},
 			},
 			contains: []string{
 				"User data table",
@@ -475,7 +418,6 @@ func TestFormatTableSemantics(t *testing.T) {
 				"Customer",
 				"85%",
 				"Customer ID",
-				"DEPRECATED",
 			},
 		},
 	}

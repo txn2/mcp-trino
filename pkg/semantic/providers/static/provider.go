@@ -268,17 +268,11 @@ func (p *Provider) watch() {
 
 // matchesFilter checks if a table entry matches the search filter.
 func (p *Provider) matchesFilter(entry *TableEntry, filter semantic.SearchFilter) bool {
-	return matchesDeprecation(entry, filter) &&
-		matchesCatalogSchema(entry, filter) &&
+	return matchesCatalogSchema(entry, filter) &&
 		matchesDomain(entry, filter) &&
 		matchesOwner(entry, filter) &&
 		matchesTags(entry, filter) &&
 		matchesQuery(entry, filter)
-}
-
-// matchesDeprecation checks the deprecation filter.
-func matchesDeprecation(entry *TableEntry, filter semantic.SearchFilter) bool {
-	return filter.IncludeDeprecated || !entry.Deprecated
 }
 
 // matchesCatalogSchema checks catalog and schema filters.

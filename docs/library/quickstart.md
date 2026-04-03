@@ -275,22 +275,31 @@ func main() {
 Connect to multiple Trino clusters:
 
 ```go
-// Create connection manager
-manager := tools.NewManager()
+import "github.com/txn2/mcp-trino/pkg/multiserver"
 
-// Add connections
-prodClient, _ := client.New(client.Config{Host: "prod.trino.example.com", ...})
-stagingClient, _ := client.New(client.Config{Host: "staging.trino.example.com", ...})
-
-manager.Add("production", prodClient)
-manager.Add("staging", stagingClient)
-manager.SetDefault("production")
+// Create manager from environment (TRINO_* + TRINO_ADDITIONAL_SERVERS)
+mgr, _ := multiserver.NewManagerFromEnv()
 
 // Create toolkit with manager
-toolkit := tools.NewToolkitWithManager(manager, tools.DefaultConfig())
+toolkit := tools.NewToolkitWithManager(mgr, tools.DefaultConfig())
 ```
 
-Users can now specify which connection to use:
+### Dynamic Connections
+
+Add and remove connections at runtime:
+
+```go
+// Add a connection dynamically
+mgr.AddConnection("analytics", multiserver.ConnectionConfig{
+    Host:    "analytics.trino.example.com",
+    Catalog: "iceberg",
+})
+
+// Remove a connection (closes any cached client)
+mgr.RemoveConnection("analytics")
+```
+
+Users can specify which connection to use:
 
 ```json
 {"tool": "trino_query", "arguments": {"sql": "SELECT * FROM users", "connection": "staging"}}

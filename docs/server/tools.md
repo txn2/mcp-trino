@@ -153,7 +153,6 @@ When a [semantic provider](../semantic/index.md) is configured, this tool enrich
 - **Ownership**: Data stewards and technical owners
 - **Tags & Domain**: Classification labels and business domain
 - **Sensitivity**: Columns marked as containing PII or sensitive data
-- **Deprecation**: Warnings if the table is deprecated
 
 ### Parameters
 

@@ -113,9 +113,11 @@ func New(opts Options) (*mcp.Server, *multiserver.Manager, error) {
 				WatchInterval: 30 * time.Second, // Enable hot-reload
 			})
 			if err != nil {
+				//nolint:gosec // G706: value from operator-controlled env var
 				log.Printf("Warning: Failed to load semantic file %s: %v", semanticFile, err)
 			} else {
 				semanticProvider = provider
+				//nolint:gosec // G706: value from operator-controlled env var
 				log.Printf("Loaded semantic metadata from %s", semanticFile)
 			}
 		}

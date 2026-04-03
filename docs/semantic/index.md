@@ -39,7 +39,6 @@ and their subscription status.
 | **Glossary Terms** | Links to formal business term definitions |
 | **Data Quality** | Freshness scores and quality metrics |
 | **Sensitivity** | PII and sensitive data markers at column level |
-| **Deprecation** | Warnings with replacement guidance |
 | **Lineage** | Upstream and downstream data dependencies |
 
 ## Providers

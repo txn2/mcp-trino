@@ -158,11 +158,6 @@ func TestProvider_GetTableContext(t *testing.T) {
 							},
 						},
 					},
-					"deprecation": map[string]any{
-						"deprecated":       true,
-						"note":             "Use v2",
-						"decommissionTime": time.Now().Add(24 * time.Hour).UnixMilli(),
-					},
 				},
 			}, nil
 		})
@@ -193,9 +188,6 @@ func TestProvider_GetTableContext(t *testing.T) {
 		}
 		if result.Domain == nil {
 			t.Error("Domain is nil")
-		}
-		if result.Deprecation == nil {
-			t.Error("Deprecation is nil")
 		}
 	})
 

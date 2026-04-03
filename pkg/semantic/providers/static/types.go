@@ -42,15 +42,6 @@ type TableEntry struct {
 	// Domain is the data domain.
 	Domain *DomainEntry `json:"domain,omitempty" yaml:"domain,omitempty"`
 
-	// IsDeprecated indicates if the table is deprecated.
-	Deprecated bool `json:"deprecated,omitempty" yaml:"deprecated,omitempty"`
-
-	// DeprecationNote explains why the table is deprecated.
-	DeprecationNote string `json:"deprecation_note,omitempty" yaml:"deprecation_note,omitempty"`
-
-	// ReplacedBy indicates what table replaces this one.
-	ReplacedBy string `json:"replaced_by,omitempty" yaml:"replaced_by,omitempty"`
-
 	// Columns contains column-level metadata.
 	Columns map[string]ColumnEntry `json:"columns,omitempty" yaml:"columns,omitempty"`
 
@@ -153,15 +144,6 @@ func (t *TableEntry) toTableContext() *semantic.TableContext {
 			URN:         t.Domain.URN,
 			Name:        t.Domain.Name,
 			Description: t.Domain.Description,
-		}
-	}
-
-	// Convert deprecation
-	if t.Deprecated {
-		ctx.Deprecation = &semantic.Deprecation{
-			Deprecated: true,
-			Note:       t.DeprecationNote,
-			ReplacedBy: t.ReplacedBy,
 		}
 	}
 

@@ -811,7 +811,7 @@ func TestManager_RemoveConnection_Default(t *testing.T) {
 	}
 }
 
-func TestManager_AddRemove_Concurrent(t *testing.T) {
+func TestManager_AddRemove_Concurrent(_ *testing.T) {
 	cfg := Config{
 		Default: "default",
 		Primary: client.Config{Host: "localhost", Port: 8080, User: "admin", SSL: false},
@@ -828,7 +828,8 @@ func TestManager_AddRemove_Concurrent(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		go func(idx int) {
 			name := fmt.Sprintf("conn-%d", idx)
-			_ = mgr.AddConnection(name, ConnectionConfig{Host: fmt.Sprintf("host-%d.example.com", idx)})
+			//nolint:errcheck // testing concurrent safety, not error values
+			mgr.AddConnection(name, ConnectionConfig{Host: fmt.Sprintf("host-%d.example.com", idx)})
 			done <- true
 		}(i)
 	}

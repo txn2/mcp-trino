@@ -46,13 +46,6 @@ tables:
         tags: [pii]
         glossary_terms:
           - "urn:li:glossaryTerm:email"
-  - catalog: hive
-    schema: analytics
-    table: deprecated_table
-    description: "Old table"
-    deprecated: true
-    deprecation_note: "Use new_table instead"
-    replaced_by: "new_table"
   - catalog: memory
     schema: default
     table: test
@@ -103,8 +96,8 @@ func TestNew(t *testing.T) {
 		}
 		defer func() { _ = p.Close() }()
 
-		if p.TableCount() != 3 {
-			t.Errorf("TableCount() = %d, want 3", p.TableCount())
+		if p.TableCount() != 2 {
+			t.Errorf("TableCount() = %d, want 2", p.TableCount())
 		}
 		if p.GlossaryCount() != 2 {
 			t.Errorf("GlossaryCount() = %d, want 2", p.GlossaryCount())
@@ -257,28 +250,6 @@ func TestProvider_GetTableContext_Metadata(t *testing.T) {
 	}
 	if result.Domain.Name != "Customer Analytics" {
 		t.Errorf("Domain.Name = %q", result.Domain.Name)
-	}
-}
-
-func TestProvider_GetTableContext_Deprecation(t *testing.T) {
-	path := createTestFile(t, "test.yaml", testYAML)
-	p, err := New(Config{FilePath: path})
-	if err != nil {
-		t.Fatalf("New() error = %v", err)
-	}
-	defer func() { _ = p.Close() }()
-
-	ctx := context.Background()
-	table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "deprecated_table"}
-	result, _ := p.GetTableContext(ctx, table)
-	if result.Deprecation == nil {
-		t.Fatal("Deprecation is nil")
-	}
-	if !result.Deprecation.Deprecated {
-		t.Error("Deprecated should be true")
-	}
-	if result.Deprecation.ReplacedBy != "new_table" {
-		t.Errorf("ReplacedBy = %q", result.Deprecation.ReplacedBy)
 	}
 }
 
@@ -446,7 +417,7 @@ func TestProvider_GetColumnsContext(t *testing.T) {
 	})
 
 	t.Run("returns nil for table without columns", func(t *testing.T) {
-		table := semantic.TableIdentifier{Catalog: "hive", Schema: "analytics", Table: "deprecated_table"}
+		table := semantic.TableIdentifier{Catalog: "memory", Schema: "default", Table: "test"}
 		result, err := p.GetColumnsContext(ctx, table)
 		if err != nil {
 			t.Errorf("GetColumnsContext() error = %v", err)
@@ -535,19 +506,18 @@ func TestProvider_SearchTables(t *testing.T) {
 		filter    semantic.SearchFilter
 		wantCount int
 	}{
-		{"all tables with deprecated", semantic.SearchFilter{IncludeDeprecated: true}, 3},
-		{"excludes deprecated by default", semantic.SearchFilter{}, 2},
-		{"filter by catalog", semantic.SearchFilter{Catalog: "memory", IncludeDeprecated: true}, 1},
-		{"filter by schema", semantic.SearchFilter{Schema: "default", IncludeDeprecated: true}, 1},
+		{"all tables", semantic.SearchFilter{}, 2},
+		{"filter by catalog", semantic.SearchFilter{Catalog: "memory"}, 1},
+		{"filter by schema", semantic.SearchFilter{Schema: "default"}, 1},
 		{"filter by domain name", semantic.SearchFilter{Domain: "Customer Analytics"}, 1},
 		{"filter by domain URN", semantic.SearchFilter{Domain: "urn:li:domain:customer"}, 1},
 		{"filter by owner ID", semantic.SearchFilter{Owner: "user123"}, 1},
 		{"filter by owner name", semantic.SearchFilter{Owner: "Alice"}, 1},
 		{"filter by tags", semantic.SearchFilter{Tags: []string{"pii"}}, 1},
 		{"filter by multiple tags", semantic.SearchFilter{Tags: []string{"pii", "daily-refresh"}}, 1},
-		{"filter by query in table name", semantic.SearchFilter{Query: "users", IncludeDeprecated: true}, 1},
-		{"filter by query in description", semantic.SearchFilter{Query: "accounts", IncludeDeprecated: true}, 1},
-		{"applies limit", semantic.SearchFilter{Limit: 1, IncludeDeprecated: true}, 1},
+		{"filter by query in table name", semantic.SearchFilter{Query: "users"}, 1},
+		{"filter by query in description", semantic.SearchFilter{Query: "accounts"}, 1},
+		{"applies limit", semantic.SearchFilter{Limit: 1}, 1},
 	}
 
 	for _, tt := range tests {
@@ -572,7 +542,7 @@ func TestProvider_SearchTables_CatalogMatch(t *testing.T) {
 	defer func() { _ = p.Close() }()
 
 	ctx := context.Background()
-	result, err := p.SearchTables(ctx, semantic.SearchFilter{Catalog: "memory", IncludeDeprecated: true})
+	result, err := p.SearchTables(ctx, semantic.SearchFilter{Catalog: "memory"})
 	if err != nil {
 		t.Errorf("SearchTables() error = %v", err)
 	}
