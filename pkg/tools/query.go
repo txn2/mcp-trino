@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -46,6 +45,11 @@ type QueryInput struct {
 	// Format is the output format: json (default), csv, or markdown.
 	Format string `json:"format,omitempty" jsonschema_description:"Output format: json, csv, or markdown (default: json)"`
 
+	// UnwrapJSON controls automatic JSON unwrapping for single-row, single-string-column results.
+	// When true and the result matches, the column type is changed to "JSON" and the row value
+	// is replaced with the parsed object. The envelope shape is unchanged.
+	UnwrapJSON bool `json:"unwrap_json,omitempty" jsonschema_description:"When true and result is a single-row single-string-column containing a JSON object or array, parse the value inline and set column type to JSON"` //nolint:lll // jsonschema_description must be a single tag value
+
 	// Connection is the named connection to use. Empty uses the default connection.
 	// Use trino_list_connections to see available connections.
 	Connection string `json:"connection,omitempty" jsonschema_description:"Named connection to use (see trino_list_connections)"`
@@ -87,6 +91,11 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 	// Validate SQL is provided
 	if input.SQL == "" {
 		return ErrorResult("sql parameter is required"), nil, nil
+	}
+
+	// Validate format
+	if err := validateFormat(input.Format); err != nil {
+		return ErrorResult(err.Error()), nil, nil
 	}
 
 	// Enforce read-only: trino_query only allows read operations.
@@ -145,31 +154,23 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 	notifyProgress(ctx, notifier, 1, 3,
 		fmt.Sprintf("Query returned %d rows, formatting...", result.Stats.RowCount))
 
-	// Format output
-	format := input.Format
-	if format == "" {
-		format = "json"
+	// Build structured output
+	queryOutput := buildQueryOutput(result)
+
+	// Attempt JSON unwrap if requested — mutates queryOutput in place,
+	// changing columns[0].type to "JSON" and replacing the row value.
+	if input.UnwrapJSON {
+		unwrapJSONColumn(&queryOutput)
 	}
 
-	var output string
-	switch format {
-	case "csv":
-		output = formatCSV(result)
-	case "markdown":
-		output = formatMarkdown(result)
-	default:
-		data, err := json.MarshalIndent(result, "", "  ")
-		if err != nil {
-			return ErrorResult(fmt.Sprintf("Failed to marshal result: %v", err)), nil, nil
-		}
-		output = string(data)
+	// Format output
+	output, err := formatOutput(&queryOutput, input.Format)
+	if err != nil {
+		return ErrorResult(err.Error()), nil, nil
 	}
 
 	// Send progress notification: query complete
 	notifyProgress(ctx, notifier, 2, 3, "Query complete")
-
-	// Build structured output
-	queryOutput := buildQueryOutput(result)
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
@@ -205,114 +206,4 @@ func buildQueryOutput(r *client.QueryResult) QueryOutput {
 			DurationMs:   r.Stats.DurationMs,
 		},
 	}
-}
-
-// formatCSV formats query results as CSV.
-func formatCSV(result *client.QueryResult) string {
-	if len(result.Columns) == 0 {
-		return ""
-	}
-
-	var output string
-
-	// Header row
-	for i, col := range result.Columns {
-		if i > 0 {
-			output += ","
-		}
-		output += escapeCSV(col.Name)
-	}
-	output += "\n"
-
-	// Data rows
-	for _, row := range result.Rows {
-		for i, col := range result.Columns {
-			if i > 0 {
-				output += ","
-			}
-			if val, ok := row[col.Name]; ok {
-				output += escapeCSV(fmt.Sprintf("%v", val))
-			}
-		}
-		output += "\n"
-	}
-
-	// Stats footer
-	output += fmt.Sprintf("\n# %d rows returned", result.Stats.RowCount)
-	if result.Stats.Truncated {
-		output += fmt.Sprintf(" (truncated at limit %d)", result.Stats.LimitApplied)
-	}
-	output += fmt.Sprintf(", executed in %dms", result.Stats.DurationMs)
-
-	return output
-}
-
-// formatMarkdown formats query results as a Markdown table.
-func formatMarkdown(result *client.QueryResult) string {
-	if len(result.Columns) == 0 {
-		return "No results"
-	}
-
-	var output string
-
-	// Header row
-	output += "|"
-	for _, col := range result.Columns {
-		output += " " + col.Name + " |"
-	}
-	output += "\n|"
-
-	// Separator row
-	for range result.Columns {
-		output += " --- |"
-	}
-	output += "\n"
-
-	// Data rows
-	for _, row := range result.Rows {
-		output += "|"
-		for _, col := range result.Columns {
-			val := ""
-			if v, ok := row[col.Name]; ok && v != nil {
-				val = fmt.Sprintf("%v", v)
-			}
-			output += " " + val + " |"
-		}
-		output += "\n"
-	}
-
-	// Stats footer
-	output += fmt.Sprintf("\n*%d rows returned", result.Stats.RowCount)
-	if result.Stats.Truncated {
-		output += fmt.Sprintf(" (truncated at limit %d)", result.Stats.LimitApplied)
-	}
-	output += fmt.Sprintf(", executed in %dms*", result.Stats.DurationMs)
-
-	return output
-}
-
-// escapeCSV escapes a value for CSV output.
-func escapeCSV(s string) string {
-	needsQuoting := false
-	for _, c := range s {
-		if c == ',' || c == '"' || c == '\n' || c == '\r' {
-			needsQuoting = true
-			break
-		}
-	}
-	if !needsQuoting {
-		return s
-	}
-
-	// Escape quotes and wrap in quotes
-	result := "\""
-	for _, c := range s {
-		if c == '"' {
-			result += "\"\""
-		} else {
-			result += string(c)
-		}
-	}
-	result += "\""
-	return result
 }

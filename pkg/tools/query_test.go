@@ -8,6 +8,12 @@ import (
 	"github.com/txn2/mcp-trino/pkg/client"
 )
 
+// toQueryOutput converts a client.QueryResult to a QueryOutput for testing.
+func toQueryOutput(r *client.QueryResult) *QueryOutput {
+	qo := buildQueryOutput(r)
+	return &qo
+}
+
 func TestFormatCSV(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -83,7 +89,7 @@ func TestFormatCSV(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := formatCSV(tt.result)
+			output := formatCSV(toQueryOutput(tt.result))
 
 			for _, expected := range tt.contains {
 				if !strings.Contains(output, expected) {
@@ -173,7 +179,7 @@ func TestFormatMarkdown(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := formatMarkdown(tt.result)
+			output := formatMarkdown(toQueryOutput(tt.result))
 
 			for _, expected := range tt.contains {
 				if !strings.Contains(output, expected) {

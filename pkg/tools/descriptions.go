@@ -9,12 +9,22 @@ var defaultDescriptions = map[ToolName]string{
 		"excessive data transfer — use the limit parameter to control result size. " +
 		"For large tables, always include WHERE clauses to filter results. " +
 		"Consider using trino_explain first for expensive queries. " +
+		"Results are returned as JSON by default. Pass format=csv for CSV output " +
+		"(more token-efficient for large result sets) or format=markdown for a pipe-table. " +
+		"Set unwrap_json=true to automatically parse single-row, single-string-column " +
+		"results containing a JSON object or array — the column type changes to JSON " +
+		"and the value becomes the parsed object (common with table functions like raw_query). " +
 		"For write operations (INSERT, CREATE, etc.), use trino_execute instead.",
 
 	ToolExecute: "Execute a SQL statement against Trino, including write operations " +
 		"(INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, etc.). Returns affected row " +
 		"counts or query results. Use trino_query for read-only SELECT queries. " +
-		"This tool should be used when you need to modify data or schema.",
+		"This tool should be used when you need to modify data or schema. " +
+		"Results are returned as JSON by default. Pass format=csv for CSV output " +
+		"(more token-efficient for large result sets) or format=markdown for a pipe-table. " +
+		"Set unwrap_json=true to automatically parse single-row, single-string-column " +
+		"results containing a JSON object or array — the column type changes to JSON " +
+		"and the value becomes the parsed object (common with table functions like raw_query).",
 
 	ToolExplain: "Get the execution plan for a SQL query to understand performance characteristics " +
 		"before running expensive queries. Use this when querying large tables (millions of " +
