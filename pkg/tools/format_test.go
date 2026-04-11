@@ -1,7 +1,6 @@
 package tools
 
 import (
-	"bytes"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -46,6 +45,41 @@ func TestValidateFormat(t *testing.T) {
 	}
 }
 
+func TestValidateExplainType(t *testing.T) {
+	tests := []struct {
+		name    string
+		typ     string
+		wantErr bool
+		errMsg  string
+	}{
+		{name: "empty string is valid", typ: "", wantErr: false},
+		{name: "logical is valid", typ: "logical", wantErr: false},
+		{name: "distributed is valid", typ: "distributed", wantErr: false},
+		{name: "io is valid", typ: "io", wantErr: false},
+		{name: "validate is valid", typ: "validate", wantErr: false},
+		{name: "LOGICAL uppercase is invalid", typ: "LOGICAL", wantErr: true, errMsg: `invalid explain type "LOGICAL"`},
+		{name: "unknown is invalid", typ: "unknown", wantErr: true, errMsg: "must be one of"},
+		{name: "error names valid values", typ: "bad", wantErr: true, errMsg: "logical, distributed, io, validate"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateExplainType(tt.typ)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("expected error for type %q, got nil", tt.typ)
+				} else if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
+					t.Errorf("expected error containing %q, got %q", tt.errMsg, err.Error())
+				}
+			} else {
+				if err != nil {
+					t.Errorf("unexpected error for type %q: %v", tt.typ, err)
+				}
+			}
+		})
+	}
+}
+
 func TestFormatOutput(t *testing.T) {
 	result := &client.QueryResult{
 		Columns: []client.ColumnInfo{
@@ -83,6 +117,46 @@ func TestFormatOutput(t *testing.T) {
 			}
 		})
 	}
+
+	// Verify unsupported format returns error
+	t.Run("unsupported format returns error", func(t *testing.T) {
+		_, err := formatOutput(result, "tsv")
+		if err == nil {
+			t.Error("expected error for unsupported format")
+		}
+	})
+}
+
+func TestIsStringColumnType(t *testing.T) {
+	tests := []struct {
+		typeName string
+		want     bool
+	}{
+		{"VARCHAR", true},
+		{"varchar", true},
+		{"varchar(65535)", true},
+		{"VARCHAR(255)", true},
+		{"CHAR", true},
+		{"char", true},
+		{"char(10)", true},
+		{"CHAR(1)", true},
+		{"JSON", true},
+		{"json", true},
+		{"BIGINT", false},
+		{"INTEGER", false},
+		{"BOOLEAN", false},
+		{"TIMESTAMP", false},
+		{"VARBINARY", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.typeName, func(t *testing.T) {
+			got := isStringColumnType(tt.typeName)
+			if got != tt.want {
+				t.Errorf("isStringColumnType(%q) = %v, want %v", tt.typeName, got, tt.want)
+			}
+		})
+	}
 }
 
 func TestTryUnwrapJSON(t *testing.T) {
@@ -90,7 +164,7 @@ func TestTryUnwrapJSON(t *testing.T) {
 		name     string
 		result   *client.QueryResult
 		wantOK   bool
-		wantJSON string // JSON representation of expected parsed value, empty if wantOK is false
+		wantJSON string
 	}{
 		{
 			name: "single VARCHAR column with valid JSON object",
@@ -100,7 +174,7 @@ func TestTryUnwrapJSON(t *testing.T) {
 				Stats:   client.QueryStats{RowCount: 1},
 			},
 			wantOK:   true,
-			wantJSON: `{"took":2,"aggregations":{"count":42}}`,
+			wantJSON: `{"aggregations":{"count":42},"took":2}`,
 		},
 		{
 			name: "single VARCHAR column with valid JSON array",
@@ -123,6 +197,62 @@ func TestTryUnwrapJSON(t *testing.T) {
 			wantJSON: `{"key":"value"}`,
 		},
 		{
+			name: "CHAR type with JSON object",
+			result: &client.QueryResult{
+				Columns: []client.ColumnInfo{{Name: "result", Type: "CHAR(1000)"}},
+				Rows:    []map[string]any{{"result": `{"key":"value"}`}},
+				Stats:   client.QueryStats{RowCount: 1},
+			},
+			wantOK:   true,
+			wantJSON: `{"key":"value"}`,
+		},
+		{
+			name: "JSON type column",
+			result: &client.QueryResult{
+				Columns: []client.ColumnInfo{{Name: "result", Type: "JSON"}},
+				Rows:    []map[string]any{{"result": `{"key":"value"}`}},
+				Stats:   client.QueryStats{RowCount: 1},
+			},
+			wantOK:   true,
+			wantJSON: `{"key":"value"}`,
+		},
+		{
+			name: "scalar JSON string - no unwrap",
+			result: &client.QueryResult{
+				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
+				Rows:    []map[string]any{{"result": `"hello"`}},
+				Stats:   client.QueryStats{RowCount: 1},
+			},
+			wantOK: false,
+		},
+		{
+			name: "scalar JSON number - no unwrap",
+			result: &client.QueryResult{
+				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
+				Rows:    []map[string]any{{"result": `42`}},
+				Stats:   client.QueryStats{RowCount: 1},
+			},
+			wantOK: false,
+		},
+		{
+			name: "scalar JSON boolean - no unwrap",
+			result: &client.QueryResult{
+				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
+				Rows:    []map[string]any{{"result": `true`}},
+				Stats:   client.QueryStats{RowCount: 1},
+			},
+			wantOK: false,
+		},
+		{
+			name: "scalar JSON null - no unwrap",
+			result: &client.QueryResult{
+				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
+				Rows:    []map[string]any{{"result": `null`}},
+				Stats:   client.QueryStats{RowCount: 1},
+			},
+			wantOK: false,
+		},
+		{
 			name: "multiple columns - no unwrap",
 			result: &client.QueryResult{
 				Columns: []client.ColumnInfo{
@@ -135,7 +265,7 @@ func TestTryUnwrapJSON(t *testing.T) {
 			wantOK: false,
 		},
 		{
-			name: "single column non-VARCHAR type - no unwrap",
+			name: "single column non-string type - no unwrap",
 			result: &client.QueryResult{
 				Columns: []client.ColumnInfo{{Name: "count", Type: "BIGINT"}},
 				Rows:    []map[string]any{{"count": 42}},
@@ -223,24 +353,8 @@ func TestTryUnwrapJSON(t *testing.T) {
 				if err != nil {
 					t.Fatalf("failed to marshal parsed result: %v", err)
 				}
-				// Compare as JSON to avoid whitespace differences
-				var expected, actual any
-				if err := json.Unmarshal([]byte(tt.wantJSON), &expected); err != nil {
-					t.Fatalf("failed to unmarshal expected JSON: %v", err)
-				}
-				if err := json.Unmarshal(got, &actual); err != nil {
-					t.Fatalf("failed to unmarshal actual JSON: %v", err)
-				}
-				expectedBytes, errE := json.Marshal(expected)
-				if errE != nil {
-					t.Fatalf("failed to marshal expected: %v", errE)
-				}
-				actualBytes, errA := json.Marshal(actual)
-				if errA != nil {
-					t.Fatalf("failed to marshal actual: %v", errA)
-				}
-				if !bytes.Equal(expectedBytes, actualBytes) {
-					t.Errorf("parsed JSON = %s, want %s", string(actualBytes), string(expectedBytes))
+				if string(got) != tt.wantJSON {
+					t.Errorf("parsed JSON = %s, want %s", string(got), tt.wantJSON)
 				}
 			}
 			if !tt.wantOK && parsed != nil {

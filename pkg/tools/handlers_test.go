@@ -1183,7 +1183,7 @@ func TestHandleQuery_UnwrapJSON(t *testing.T) {
 	toolkit := NewToolkit(mock, DefaultConfig())
 
 	// Without unwrap_json, no unwrapped_result in output
-	_, output, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
+	result, output, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
 		SQL:        "SELECT * FROM TABLE(raw_query())",
 		UnwrapJSON: false,
 	})
@@ -1197,9 +1197,17 @@ func TestHandleQuery_UnwrapJSON(t *testing.T) {
 	if qo.UnwrappedResult != nil {
 		t.Error("expected nil UnwrappedResult when unwrap_json is false")
 	}
+	// Text content should NOT contain unwrapped_result
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
+	if strings.Contains(textContent.Text, "unwrapped_result") {
+		t.Error("text content should not contain unwrapped_result when unwrap_json is false")
+	}
 
-	// With unwrap_json, unwrapped_result should be present
-	_, output, err = toolkit.handleQuery(context.Background(), nil, QueryInput{
+	// With unwrap_json, unwrapped_result should be present in both structured and text output
+	result, output, err = toolkit.handleQuery(context.Background(), nil, QueryInput{
 		SQL:        "SELECT * FROM TABLE(raw_query())",
 		UnwrapJSON: true,
 	})
@@ -1220,6 +1228,17 @@ func TestHandleQuery_UnwrapJSON(t *testing.T) {
 	}
 	if m["took"] != float64(2) {
 		t.Errorf("expected took=2, got %v", m["took"])
+	}
+	// Text content MUST contain the unwrapped JSON (issue #1: text content must reflect unwrap)
+	textContent, ok = result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
+	if !strings.Contains(textContent.Text, "unwrapped_result") {
+		t.Error("text content should contain unwrapped_result when unwrap succeeds")
+	}
+	if !strings.Contains(textContent.Text, `"took"`) {
+		t.Error("text content should contain the unwrapped JSON fields")
 	}
 }
 
@@ -1244,6 +1263,84 @@ func TestHandleQuery_UnwrapJSON_NoMatch(t *testing.T) {
 	}
 }
 
+// TestHandleQuery_UnwrapJSON_WithCSVFormat tests that unwrap populates structured output
+// but CSV text content is unchanged (unwrap only affects JSON text output).
+func TestHandleQuery_UnwrapJSON_WithCSVFormat(t *testing.T) {
+	mock := NewMockTrinoClient()
+	mock.QueryFunc = func(_ context.Context, _ string, _ client.QueryOptions) (*client.QueryResult, error) {
+		return &client.QueryResult{
+			Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
+			Rows:    []map[string]any{{"result": `{"key":"value"}`}},
+			Stats:   client.QueryStats{RowCount: 1, DurationMs: 5},
+		}, nil
+	}
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	result, output, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
+		SQL:        "SELECT * FROM TABLE(raw_query())",
+		Format:     "csv",
+		UnwrapJSON: true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Structured output should have unwrapped result
+	qo, ok := output.(*QueryOutput)
+	if !ok {
+		t.Fatal("expected *QueryOutput")
+	}
+	if qo.UnwrappedResult == nil {
+		t.Fatal("expected non-nil UnwrappedResult even with CSV format")
+	}
+
+	// Text content should be CSV (not JSON with unwrapped_result)
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
+	if !strings.Contains(textContent.Text, "result") {
+		t.Error("expected CSV header")
+	}
+	if strings.Contains(textContent.Text, "unwrapped_result") {
+		t.Error("CSV text should not contain unwrapped_result field")
+	}
+}
+
+// TestHandleQuery_UnwrapJSON_ScalarNoMatch tests that scalar JSON values are not unwrapped.
+func TestHandleQuery_UnwrapJSON_ScalarNoMatch(t *testing.T) {
+	scalars := []string{`"hello"`, `42`, `true`, `null`}
+
+	for _, scalar := range scalars {
+		t.Run("scalar_"+scalar, func(t *testing.T) {
+			mock := NewMockTrinoClient()
+			mock.QueryFunc = func(_ context.Context, _ string, _ client.QueryOptions) (*client.QueryResult, error) {
+				return &client.QueryResult{
+					Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
+					Rows:    []map[string]any{{"result": scalar}},
+					Stats:   client.QueryStats{RowCount: 1, DurationMs: 5},
+				}, nil
+			}
+			toolkit := NewToolkit(mock, DefaultConfig())
+
+			_, output, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
+				SQL:        "SELECT result",
+				UnwrapJSON: true,
+			})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			qo, ok := output.(*QueryOutput)
+			if !ok {
+				t.Fatal("expected *QueryOutput")
+			}
+			if qo.UnwrappedResult != nil {
+				t.Errorf("expected nil UnwrappedResult for scalar JSON %s", scalar)
+			}
+		})
+	}
+}
+
 // TestHandleExecute_UnwrapJSON tests JSON unwrapping in trino_execute.
 func TestHandleExecute_UnwrapJSON(t *testing.T) {
 	mock := NewMockTrinoClient()
@@ -1256,7 +1353,7 @@ func TestHandleExecute_UnwrapJSON(t *testing.T) {
 	}
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	_, output, err := toolkit.handleExecute(context.Background(), nil, ExecuteInput{
+	result, output, err := toolkit.handleExecute(context.Background(), nil, ExecuteInput{
 		SQL:        "SELECT * FROM TABLE(raw_query())",
 		UnwrapJSON: true,
 	})
@@ -1269,6 +1366,51 @@ func TestHandleExecute_UnwrapJSON(t *testing.T) {
 	}
 	if qo.UnwrappedResult == nil {
 		t.Fatal("expected non-nil UnwrappedResult")
+	}
+	// Text content must also reflect the unwrap
+	textContent, ok := result.Content[0].(*mcp.TextContent)
+	if !ok {
+		t.Fatal("expected TextContent")
+	}
+	if !strings.Contains(textContent.Text, "unwrapped_result") {
+		t.Error("text content should contain unwrapped_result when unwrap succeeds")
+	}
+}
+
+// TestHandleExplain_InvalidType tests that invalid explain type values return an error.
+func TestHandleExplain_InvalidType(t *testing.T) {
+	mock := NewMockTrinoClient()
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	tests := []struct {
+		name string
+		typ  string
+	}{
+		{"uppercase LOGICAL", "LOGICAL"},
+		{"unknown type", "unknown"},
+		{"verbose", "verbose"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, _, err := toolkit.handleExplain(context.Background(), nil, ExplainInput{
+				SQL:  "SELECT 1",
+				Type: tt.typ,
+			})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !result.IsError {
+				t.Error("expected error result for invalid explain type")
+			}
+			textContent, ok := result.Content[0].(*mcp.TextContent)
+			if !ok {
+				t.Fatal("expected TextContent")
+			}
+			if !strings.Contains(textContent.Text, "invalid explain type") {
+				t.Errorf("expected 'invalid explain type' in error, got: %s", textContent.Text)
+			}
+		})
 	}
 }
 

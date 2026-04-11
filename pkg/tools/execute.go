@@ -27,8 +27,7 @@ type ExecuteInput struct {
 	// UnwrapJSON controls automatic JSON unwrapping for single-row, single-VARCHAR-column results.
 	// When true and the result is exactly one row with one VARCHAR column containing valid JSON,
 	// the parsed JSON is included in the response as unwrapped_result.
-	//nolint:lll // jsonschema_description must be a single tag value
-	UnwrapJSON bool `json:"unwrap_json,omitempty" jsonschema_description:"When true and result is a single-row single-VARCHAR-column containing valid JSON, include parsed JSON as unwrapped_result"`
+	UnwrapJSON bool `json:"unwrap_json,omitempty" jsonschema_description:"When true and result is a single-row single-VARCHAR-column containing valid JSON, include parsed JSON as unwrapped_result"` //nolint:lll // jsonschema_description must be a single tag value
 
 	// Connection is the named connection to use. Empty uses the default connection.
 	// Use trino_list_connections to see available connections.
@@ -127,15 +126,6 @@ func (t *Toolkit) handleExecute(ctx context.Context, _ *mcp.CallToolRequest, inp
 	notifyProgress(ctx, notifier, 1, 3,
 		fmt.Sprintf("Statement returned %d rows, formatting...", result.Stats.RowCount))
 
-	// Format output
-	output, err := formatOutput(result, input.Format)
-	if err != nil {
-		return ErrorResult(err.Error()), nil, nil
-	}
-
-	// Send progress notification: complete
-	notifyProgress(ctx, notifier, 2, 3, "Execution complete")
-
 	// Build structured output (reuse QueryOutput — same result shape)
 	queryOutput := buildQueryOutput(result)
 
@@ -145,6 +135,15 @@ func (t *Toolkit) handleExecute(ctx context.Context, _ *mcp.CallToolRequest, inp
 			queryOutput.UnwrappedResult = parsed
 		}
 	}
+
+	// Render text content
+	output, err := renderTextContent(result, &queryOutput, input.Format)
+	if err != nil {
+		return ErrorResult(err.Error()), nil, nil
+	}
+
+	// Send progress notification: complete
+	notifyProgress(ctx, notifier, 2, 3, "Execution complete")
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{

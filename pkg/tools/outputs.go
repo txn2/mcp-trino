@@ -2,11 +2,14 @@ package tools
 
 // QueryOutput defines the structured output of the trino_query tool.
 type QueryOutput struct {
-	Columns         []QueryColumn    `json:"columns"`
-	Rows            []map[string]any `json:"rows"`
-	RowCount        int              `json:"row_count"`
-	Stats           QueryStats       `json:"stats"`
-	UnwrappedResult any              `json:"unwrapped_result,omitempty"`
+	Columns  []QueryColumn    `json:"columns"`
+	Rows     []map[string]any `json:"rows"`
+	RowCount int              `json:"row_count"`
+	Stats    QueryStats       `json:"stats"`
+
+	// UnwrappedResult contains the parsed JSON when unwrap_json is true and
+	// the result matches the (1 row, 1 string column, valid JSON object/array) shape.
+	UnwrappedResult any `json:"unwrapped_result,omitempty"`
 }
 
 // QueryColumn describes a column in the query result.

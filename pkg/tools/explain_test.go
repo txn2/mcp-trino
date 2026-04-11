@@ -80,14 +80,14 @@ func TestExplainInput_TypeMapping(t *testing.T) {
 			expectedType: client.ExplainLogical,
 		},
 		{
-			name:         "unknown defaults to logical",
+			name:         "unknown defaults to logical in switch",
 			inputType:    "unknown",
 			expectedType: client.ExplainLogical,
 		},
 		{
-			name:         "LOGICAL uppercase defaults to logical",
+			name:         "LOGICAL uppercase defaults to logical in switch",
 			inputType:    "LOGICAL",
-			expectedType: client.ExplainLogical, // Case sensitive, defaults
+			expectedType: client.ExplainLogical,
 		},
 	}
 

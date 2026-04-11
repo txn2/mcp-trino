@@ -59,6 +59,11 @@ func (t *Toolkit) handleExplain(ctx context.Context, _ *mcp.CallToolRequest, inp
 		return ErrorResult("sql parameter is required"), nil, nil
 	}
 
+	// Validate explain type
+	if err := validateExplainType(input.Type); err != nil {
+		return ErrorResult(err.Error()), nil, nil
+	}
+
 	// Apply query interceptors
 	sql, err := t.InterceptSQL(ctx, input.SQL, ToolExplain)
 	if err != nil {
