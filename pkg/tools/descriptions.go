@@ -22,8 +22,9 @@ var defaultDescriptions = map[ToolName]string{
 		"This tool should be used when you need to modify data or schema. " +
 		"Results are returned as JSON by default. Pass format=csv for CSV output " +
 		"(more token-efficient for large result sets) or format=markdown for a pipe-table. " +
-		"Set unwrap_json=true to automatically parse single-row, single-VARCHAR-column " +
-		"results containing JSON (common with table functions like raw_query).",
+		"Set unwrap_json=true to automatically parse single-row, single-string-column " +
+		"results containing a JSON object or array — the column type changes to JSON " +
+		"and the value becomes the parsed object (common with table functions like raw_query).",
 
 	ToolExplain: "Get the execution plan for a SQL query to understand performance characteristics " +
 		"before running expensive queries. Use this when querying large tables (millions of " +

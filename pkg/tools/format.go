@@ -177,6 +177,32 @@ func stringifyValue(v any) string {
 	}
 }
 
+// escapeCSV escapes a value for CSV output.
+func escapeCSV(s string) string {
+	needsQuoting := false
+	for _, c := range s {
+		if c == ',' || c == '"' || c == '\n' || c == '\r' {
+			needsQuoting = true
+			break
+		}
+	}
+	if !needsQuoting {
+		return s
+	}
+
+	// Escape quotes and wrap in quotes
+	result := "\""
+	for _, c := range s {
+		if c == '"' {
+			result += "\"\""
+		} else {
+			result += string(c)
+		}
+	}
+	result += "\""
+	return result
+}
+
 // isStringColumnType returns true if the Trino type name is a string-like type
 // that could contain JSON: VARCHAR, VARCHAR(N), CHAR, CHAR(N), or JSON.
 func isStringColumnType(typeName string) bool {
@@ -227,8 +253,15 @@ func unwrapJSONColumn(qo *QueryOutput) {
 	// or silently change types.
 	switch parsed.(type) {
 	case map[string]any, []any:
+		// Shallow-copy the row map before mutation so we don't modify the
+		// original client.QueryResult.Rows (which shares the slice).
+		row := make(map[string]any, len(qo.Rows[0]))
+		for k, v := range qo.Rows[0] {
+			row[k] = v
+		}
+		row[colName] = parsed
+		qo.Rows[0] = row
 		qo.Columns[0].Type = columnTypeJSON
-		qo.Rows[0][colName] = parsed
 	default:
 		// Fall through — leave QueryOutput unchanged.
 	}

@@ -207,29 +207,3 @@ func buildQueryOutput(r *client.QueryResult) QueryOutput {
 		},
 	}
 }
-
-// escapeCSV escapes a value for CSV output.
-func escapeCSV(s string) string {
-	needsQuoting := false
-	for _, c := range s {
-		if c == ',' || c == '"' || c == '\n' || c == '\r' {
-			needsQuoting = true
-			break
-		}
-	}
-	if !needsQuoting {
-		return s
-	}
-
-	// Escape quotes and wrap in quotes
-	result := "\""
-	for _, c := range s {
-		if c == '"' {
-			result += "\"\""
-		} else {
-			result += string(c)
-		}
-	}
-	result += "\""
-	return result
-}

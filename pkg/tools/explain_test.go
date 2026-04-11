@@ -79,16 +79,9 @@ func TestExplainInput_TypeMapping(t *testing.T) {
 			inputType:    "",
 			expectedType: client.ExplainLogical,
 		},
-		{
-			name:         "unknown defaults to logical in switch",
-			inputType:    "unknown",
-			expectedType: client.ExplainLogical,
-		},
-		{
-			name:         "LOGICAL uppercase defaults to logical in switch",
-			inputType:    "LOGICAL",
-			expectedType: client.ExplainLogical,
-		},
+		// "unknown" and "LOGICAL" are now rejected by validateExplainType
+		// before reaching the switch. Invalid types are tested in
+		// TestHandleExplain_InvalidType in handlers_test.go.
 	}
 
 	for _, tt := range tests {
