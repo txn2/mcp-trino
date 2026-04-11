@@ -1115,6 +1115,163 @@ func TestHandleExecute_ConnectionError(t *testing.T) {
 	}
 }
 
+// TestHandleQuery_InvalidFormat tests that invalid format values return an error.
+func TestHandleQuery_InvalidFormat(t *testing.T) {
+	mock := NewMockTrinoClient()
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	tests := []struct {
+		name   string
+		format string
+	}{
+		{"uppercase JSON", "JSON"},
+		{"tsv", "tsv"},
+		{"table", "table"},
+		{"ndjson", "ndjson"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, _, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
+				SQL:    "SELECT 1",
+				Format: tt.format,
+			})
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if !result.IsError {
+				t.Error("expected error result for invalid format")
+			}
+			textContent, ok := result.Content[0].(*mcp.TextContent)
+			if !ok {
+				t.Fatal("expected TextContent")
+			}
+			if !strings.Contains(textContent.Text, "invalid format") {
+				t.Errorf("expected 'invalid format' in error, got: %s", textContent.Text)
+			}
+		})
+	}
+}
+
+// TestHandleExecute_InvalidFormat tests that invalid format values return an error.
+func TestHandleExecute_InvalidFormat(t *testing.T) {
+	mock := NewMockTrinoClient()
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	result, _, err := toolkit.handleExecute(context.Background(), nil, ExecuteInput{
+		SQL:    "SELECT 1",
+		Format: "tsv",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !result.IsError {
+		t.Error("expected error result for invalid format")
+	}
+}
+
+// TestHandleQuery_UnwrapJSON tests JSON unwrapping for single-row VARCHAR results.
+func TestHandleQuery_UnwrapJSON(t *testing.T) {
+	mock := NewMockTrinoClient()
+	mock.QueryFunc = func(_ context.Context, _ string, _ client.QueryOptions) (*client.QueryResult, error) {
+		return &client.QueryResult{
+			Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
+			Rows:    []map[string]any{{"result": `{"took":2,"count":42}`}},
+			Stats:   client.QueryStats{RowCount: 1, DurationMs: 10},
+		}, nil
+	}
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	// Without unwrap_json, no unwrapped_result in output
+	_, output, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
+		SQL:        "SELECT * FROM TABLE(raw_query())",
+		UnwrapJSON: false,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	qo, ok := output.(*QueryOutput)
+	if !ok {
+		t.Fatal("expected *QueryOutput")
+	}
+	if qo.UnwrappedResult != nil {
+		t.Error("expected nil UnwrappedResult when unwrap_json is false")
+	}
+
+	// With unwrap_json, unwrapped_result should be present
+	_, output, err = toolkit.handleQuery(context.Background(), nil, QueryInput{
+		SQL:        "SELECT * FROM TABLE(raw_query())",
+		UnwrapJSON: true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	qo, ok = output.(*QueryOutput)
+	if !ok {
+		t.Fatal("expected *QueryOutput")
+	}
+	if qo.UnwrappedResult == nil {
+		t.Fatal("expected non-nil UnwrappedResult when unwrap_json is true")
+	}
+	// Verify the parsed result has the expected structure
+	m, ok := qo.UnwrappedResult.(map[string]any)
+	if !ok {
+		t.Fatalf("expected map[string]any, got %T", qo.UnwrappedResult)
+	}
+	if m["took"] != float64(2) {
+		t.Errorf("expected took=2, got %v", m["took"])
+	}
+}
+
+// TestHandleQuery_UnwrapJSON_NoMatch tests that unwrap_json is a no-op for non-matching results.
+func TestHandleQuery_UnwrapJSON_NoMatch(t *testing.T) {
+	mock := NewMockTrinoClient() // Default mock returns 2 columns
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	_, output, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
+		SQL:        "SELECT * FROM users",
+		UnwrapJSON: true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	qo, ok := output.(*QueryOutput)
+	if !ok {
+		t.Fatal("expected *QueryOutput")
+	}
+	if qo.UnwrappedResult != nil {
+		t.Error("expected nil UnwrappedResult for multi-column result")
+	}
+}
+
+// TestHandleExecute_UnwrapJSON tests JSON unwrapping in trino_execute.
+func TestHandleExecute_UnwrapJSON(t *testing.T) {
+	mock := NewMockTrinoClient()
+	mock.QueryFunc = func(_ context.Context, _ string, _ client.QueryOptions) (*client.QueryResult, error) {
+		return &client.QueryResult{
+			Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
+			Rows:    []map[string]any{{"result": `[1,2,3]`}},
+			Stats:   client.QueryStats{RowCount: 1, DurationMs: 5},
+		}, nil
+	}
+	toolkit := NewToolkit(mock, DefaultConfig())
+
+	_, output, err := toolkit.handleExecute(context.Background(), nil, ExecuteInput{
+		SQL:        "SELECT * FROM TABLE(raw_query())",
+		UnwrapJSON: true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	qo, ok := output.(*QueryOutput)
+	if !ok {
+		t.Fatal("expected *QueryOutput")
+	}
+	if qo.UnwrappedResult == nil {
+		t.Fatal("expected non-nil UnwrappedResult")
+	}
+}
+
 // TestRegisteredToolInvocation exercises the full registration + MCP dispatch path
 // for all tools, covering the typed-output wrapper closures in register*Tool functions.
 func TestRegisteredToolInvocation(t *testing.T) {

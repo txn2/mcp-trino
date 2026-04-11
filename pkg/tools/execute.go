@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -24,6 +23,12 @@ type ExecuteInput struct {
 
 	// Format is the output format: json (default), csv, or markdown.
 	Format string `json:"format,omitempty" jsonschema_description:"Output format: json, csv, or markdown (default: json)"`
+
+	// UnwrapJSON controls automatic JSON unwrapping for single-row, single-VARCHAR-column results.
+	// When true and the result is exactly one row with one VARCHAR column containing valid JSON,
+	// the parsed JSON is included in the response as unwrapped_result.
+	//nolint:lll // jsonschema_description must be a single tag value
+	UnwrapJSON bool `json:"unwrap_json,omitempty" jsonschema_description:"When true and result is a single-row single-VARCHAR-column containing valid JSON, include parsed JSON as unwrapped_result"`
 
 	// Connection is the named connection to use. Empty uses the default connection.
 	// Use trino_list_connections to see available connections.
@@ -66,6 +71,11 @@ func (t *Toolkit) handleExecute(ctx context.Context, _ *mcp.CallToolRequest, inp
 	// Validate SQL is provided
 	if input.SQL == "" {
 		return ErrorResult("sql parameter is required"), nil, nil
+	}
+
+	// Validate format
+	if err := validateFormat(input.Format); err != nil {
+		return ErrorResult(err.Error()), nil, nil
 	}
 
 	// Apply query interceptors (no read-only enforcement — that's the point of trino_execute)
@@ -118,23 +128,9 @@ func (t *Toolkit) handleExecute(ctx context.Context, _ *mcp.CallToolRequest, inp
 		fmt.Sprintf("Statement returned %d rows, formatting...", result.Stats.RowCount))
 
 	// Format output
-	format := input.Format
-	if format == "" {
-		format = "json"
-	}
-
-	var output string
-	switch format {
-	case "csv":
-		output = formatCSV(result)
-	case "markdown":
-		output = formatMarkdown(result)
-	default:
-		data, err := json.MarshalIndent(result, "", "  ")
-		if err != nil {
-			return ErrorResult(fmt.Sprintf("Failed to marshal result: %v", err)), nil, nil
-		}
-		output = string(data)
+	output, err := formatOutput(result, input.Format)
+	if err != nil {
+		return ErrorResult(err.Error()), nil, nil
 	}
 
 	// Send progress notification: complete
@@ -142,6 +138,13 @@ func (t *Toolkit) handleExecute(ctx context.Context, _ *mcp.CallToolRequest, inp
 
 	// Build structured output (reuse QueryOutput — same result shape)
 	queryOutput := buildQueryOutput(result)
+
+	// Attempt JSON unwrap if requested
+	if input.UnwrapJSON {
+		if parsed, ok := tryUnwrapJSON(result); ok {
+			queryOutput.UnwrappedResult = parsed
+		}
+	}
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{

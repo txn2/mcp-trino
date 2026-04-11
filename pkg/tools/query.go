@@ -2,7 +2,6 @@ package tools
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -46,6 +45,12 @@ type QueryInput struct {
 	// Format is the output format: json (default), csv, or markdown.
 	Format string `json:"format,omitempty" jsonschema_description:"Output format: json, csv, or markdown (default: json)"`
 
+	// UnwrapJSON controls automatic JSON unwrapping for single-row, single-VARCHAR-column results.
+	// When true and the result is exactly one row with one VARCHAR column containing valid JSON,
+	// the parsed JSON is included in the response as unwrapped_result.
+	//nolint:lll // jsonschema_description must be a single tag value
+	UnwrapJSON bool `json:"unwrap_json,omitempty" jsonschema_description:"When true and result is a single-row single-VARCHAR-column containing valid JSON, include parsed JSON as unwrapped_result"`
+
 	// Connection is the named connection to use. Empty uses the default connection.
 	// Use trino_list_connections to see available connections.
 	Connection string `json:"connection,omitempty" jsonschema_description:"Named connection to use (see trino_list_connections)"`
@@ -87,6 +92,11 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 	// Validate SQL is provided
 	if input.SQL == "" {
 		return ErrorResult("sql parameter is required"), nil, nil
+	}
+
+	// Validate format
+	if err := validateFormat(input.Format); err != nil {
+		return ErrorResult(err.Error()), nil, nil
 	}
 
 	// Enforce read-only: trino_query only allows read operations.
@@ -146,23 +156,9 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 		fmt.Sprintf("Query returned %d rows, formatting...", result.Stats.RowCount))
 
 	// Format output
-	format := input.Format
-	if format == "" {
-		format = "json"
-	}
-
-	var output string
-	switch format {
-	case "csv":
-		output = formatCSV(result)
-	case "markdown":
-		output = formatMarkdown(result)
-	default:
-		data, err := json.MarshalIndent(result, "", "  ")
-		if err != nil {
-			return ErrorResult(fmt.Sprintf("Failed to marshal result: %v", err)), nil, nil
-		}
-		output = string(data)
+	output, err := formatOutput(result, input.Format)
+	if err != nil {
+		return ErrorResult(err.Error()), nil, nil
 	}
 
 	// Send progress notification: query complete
@@ -170,6 +166,13 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 
 	// Build structured output
 	queryOutput := buildQueryOutput(result)
+
+	// Attempt JSON unwrap if requested
+	if input.UnwrapJSON {
+		if parsed, ok := tryUnwrapJSON(result); ok {
+			queryOutput.UnwrappedResult = parsed
+		}
+	}
 
 	return &mcp.CallToolResult{
 		Content: []mcp.Content{
