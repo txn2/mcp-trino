@@ -24,10 +24,10 @@ type ExecuteInput struct {
 	// Format is the output format: json (default), csv, or markdown.
 	Format string `json:"format,omitempty" jsonschema_description:"Output format: json, csv, or markdown (default: json)"`
 
-	// UnwrapJSON controls automatic JSON unwrapping for single-row, single-VARCHAR-column results.
-	// When true and the result is exactly one row with one VARCHAR column containing valid JSON,
-	// the parsed JSON is included in the response as unwrapped_result.
-	UnwrapJSON bool `json:"unwrap_json,omitempty" jsonschema_description:"When true and result is a single-row single-VARCHAR-column containing valid JSON, include parsed JSON as unwrapped_result"` //nolint:lll // jsonschema_description must be a single tag value
+	// UnwrapJSON controls automatic JSON unwrapping for single-row, single-string-column results.
+	// When true and the result matches, the column type is changed to "JSON" and the row value
+	// is replaced with the parsed object. The envelope shape is unchanged.
+	UnwrapJSON bool `json:"unwrap_json,omitempty" jsonschema_description:"When true and result is a single-row single-string-column containing a JSON object or array, parse the value inline and set column type to JSON"` //nolint:lll // jsonschema_description must be a single tag value
 
 	// Connection is the named connection to use. Empty uses the default connection.
 	// Use trino_list_connections to see available connections.
@@ -129,15 +129,14 @@ func (t *Toolkit) handleExecute(ctx context.Context, _ *mcp.CallToolRequest, inp
 	// Build structured output (reuse QueryOutput — same result shape)
 	queryOutput := buildQueryOutput(result)
 
-	// Attempt JSON unwrap if requested
+	// Attempt JSON unwrap if requested — mutates queryOutput in place,
+	// changing columns[0].type to "JSON" and replacing the row value.
 	if input.UnwrapJSON {
-		if parsed, ok := tryUnwrapJSON(result); ok {
-			queryOutput.UnwrappedResult = parsed
-		}
+		unwrapJSONColumn(&queryOutput)
 	}
 
-	// Render text content
-	output, err := renderTextContent(result, &queryOutput, input.Format)
+	// Format output
+	output, err := formatOutput(&queryOutput, input.Format)
 	if err != nil {
 		return ErrorResult(err.Error()), nil, nil
 	}

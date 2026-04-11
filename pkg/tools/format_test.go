@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
-
-	"github.com/txn2/mcp-trino/pkg/client"
 )
 
 func TestValidateFormat(t *testing.T) {
@@ -81,18 +79,11 @@ func TestValidateExplainType(t *testing.T) {
 }
 
 func TestFormatOutput(t *testing.T) {
-	result := &client.QueryResult{
-		Columns: []client.ColumnInfo{
-			{Name: "id", Type: "INTEGER"},
-			{Name: "name", Type: "VARCHAR"},
-		},
-		Rows: []map[string]any{
-			{"id": 1, "name": "Alice"},
-		},
-		Stats: client.QueryStats{
-			RowCount:   1,
-			DurationMs: 50,
-		},
+	qo := &QueryOutput{
+		Columns:  []QueryColumn{{Name: "id", Type: "INTEGER"}, {Name: "name", Type: "VARCHAR"}},
+		Rows:     []map[string]any{{"id": 1, "name": "Alice"}},
+		RowCount: 1,
+		Stats:    QueryStats{RowCount: 1, DurationMs: 50},
 	}
 
 	tests := []struct {
@@ -108,7 +99,7 @@ func TestFormatOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output, err := formatOutput(result, tt.format)
+			output, err := formatOutput(qo, tt.format)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
@@ -118,9 +109,8 @@ func TestFormatOutput(t *testing.T) {
 		})
 	}
 
-	// Verify unsupported format returns error
 	t.Run("unsupported format returns error", func(t *testing.T) {
-		_, err := formatOutput(result, "tsv")
+		_, err := formatOutput(qo, "tsv")
 		if err == nil {
 			t.Error("expected error for unsupported format")
 		}
@@ -159,207 +149,277 @@ func TestIsStringColumnType(t *testing.T) {
 	}
 }
 
-func TestTryUnwrapJSON(t *testing.T) {
+func TestUnwrapJSONColumn(t *testing.T) {
+	t.Run("unwraps JSON object and sets column type", func(t *testing.T) {
+		qo := &QueryOutput{
+			Columns:  []QueryColumn{{Name: "result", Type: "VARCHAR"}},
+			Rows:     []map[string]any{{"result": `{"took":2,"count":42}`}},
+			RowCount: 1,
+			Stats:    QueryStats{RowCount: 1, DurationMs: 10},
+		}
+
+		unwrapJSONColumn(qo)
+
+		if qo.Columns[0].Type != columnTypeJSON {
+			t.Errorf("expected column type JSON, got %s", qo.Columns[0].Type)
+		}
+		m, ok := qo.Rows[0]["result"].(map[string]any)
+		if !ok {
+			t.Fatalf("expected map[string]any, got %T", qo.Rows[0]["result"])
+		}
+		if m["took"] != float64(2) {
+			t.Errorf("expected took=2, got %v", m["took"])
+		}
+	})
+
+	t.Run("unwraps JSON array", func(t *testing.T) {
+		qo := &QueryOutput{
+			Columns:  []QueryColumn{{Name: "data", Type: "VARCHAR"}},
+			Rows:     []map[string]any{{"data": `[1,2,3]`}},
+			RowCount: 1,
+			Stats:    QueryStats{RowCount: 1},
+		}
+
+		unwrapJSONColumn(qo)
+
+		if qo.Columns[0].Type != columnTypeJSON {
+			t.Errorf("expected column type JSON, got %s", qo.Columns[0].Type)
+		}
+		arr, ok := qo.Rows[0]["data"].([]any)
+		if !ok {
+			t.Fatalf("expected []any, got %T", qo.Rows[0]["data"])
+		}
+		if len(arr) != 3 {
+			t.Errorf("expected 3 elements, got %d", len(arr))
+		}
+	})
+
+	t.Run("accepts varchar with length constraint", func(t *testing.T) {
+		qo := &QueryOutput{
+			Columns:  []QueryColumn{{Name: "r", Type: "varchar(65535)"}},
+			Rows:     []map[string]any{{"r": `{"k":"v"}`}},
+			RowCount: 1,
+			Stats:    QueryStats{RowCount: 1},
+		}
+		unwrapJSONColumn(qo)
+		if qo.Columns[0].Type != columnTypeJSON {
+			t.Errorf("expected JSON, got %s", qo.Columns[0].Type)
+		}
+	})
+
+	t.Run("accepts CHAR type", func(t *testing.T) {
+		qo := &QueryOutput{
+			Columns:  []QueryColumn{{Name: "r", Type: "CHAR(1000)"}},
+			Rows:     []map[string]any{{"r": `{"k":"v"}`}},
+			RowCount: 1,
+			Stats:    QueryStats{RowCount: 1},
+		}
+		unwrapJSONColumn(qo)
+		if qo.Columns[0].Type != columnTypeJSON {
+			t.Errorf("expected JSON, got %s", qo.Columns[0].Type)
+		}
+	})
+
+	t.Run("accepts JSON type", func(t *testing.T) {
+		qo := &QueryOutput{
+			Columns:  []QueryColumn{{Name: "r", Type: "JSON"}},
+			Rows:     []map[string]any{{"r": `{"k":"v"}`}},
+			RowCount: 1,
+			Stats:    QueryStats{RowCount: 1},
+		}
+		unwrapJSONColumn(qo)
+		if qo.Columns[0].Type != columnTypeJSON {
+			t.Errorf("expected JSON, got %s", qo.Columns[0].Type)
+		}
+	})
+
+	t.Run("no-op for scalar JSON string", func(t *testing.T) {
+		qo := &QueryOutput{
+			Columns:  []QueryColumn{{Name: "r", Type: "VARCHAR"}},
+			Rows:     []map[string]any{{"r": `"hello"`}},
+			RowCount: 1,
+			Stats:    QueryStats{RowCount: 1},
+		}
+		unwrapJSONColumn(qo)
+		if qo.Columns[0].Type != "VARCHAR" {
+			t.Errorf("expected VARCHAR unchanged, got %s", qo.Columns[0].Type)
+		}
+	})
+
+	t.Run("no-op for scalar JSON number", func(t *testing.T) {
+		qo := &QueryOutput{
+			Columns:  []QueryColumn{{Name: "r", Type: "VARCHAR"}},
+			Rows:     []map[string]any{{"r": `42`}},
+			RowCount: 1,
+			Stats:    QueryStats{RowCount: 1},
+		}
+		unwrapJSONColumn(qo)
+		if qo.Columns[0].Type != "VARCHAR" {
+			t.Errorf("expected VARCHAR unchanged, got %s", qo.Columns[0].Type)
+		}
+	})
+
+	t.Run("no-op for multiple columns", func(t *testing.T) {
+		qo := &QueryOutput{
+			Columns:  []QueryColumn{{Name: "id", Type: "INTEGER"}, {Name: "name", Type: "VARCHAR"}},
+			Rows:     []map[string]any{{"id": 1, "name": "Alice"}},
+			RowCount: 1,
+			Stats:    QueryStats{RowCount: 1},
+		}
+		unwrapJSONColumn(qo)
+		if qo.Columns[0].Type != "INTEGER" {
+			t.Errorf("expected INTEGER unchanged, got %s", qo.Columns[0].Type)
+		}
+	})
+
+	t.Run("no-op for multiple rows", func(t *testing.T) {
+		qo := &QueryOutput{
+			Columns:  []QueryColumn{{Name: "r", Type: "VARCHAR"}},
+			Rows:     []map[string]any{{"r": `{"a":1}`}, {"r": `{"b":2}`}},
+			RowCount: 2,
+			Stats:    QueryStats{RowCount: 2},
+		}
+		unwrapJSONColumn(qo)
+		if qo.Columns[0].Type != "VARCHAR" {
+			t.Errorf("expected VARCHAR unchanged, got %s", qo.Columns[0].Type)
+		}
+	})
+
+	t.Run("no-op for non-string type", func(t *testing.T) {
+		qo := &QueryOutput{
+			Columns:  []QueryColumn{{Name: "count", Type: "BIGINT"}},
+			Rows:     []map[string]any{{"count": 42}},
+			RowCount: 1,
+			Stats:    QueryStats{RowCount: 1},
+		}
+		unwrapJSONColumn(qo)
+		if qo.Columns[0].Type != "BIGINT" {
+			t.Errorf("expected BIGINT unchanged, got %s", qo.Columns[0].Type)
+		}
+	})
+
+	t.Run("no-op for non-JSON string", func(t *testing.T) {
+		qo := &QueryOutput{
+			Columns:  []QueryColumn{{Name: "r", Type: "VARCHAR"}},
+			Rows:     []map[string]any{{"r": "hello world"}},
+			RowCount: 1,
+			Stats:    QueryStats{RowCount: 1},
+		}
+		unwrapJSONColumn(qo)
+		if qo.Columns[0].Type != "VARCHAR" {
+			t.Errorf("expected VARCHAR unchanged, got %s", qo.Columns[0].Type)
+		}
+		if qo.Rows[0]["r"] != "hello world" {
+			t.Errorf("expected row value unchanged")
+		}
+	})
+
+	t.Run("no-op for zero rows", func(t *testing.T) {
+		qo := &QueryOutput{
+			Columns:  []QueryColumn{{Name: "r", Type: "VARCHAR"}},
+			Rows:     []map[string]any{},
+			RowCount: 0,
+			Stats:    QueryStats{RowCount: 0},
+		}
+		unwrapJSONColumn(qo)
+		if qo.Columns[0].Type != "VARCHAR" {
+			t.Errorf("expected VARCHAR unchanged, got %s", qo.Columns[0].Type)
+		}
+	})
+
+	t.Run("no-op for empty columns", func(_ *testing.T) {
+		qo := &QueryOutput{
+			Columns:  []QueryColumn{},
+			Rows:     []map[string]any{},
+			RowCount: 0,
+			Stats:    QueryStats{},
+		}
+		unwrapJSONColumn(qo) // should not panic
+	})
+}
+
+func TestStringifyValue(t *testing.T) {
 	tests := []struct {
 		name     string
-		result   *client.QueryResult
-		wantOK   bool
-		wantJSON string
+		input    any
+		expected string
 	}{
-		{
-			name: "single VARCHAR column with valid JSON object",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
-				Rows:    []map[string]any{{"result": `{"took":2,"aggregations":{"count":42}}`}},
-				Stats:   client.QueryStats{RowCount: 1},
-			},
-			wantOK:   true,
-			wantJSON: `{"aggregations":{"count":42},"took":2}`,
-		},
-		{
-			name: "single VARCHAR column with valid JSON array",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "data", Type: "VARCHAR"}},
-				Rows:    []map[string]any{{"data": `[1,2,3]`}},
-				Stats:   client.QueryStats{RowCount: 1},
-			},
-			wantOK:   true,
-			wantJSON: `[1,2,3]`,
-		},
-		{
-			name: "VARCHAR with length constraint",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "result", Type: "varchar(65535)"}},
-				Rows:    []map[string]any{{"result": `{"key":"value"}`}},
-				Stats:   client.QueryStats{RowCount: 1},
-			},
-			wantOK:   true,
-			wantJSON: `{"key":"value"}`,
-		},
-		{
-			name: "CHAR type with JSON object",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "result", Type: "CHAR(1000)"}},
-				Rows:    []map[string]any{{"result": `{"key":"value"}`}},
-				Stats:   client.QueryStats{RowCount: 1},
-			},
-			wantOK:   true,
-			wantJSON: `{"key":"value"}`,
-		},
-		{
-			name: "JSON type column",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "result", Type: "JSON"}},
-				Rows:    []map[string]any{{"result": `{"key":"value"}`}},
-				Stats:   client.QueryStats{RowCount: 1},
-			},
-			wantOK:   true,
-			wantJSON: `{"key":"value"}`,
-		},
-		{
-			name: "scalar JSON string - no unwrap",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
-				Rows:    []map[string]any{{"result": `"hello"`}},
-				Stats:   client.QueryStats{RowCount: 1},
-			},
-			wantOK: false,
-		},
-		{
-			name: "scalar JSON number - no unwrap",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
-				Rows:    []map[string]any{{"result": `42`}},
-				Stats:   client.QueryStats{RowCount: 1},
-			},
-			wantOK: false,
-		},
-		{
-			name: "scalar JSON boolean - no unwrap",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
-				Rows:    []map[string]any{{"result": `true`}},
-				Stats:   client.QueryStats{RowCount: 1},
-			},
-			wantOK: false,
-		},
-		{
-			name: "scalar JSON null - no unwrap",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
-				Rows:    []map[string]any{{"result": `null`}},
-				Stats:   client.QueryStats{RowCount: 1},
-			},
-			wantOK: false,
-		},
-		{
-			name: "multiple columns - no unwrap",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{
-					{Name: "id", Type: "INTEGER"},
-					{Name: "name", Type: "VARCHAR"},
-				},
-				Rows:  []map[string]any{{"id": 1, "name": "Alice"}},
-				Stats: client.QueryStats{RowCount: 1},
-			},
-			wantOK: false,
-		},
-		{
-			name: "single column non-string type - no unwrap",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "count", Type: "BIGINT"}},
-				Rows:    []map[string]any{{"count": 42}},
-				Stats:   client.QueryStats{RowCount: 1},
-			},
-			wantOK: false,
-		},
-		{
-			name: "multiple rows - no unwrap",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
-				Rows: []map[string]any{
-					{"result": `{"a":1}`},
-					{"result": `{"b":2}`},
-				},
-				Stats: client.QueryStats{RowCount: 2},
-			},
-			wantOK: false,
-		},
-		{
-			name: "zero rows - no unwrap",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
-				Rows:    []map[string]any{},
-				Stats:   client.QueryStats{RowCount: 0},
-			},
-			wantOK: false,
-		},
-		{
-			name: "single VARCHAR column with non-JSON string",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
-				Rows:    []map[string]any{{"result": "hello world"}},
-				Stats:   client.QueryStats{RowCount: 1},
-			},
-			wantOK: false,
-		},
-		{
-			name: "single VARCHAR column with empty string",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
-				Rows:    []map[string]any{{"result": ""}},
-				Stats:   client.QueryStats{RowCount: 1},
-			},
-			wantOK: false,
-		},
-		{
-			name: "single VARCHAR column with nil value",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
-				Rows:    []map[string]any{{"result": nil}},
-				Stats:   client.QueryStats{RowCount: 1},
-			},
-			wantOK: false,
-		},
-		{
-			name: "single VARCHAR column with non-string value",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{{Name: "result", Type: "VARCHAR"}},
-				Rows:    []map[string]any{{"result": 42}},
-				Stats:   client.QueryStats{RowCount: 1},
-			},
-			wantOK: false,
-		},
-		{
-			name: "no columns - no unwrap",
-			result: &client.QueryResult{
-				Columns: []client.ColumnInfo{},
-				Rows:    []map[string]any{},
-				Stats:   client.QueryStats{},
-			},
-			wantOK: false,
-		},
+		{"string", "hello", "hello"},
+		{"int", 42, "42"},
+		{"nil", nil, "<nil>"},
+		{"map", map[string]any{"k": "v"}, `{"k":"v"}`},
+		{"slice", []any{1, 2, 3}, `[1,2,3]`},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			parsed, ok := tryUnwrapJSON(tt.result)
-			if ok != tt.wantOK {
-				t.Errorf("tryUnwrapJSON() ok = %v, want %v", ok, tt.wantOK)
-				return
-			}
-			if tt.wantOK && tt.wantJSON != "" {
-				got, err := json.Marshal(parsed)
-				if err != nil {
-					t.Fatalf("failed to marshal parsed result: %v", err)
-				}
-				if string(got) != tt.wantJSON {
-					t.Errorf("parsed JSON = %s, want %s", string(got), tt.wantJSON)
-				}
-			}
-			if !tt.wantOK && parsed != nil {
-				t.Errorf("expected nil parsed result when ok is false, got %v", parsed)
+			got := stringifyValue(tt.input)
+			if got != tt.expected {
+				t.Errorf("stringifyValue(%v) = %q, want %q", tt.input, got, tt.expected)
 			}
 		})
+	}
+}
+
+func TestUnwrapJSONColumn_JSONFormatOutput(t *testing.T) {
+	// Verify that after unwrap, JSON output contains the parsed object inline
+	// and the column type is "JSON" — same envelope, no double-encoding.
+	qo := &QueryOutput{
+		Columns:  []QueryColumn{{Name: "result", Type: "VARCHAR"}},
+		Rows:     []map[string]any{{"result": `{"took":2,"aggs":{"count":42}}`}},
+		RowCount: 1,
+		Stats:    QueryStats{RowCount: 1, DurationMs: 10},
+	}
+
+	unwrapJSONColumn(qo)
+
+	output, err := formatOutput(qo, "json")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// The JSON output should contain the parsed object inline (no escaping)
+	if strings.Contains(output, `\"took\"`) {
+		t.Error("JSON output still contains escaped quotes — value was not unwrapped")
+	}
+	if !strings.Contains(output, `"took"`) {
+		t.Error("JSON output should contain the unwrapped 'took' field")
+	}
+	if !strings.Contains(output, `"type": "JSON"`) {
+		t.Error("JSON output should show column type as JSON")
+	}
+
+	// Verify round-trip: parse the output and check structure
+	var parsed QueryOutput
+	if err := json.Unmarshal([]byte(output), &parsed); err != nil {
+		t.Fatalf("failed to parse JSON output: %v", err)
+	}
+	if parsed.Columns[0].Type != "JSON" {
+		t.Errorf("expected column type JSON, got %s", parsed.Columns[0].Type)
+	}
+	if parsed.Stats.DurationMs != 10 {
+		t.Errorf("expected duration_ms=10, got %d", parsed.Stats.DurationMs)
+	}
+}
+
+func TestUnwrapJSONColumn_CSVFormatOutput(t *testing.T) {
+	// After unwrap, CSV should contain the compact JSON string
+	qo := &QueryOutput{
+		Columns:  []QueryColumn{{Name: "result", Type: "VARCHAR"}},
+		Rows:     []map[string]any{{"result": `{"key":"value"}`}},
+		RowCount: 1,
+		Stats:    QueryStats{RowCount: 1, DurationMs: 5},
+	}
+
+	unwrapJSONColumn(qo)
+
+	output, err := formatOutput(qo, "csv")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// CSV should contain the compact JSON as a quoted value
+	if !strings.Contains(output, `"key"`) {
+		t.Errorf("CSV output should contain JSON key, got:\n%s", output)
 	}
 }

@@ -1182,7 +1182,7 @@ func TestHandleQuery_UnwrapJSON(t *testing.T) {
 	}
 	toolkit := NewToolkit(mock, DefaultConfig())
 
-	// Without unwrap_json, no unwrapped_result in output
+	// Without unwrap_json, column type stays VARCHAR and value stays a string
 	result, output, err := toolkit.handleQuery(context.Background(), nil, QueryInput{
 		SQL:        "SELECT * FROM TABLE(raw_query())",
 		UnwrapJSON: false,
@@ -1194,19 +1194,22 @@ func TestHandleQuery_UnwrapJSON(t *testing.T) {
 	if !ok {
 		t.Fatal("expected *QueryOutput")
 	}
-	if qo.UnwrappedResult != nil {
-		t.Error("expected nil UnwrappedResult when unwrap_json is false")
+	if qo.Columns[0].Type != "VARCHAR" {
+		t.Errorf("expected VARCHAR, got %s", qo.Columns[0].Type)
 	}
-	// Text content should NOT contain unwrapped_result
+	if _, isStr := qo.Rows[0]["result"].(string); !isStr {
+		t.Errorf("expected string value when unwrap_json is false, got %T", qo.Rows[0]["result"])
+	}
+	// Text content should contain escaped JSON (double-encoded)
 	textContent, ok := result.Content[0].(*mcp.TextContent)
 	if !ok {
 		t.Fatal("expected TextContent")
 	}
-	if strings.Contains(textContent.Text, "unwrapped_result") {
-		t.Error("text content should not contain unwrapped_result when unwrap_json is false")
+	if !strings.Contains(textContent.Text, `\"took\"`) {
+		t.Error("without unwrap, text should contain escaped JSON string")
 	}
 
-	// With unwrap_json, unwrapped_result should be present in both structured and text output
+	// With unwrap_json, column type becomes JSON and value is parsed object
 	result, output, err = toolkit.handleQuery(context.Background(), nil, QueryInput{
 		SQL:        "SELECT * FROM TABLE(raw_query())",
 		UnwrapJSON: true,
@@ -1218,27 +1221,30 @@ func TestHandleQuery_UnwrapJSON(t *testing.T) {
 	if !ok {
 		t.Fatal("expected *QueryOutput")
 	}
-	if qo.UnwrappedResult == nil {
-		t.Fatal("expected non-nil UnwrappedResult when unwrap_json is true")
+	if qo.Columns[0].Type != columnTypeJSON {
+		t.Errorf("expected column type JSON, got %s", qo.Columns[0].Type)
 	}
-	// Verify the parsed result has the expected structure
-	m, ok := qo.UnwrappedResult.(map[string]any)
+	m, ok := qo.Rows[0]["result"].(map[string]any)
 	if !ok {
-		t.Fatalf("expected map[string]any, got %T", qo.UnwrappedResult)
+		t.Fatalf("expected map[string]any, got %T", qo.Rows[0]["result"])
 	}
 	if m["took"] != float64(2) {
 		t.Errorf("expected took=2, got %v", m["took"])
 	}
-	// Text content MUST contain the unwrapped JSON (issue #1: text content must reflect unwrap)
+	// Text content should contain the parsed JSON inline (not escaped)
 	textContent, ok = result.Content[0].(*mcp.TextContent)
 	if !ok {
 		t.Fatal("expected TextContent")
 	}
-	if !strings.Contains(textContent.Text, "unwrapped_result") {
-		t.Error("text content should contain unwrapped_result when unwrap succeeds")
+	if strings.Contains(textContent.Text, `\"took\"`) {
+		t.Error("with unwrap, text should NOT contain escaped JSON")
 	}
 	if !strings.Contains(textContent.Text, `"took"`) {
-		t.Error("text content should contain the unwrapped JSON fields")
+		t.Error("with unwrap, text should contain the parsed JSON field")
+	}
+	// Envelope shape is the same — columns, rows, stats, no extra fields
+	if strings.Contains(textContent.Text, "unwrapped_result") {
+		t.Error("should not have an unwrapped_result field — value is inline in rows")
 	}
 }
 
@@ -1258,13 +1264,13 @@ func TestHandleQuery_UnwrapJSON_NoMatch(t *testing.T) {
 	if !ok {
 		t.Fatal("expected *QueryOutput")
 	}
-	if qo.UnwrappedResult != nil {
-		t.Error("expected nil UnwrappedResult for multi-column result")
+	// Column types should be unchanged
+	if qo.Columns[0].Type != "INTEGER" {
+		t.Errorf("expected INTEGER unchanged, got %s", qo.Columns[0].Type)
 	}
 }
 
-// TestHandleQuery_UnwrapJSON_WithCSVFormat tests that unwrap populates structured output
-// but CSV text content is unchanged (unwrap only affects JSON text output).
+// TestHandleQuery_UnwrapJSON_WithCSVFormat tests that unwrap affects CSV output too.
 func TestHandleQuery_UnwrapJSON_WithCSVFormat(t *testing.T) {
 	mock := NewMockTrinoClient()
 	mock.QueryFunc = func(_ context.Context, _ string, _ client.QueryOptions) (*client.QueryResult, error) {
@@ -1285,16 +1291,16 @@ func TestHandleQuery_UnwrapJSON_WithCSVFormat(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Structured output should have unwrapped result
+	// Structured output should have column type JSON
 	qo, ok := output.(*QueryOutput)
 	if !ok {
 		t.Fatal("expected *QueryOutput")
 	}
-	if qo.UnwrappedResult == nil {
-		t.Fatal("expected non-nil UnwrappedResult even with CSV format")
+	if qo.Columns[0].Type != columnTypeJSON {
+		t.Errorf("expected JSON column type, got %s", qo.Columns[0].Type)
 	}
 
-	// Text content should be CSV (not JSON with unwrapped_result)
+	// Text content should be CSV with compact JSON value
 	textContent, ok := result.Content[0].(*mcp.TextContent)
 	if !ok {
 		t.Fatal("expected TextContent")
@@ -1302,8 +1308,8 @@ func TestHandleQuery_UnwrapJSON_WithCSVFormat(t *testing.T) {
 	if !strings.Contains(textContent.Text, "result") {
 		t.Error("expected CSV header")
 	}
-	if strings.Contains(textContent.Text, "unwrapped_result") {
-		t.Error("CSV text should not contain unwrapped_result field")
+	if !strings.Contains(textContent.Text, `"key"`) {
+		t.Error("CSV should contain the compact JSON value")
 	}
 }
 
@@ -1334,8 +1340,8 @@ func TestHandleQuery_UnwrapJSON_ScalarNoMatch(t *testing.T) {
 			if !ok {
 				t.Fatal("expected *QueryOutput")
 			}
-			if qo.UnwrappedResult != nil {
-				t.Errorf("expected nil UnwrappedResult for scalar JSON %s", scalar)
+			if qo.Columns[0].Type != "VARCHAR" {
+				t.Errorf("expected VARCHAR unchanged for scalar %s, got %s", scalar, qo.Columns[0].Type)
 			}
 		})
 	}
@@ -1364,16 +1370,19 @@ func TestHandleExecute_UnwrapJSON(t *testing.T) {
 	if !ok {
 		t.Fatal("expected *QueryOutput")
 	}
-	if qo.UnwrappedResult == nil {
-		t.Fatal("expected non-nil UnwrappedResult")
+	if qo.Columns[0].Type != columnTypeJSON {
+		t.Errorf("expected JSON column type, got %s", qo.Columns[0].Type)
 	}
-	// Text content must also reflect the unwrap
+	if _, isArr := qo.Rows[0]["result"].([]any); !isArr {
+		t.Errorf("expected []any, got %T", qo.Rows[0]["result"])
+	}
+	// Text content should show parsed array inline
 	textContent, ok := result.Content[0].(*mcp.TextContent)
 	if !ok {
 		t.Fatal("expected TextContent")
 	}
-	if !strings.Contains(textContent.Text, "unwrapped_result") {
-		t.Error("text content should contain unwrapped_result when unwrap succeeds")
+	if !strings.Contains(textContent.Text, `"type": "JSON"`) {
+		t.Error("text content should show column type as JSON")
 	}
 }
 

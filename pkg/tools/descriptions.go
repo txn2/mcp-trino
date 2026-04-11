@@ -11,8 +11,9 @@ var defaultDescriptions = map[ToolName]string{
 		"Consider using trino_explain first for expensive queries. " +
 		"Results are returned as JSON by default. Pass format=csv for CSV output " +
 		"(more token-efficient for large result sets) or format=markdown for a pipe-table. " +
-		"Set unwrap_json=true to automatically parse single-row, single-VARCHAR-column " +
-		"results containing JSON (common with table functions like raw_query). " +
+		"Set unwrap_json=true to automatically parse single-row, single-string-column " +
+		"results containing a JSON object or array — the column type changes to JSON " +
+		"and the value becomes the parsed object (common with table functions like raw_query). " +
 		"For write operations (INSERT, CREATE, etc.), use trino_execute instead.",
 
 	ToolExecute: "Execute a SQL statement against Trino, including write operations " +

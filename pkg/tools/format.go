@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-
-	"github.com/txn2/mcp-trino/pkg/client"
 )
 
 // Output format identifiers.
@@ -14,6 +12,10 @@ const (
 	outputFormatCSV      = "csv"
 	outputFormatMarkdown = "markdown"
 )
+
+// columnTypeJSON is the column type set when unwrapJSONColumn successfully
+// parses a string column value into a JSON object or array.
+const columnTypeJSON = "JSON"
 
 // validFormats lists the accepted output format values.
 var validFormats = []string{outputFormatJSON, outputFormatCSV, outputFormatMarkdown}
@@ -34,6 +36,7 @@ func validateFormat(format string) error {
 }
 
 // validExplainTypes lists the accepted explain type values.
+// Must be kept in sync with the switch in handleExplain.
 var validExplainTypes = []string{"logical", "distributed", "io", "validate"}
 
 // validateExplainType checks that the given explain type is valid.
@@ -52,20 +55,19 @@ func validateExplainType(explainType string) error {
 		explainType, strings.Join(validExplainTypes, ", "))
 }
 
-// formatOutput renders a QueryResult in the requested format.
-// The format must already be validated via validateFormat.
-func formatOutput(result *client.QueryResult, format string) (string, error) {
+// formatOutput renders a QueryOutput in the requested format.
+func formatOutput(qo *QueryOutput, format string) (string, error) {
 	if format == "" {
 		format = outputFormatJSON
 	}
 
 	switch format {
 	case outputFormatCSV:
-		return formatCSV(result), nil
+		return formatCSV(qo), nil
 	case outputFormatMarkdown:
-		return formatMarkdown(result), nil
+		return formatMarkdown(qo), nil
 	case outputFormatJSON:
-		data, err := json.MarshalIndent(result, "", "  ")
+		data, err := json.MarshalIndent(qo, "", "  ")
 		if err != nil {
 			return "", fmt.Errorf("failed to marshal result: %w", err)
 		}
@@ -75,19 +77,104 @@ func formatOutput(result *client.QueryResult, format string) (string, error) {
 	}
 }
 
-// renderTextContent produces the text output for a tool response.
-// If unwrap succeeded and format is JSON, it renders the full QueryOutput
-// (including unwrapped_result) so the LLM sees clean JSON in its context.
-// Otherwise it renders the raw query result in the requested format.
-func renderTextContent(result *client.QueryResult, queryOutput *QueryOutput, format string) (string, error) {
-	if queryOutput.UnwrappedResult != nil && (format == "" || format == outputFormatJSON) {
-		data, err := json.MarshalIndent(queryOutput, "", "  ")
-		if err != nil {
-			return "", fmt.Errorf("failed to marshal result: %w", err)
-		}
-		return string(data), nil
+// formatCSV formats query output as CSV.
+func formatCSV(qo *QueryOutput) string {
+	if len(qo.Columns) == 0 {
+		return ""
 	}
-	return formatOutput(result, format)
+
+	var output string
+
+	// Header row
+	for i, col := range qo.Columns {
+		if i > 0 {
+			output += ","
+		}
+		output += escapeCSV(col.Name)
+	}
+	output += "\n"
+
+	// Data rows
+	for _, row := range qo.Rows {
+		for i, col := range qo.Columns {
+			if i > 0 {
+				output += ","
+			}
+			if val, ok := row[col.Name]; ok {
+				output += escapeCSV(stringifyValue(val))
+			}
+		}
+		output += "\n"
+	}
+
+	// Stats footer
+	output += fmt.Sprintf("\n# %d rows returned", qo.Stats.RowCount)
+	if qo.Stats.Truncated {
+		output += fmt.Sprintf(" (truncated at limit %d)", qo.Stats.LimitApplied)
+	}
+	output += fmt.Sprintf(", executed in %dms", qo.Stats.DurationMs)
+
+	return output
+}
+
+// formatMarkdown formats query output as a Markdown table.
+func formatMarkdown(qo *QueryOutput) string {
+	if len(qo.Columns) == 0 {
+		return "No results"
+	}
+
+	var output string
+
+	// Header row
+	output += "|"
+	for _, col := range qo.Columns {
+		output += " " + col.Name + " |"
+	}
+	output += "\n|"
+
+	// Separator row
+	for range qo.Columns {
+		output += " --- |"
+	}
+	output += "\n"
+
+	// Data rows
+	for _, row := range qo.Rows {
+		output += "|"
+		for _, col := range qo.Columns {
+			val := ""
+			if v, ok := row[col.Name]; ok && v != nil {
+				val = stringifyValue(v)
+			}
+			output += " " + val + " |"
+		}
+		output += "\n"
+	}
+
+	// Stats footer
+	output += fmt.Sprintf("\n*%d rows returned", qo.Stats.RowCount)
+	if qo.Stats.Truncated {
+		output += fmt.Sprintf(" (truncated at limit %d)", qo.Stats.LimitApplied)
+	}
+	output += fmt.Sprintf(", executed in %dms*", qo.Stats.DurationMs)
+
+	return output
+}
+
+// stringifyValue converts a value to its string representation.
+// For maps and slices (e.g. unwrapped JSON), it produces compact JSON.
+// For all other types, it uses fmt.Sprintf.
+func stringifyValue(v any) string {
+	switch v.(type) {
+	case map[string]any, []any:
+		data, err := json.Marshal(v)
+		if err != nil {
+			return fmt.Sprintf("%v", v)
+		}
+		return string(data)
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 // isStringColumnType returns true if the Trino type name is a string-like type
@@ -103,41 +190,36 @@ func isStringColumnType(typeName string) bool {
 	return false
 }
 
-// tryUnwrapJSON attempts to unwrap a single-row, single-string-column result
-// containing a JSON object or array. Returns the parsed JSON and true if
-// unwrapping succeeded, or nil and false if the result doesn't match the
-// expected shape, the value isn't valid JSON, or the value is a JSON scalar.
-func tryUnwrapJSON(result *client.QueryResult) (any, bool) {
-	// Must be exactly one column
-	if len(result.Columns) != 1 {
-		return nil, false
-	}
-
-	// Column must be a string-like type (VARCHAR, CHAR, JSON)
-	if !isStringColumnType(result.Columns[0].Type) {
-		return nil, false
+// unwrapJSONColumn attempts to unwrap a single-row, single-string-column
+// QueryOutput whose value is a JSON object or array. On success it mutates
+// the QueryOutput in place: the column type is changed to "JSON" and the
+// row value is replaced with the parsed object. On failure the QueryOutput
+// is left unchanged.
+func unwrapJSONColumn(qo *QueryOutput) {
+	// Must be exactly one column with a string-like type
+	if len(qo.Columns) != 1 || !isStringColumnType(qo.Columns[0].Type) {
+		return
 	}
 
 	// Must be exactly one row
-	if len(result.Rows) != 1 {
-		return nil, false
+	if len(qo.Rows) != 1 {
+		return
 	}
 
-	// Get the column value
-	val, ok := result.Rows[0][result.Columns[0].Name]
+	colName := qo.Columns[0].Name
+	val, ok := qo.Rows[0][colName]
 	if !ok {
-		return nil, false
+		return
 	}
 
 	str, ok := val.(string)
 	if !ok {
-		return nil, false
+		return
 	}
 
-	// Try to parse as JSON
 	var parsed any
 	if err := json.Unmarshal([]byte(str), &parsed); err != nil {
-		return nil, false
+		return
 	}
 
 	// Only unwrap objects and arrays — scalar JSON values (strings, numbers,
@@ -145,8 +227,9 @@ func tryUnwrapJSON(result *client.QueryResult) (any, bool) {
 	// or silently change types.
 	switch parsed.(type) {
 	case map[string]any, []any:
-		return parsed, true
+		qo.Columns[0].Type = columnTypeJSON
+		qo.Rows[0][colName] = parsed
 	default:
-		return nil, false
+		// Fall through — leave QueryOutput unchanged.
 	}
 }
