@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <!-- canvas -->
+  <rect width="1200" height="630" fill="#0B0B09"/>
+
+  <defs>
+    <radialGradient id="tint" cx="14%" cy="6%" r="55%">
+      <stop offset="0%" stop-color="#FF5A1F" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#FF5A1F" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+      <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#ECE3CE" stroke-opacity="0.04" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="630" fill="url(#tint)"/>
+  <rect width="1200" height="630" fill="url(#grid)"/>
+
+  <!-- crosshair corners -->
+  <g stroke="#5A554B" stroke-width="1">
+    <line x1="40" y1="56" x2="68" y2="56"/>
+    <line x1="54" y1="42" x2="54" y2="70"/>
+    <line x1="1132" y1="56" x2="1160" y2="56"/>
+    <line x1="1146" y1="42" x2="1146" y2="70"/>
+    <line x1="40" y1="574" x2="68" y2="574"/>
+    <line x1="54" y1="560" x2="54" y2="588"/>
+    <line x1="1132" y1="574" x2="1160" y2="574"/>
+    <line x1="1146" y1="560" x2="1146" y2="588"/>
+  </g>
+
+  <!-- top rail strip -->
+  <line x1="80" y1="100" x2="1120" y2="100" stroke="#2A2922" stroke-width="1"/>
+  <text x="80" y="80" fill="#ECE3CE" font-family="Fraunces, Georgia, serif" font-style="italic" font-weight="400" font-size="22">mcp-trino</text>
+  <text x="186" y="80" fill="#968F80" font-family="JetBrains Mono, Menlo, monospace" font-size="13" letter-spacing="0.6">· mcp server for trino</text>
+  <text x="1120" y="80" fill="#FF5A1F" font-family="JetBrains Mono, Menlo, monospace" font-size="12" font-weight="700" letter-spacing="2.4" text-anchor="end">TXN2 / OPEN SOURCE</text>
+
+  <!-- symbol mark, signal accent -->
+  <svg x="92" y="180" width="280" height="280" viewBox="25 25 50 50" overflow="visible">
+    <path fill="#ECE3CE" d="M30,50 a6.667,6.667 0 1,0 13.334,0 a6.667,6.667 0 1,0 -13.334,0 Z M34.966,63.161C38.633,67.344 44,70 50,70C59.904,70 68.107,62.786 69.7,53.333L49.527,53.333C48.04,59.072 42.871,63.333 36.666,63.333C36.083,63.333 35.529,63.234 34.966,63.161Z"/>
+    <path fill="#FF5A1F" d="M69.7,46.667C68.107,37.21 59.904,30 50,30C44,30 38.63,32.654 34.965,36.837C35.528,36.766 36.083,36.667 36.667,36.667C42.872,36.667 48.041,40.926 49.528,46.667L69.7,46.667Z"/>
+  </svg>
+
+  <!-- typographic display, three rows -->
+  <text x="420" y="270" fill="#ECE3CE" font-family="Fraunces, Georgia, serif" font-style="italic" font-weight="300" font-size="120" letter-spacing="-3">mcp-trino</text>
+
+  <!-- outline row -->
+  <text x="420" y="380" fill="none" stroke="#ECE3CE" stroke-width="1.4" font-family="Fraunces, Georgia, serif" font-weight="400" font-size="90" letter-spacing="-2">federated sql</text>
+
+  <text x="420" y="475" fill="#ECE3CE" font-family="Fraunces, Georgia, serif" font-style="italic" font-weight="300" font-size="78" letter-spacing="-2">for ai.</text>
+
+  <!-- bottom strip -->
+  <line x1="80" y1="538" x2="1120" y2="538" stroke="#2A2922" stroke-width="1"/>
+
+  <line x1="80" y1="560" x2="80" y2="590" stroke="#FF5A1F" stroke-width="2"/>
+  <text x="100" y="582" fill="#C9C0AB" font-family="JetBrains Mono, Menlo, monospace" font-size="13" letter-spacing="1.8">APACHE 2.0  ·  COMPOSABLE MCP SERVER  ·  GO  ·  READ-ONLY BY DEFAULT</text>
+
+  <text x="1120" y="582" fill="#FF5A1F" font-family="JetBrains Mono, Menlo, monospace" font-size="14" font-weight="700" letter-spacing="2.2" text-anchor="end">MCP-TRINO.TXN2.COM  ↗</text>
+</svg>
