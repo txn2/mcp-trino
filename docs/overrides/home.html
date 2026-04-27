@@ -1,0 +1,400 @@
+{% extends "main.html" %}
+
+{# Mark the body so CSS can target the homepage layout. #}
+{% block htmltitle %}
+  {{ super() }}
+{% endblock %}
+
+{% block site_meta %}
+  {{ super() }}
+  <meta name="page-template" content="home">
+{% endblock %}
+
+{# Replace Material's header with the txn2 rail. #}
+{% block header %}
+<header class="rail" data-md-component="header">
+  <a class="skiplink" href="#main">skip to content</a>
+  <a href="./" class="rail__brand" aria-label="mcp-trino home">
+    <span class="rail__mark" aria-hidden="true">◐</span>
+    <span class="rail__name">mcp-trino</span>
+    <span class="rail__sep" aria-hidden="true">·</span>
+    <span class="rail__sub">mcp server for trino</span>
+  </a>
+  <div class="rail__meta">
+    <span class="rail__rel">v0.x</span>
+    <span class="rail__dot" aria-hidden="true">●</span>
+    <span data-clock>·· UTC</span>
+    <span class="rail__dot" aria-hidden="true">●</span>
+    <a href="https://txn2.com" class="rail__org">part of <em class="serif">txn2</em>&nbsp;↗</a>
+  </div>
+  <nav class="rail__nav" aria-label="primary">
+    <a href="./" aria-current="page">home</a>
+    <a href="server/installation/">install</a>
+    <a href="server/">server</a>
+    <a href="library/">library</a>
+    <a href="semantic/">semantic</a>
+    <a href="reference/tools-api/">reference</a>
+    <a href="https://github.com/txn2/mcp-trino" class="rail__cta">github&nbsp;↗</a>
+  </nav>
+</header>
+{% endblock %}
+
+{# No nav tabs on the homepage. #}
+{% block tabs %}{% endblock %}
+
+{# No announce. #}
+{% block announce %}{% endblock %}
+
+{# Replace the entire content area with the full-bleed homepage. #}
+{% block container %}
+<main id="main" class="page page--home" data-md-component="main">
+
+  {# BLUEPRINT GRID OVERLAY #}
+  <div class="blueprint" aria-hidden="true">
+    <div class="blueprint__grid"></div>
+    <div class="blueprint__crosshair blueprint__crosshair--tl"><span></span><span></span></div>
+    <div class="blueprint__crosshair blueprint__crosshair--tr"><span></span><span></span></div>
+    <div class="blueprint__crosshair blueprint__crosshair--bl"><span></span><span></span></div>
+    <div class="blueprint__crosshair blueprint__crosshair--br"><span></span><span></span></div>
+  </div>
+
+  {# HERO #}
+  <section class="hero">
+    <div class="hero__stamp">
+      <p class="hero__stamp__line">project / mcp-trino</p>
+      <p class="hero__stamp__line">org / txn2</p>
+      <p class="hero__stamp__line">est. 2025</p>
+      <p class="hero__stamp__line"><a href="https://pkg.go.dev/github.com/txn2/mcp-trino">pkg.go.dev&nbsp;↗</a></p>
+      <p class="hero__stamp__line hero__stamp__line--ok">apache 2.0 · read-only by default</p>
+    </div>
+
+    <div class="hero__main">
+      <a class="hero__mark" href="https://github.com/txn2/mcp-trino" aria-label="mcp-trino on GitHub">
+        <svg class="hero__mark__svg" viewBox="25 25 50 50" role="img" aria-label="mcp-trino symbol">
+          <path class="hero__mark__path hero__mark__path--base" d="M30,50 a6.667,6.667 0 1,0 13.334,0 a6.667,6.667 0 1,0 -13.334,0 Z M34.966,63.161C38.633,67.344 44,70 50,70C59.904,70 68.107,62.786 69.7,53.333L49.527,53.333C48.04,59.072 42.871,63.333 36.666,63.333C36.083,63.333 35.529,63.234 34.966,63.161Z"/>
+          <path class="hero__mark__path hero__mark__path--accent" d="M69.7,46.667C68.107,37.21 59.904,30 50,30C44,30 38.63,32.654 34.965,36.837C35.528,36.766 36.083,36.667 36.667,36.667C42.872,36.667 48.041,40.926 49.528,46.667L69.7,46.667Z"/>
+        </svg>
+      </a>
+
+      <h1 class="hero__display">
+        <span class="hero__row hero__row--1">
+          <em class="serif">mcp-trino</em>
+          <span class="hero__chip">mcp · go</span>
+        </span>
+        <span class="hero__row hero__row--2">
+          <span class="outline">federated sql</span>
+        </span>
+        <span class="hero__row hero__row--3">
+          <em class="serif">for ai.</em>
+        </span>
+      </h1>
+    </div>
+
+    <div class="hero__intro">
+      <p class="hero__lede">
+        <span class="dropcap">m</span>cp-trino is an MCP server that gives AI assistants safe, structured access to <a href="https://trino.io">Trino</a> and any Trino-compatible engine. Run SELECT and SHOW queries, browse catalogs, describe tables, and inspect execution plans. <strong>Read-only by default</strong>, with row caps, query timeouts, and SLSA Level 3 provenance. Speaks to any Trino cluster: production, staging, or a local Docker container.
+      </p>
+      <p class="hero__lede hero__lede--muted">
+        Run it standalone, or import it as a Go library and compose your own MCP server with custom auth, tenant isolation, and audit logging through middleware and interceptors. An optional <a href="semantic/">semantic layer</a> surfaces business descriptions, ownership, and sensitivity markers from <a href="https://datahub.com">DataHub</a> or any metadata source. Apache 2.0, part of the <a href="https://mcp-data-platform.txn2.com">txn2 mcp data platform</a> alongside <a href="https://mcp-s3.txn2.com">mcp-s3</a> and <a href="https://mcp-datahub.txn2.com">mcp-datahub</a>.
+      </p>
+    </div>
+
+    <aside class="hero__ticker" aria-hidden="true">
+      <div class="ticker">
+        <div class="ticker__track">
+          <span>execute sql</span><span>·</span>
+          <span>browse catalogs &amp; schemas</span><span>·</span>
+          <span>describe tables</span><span>·</span>
+          <span>explain plans</span><span>·</span>
+          <span>read-only by default</span><span>·</span>
+          <span>row caps &amp; timeouts</span><span>·</span>
+          <span>multi-cluster</span><span>·</span>
+          <span>datahub semantic context</span><span>·</span>
+          <span>middleware &amp; interceptors</span><span>·</span>
+          <span>composable go library</span><span>·</span>
+          <span>stdio transport</span><span>·</span>
+          <span>slsa level 3</span><span>·</span>
+          <span>apache 2.0</span><span>·</span>
+          <span>execute sql</span><span>·</span>
+          <span>browse catalogs &amp; schemas</span><span>·</span>
+          <span>describe tables</span><span>·</span>
+          <span>explain plans</span><span>·</span>
+          <span>read-only by default</span><span>·</span>
+          <span>row caps &amp; timeouts</span><span>·</span>
+          <span>multi-cluster</span><span>·</span>
+          <span>datahub semantic context</span><span>·</span>
+          <span>middleware &amp; interceptors</span><span>·</span>
+          <span>composable go library</span><span>·</span>
+          <span>stdio transport</span><span>·</span>
+          <span>slsa level 3</span><span>·</span>
+          <span>apache 2.0</span><span>·</span>
+        </div>
+      </div>
+    </aside>
+  </section>
+
+  {# FLAGSHIP / PRIMARY DEMO #}
+  <section class="section section--flagship" id="install">
+    <header class="section__head">
+      <p class="section__index">§ 01 / install · run</p>
+      <h2 class="section__title">
+        Two ways to <em class="serif">use it.</em>
+      </h2>
+      <p class="section__lede">
+        Run mcp-trino as a standalone server and wire it to Claude, Cursor, or any MCP client. Or import the Go packages and compose a custom MCP server with your own auth, tenancy, and audit logic. Same toolkit, two surfaces.
+      </p>
+    </header>
+
+    <div class="flagship">
+      <article class="flagship__card flagship__card--server">
+        <header class="flagship__head">
+          <p class="flagship__id">SRV-001 · go · <a class="flagship__url" href="server/">server docs ↗</a></p>
+          <h3 class="flagship__name">standalone server</h3>
+          <p class="flagship__tag">One binary. Wire to any MCP client over stdio.</p>
+        </header>
+        <div class="flagship__body">
+          <p>Install with <code>brew</code>, <code>go install</code>, Docker, or grab a release. Point it at any Trino cluster via environment variables. Read-only mode is the default; flip <code>TRINO_ALLOW_WRITE=true</code> when you mean it. Add multiple clusters through <code>TRINO_ADDITIONAL_CONNECTIONS</code> and let the AI pick.</p>
+        </div>
+        <div class="flagship__demo">
+          <div class="terminal">
+            <div class="terminal__bar">
+              <span></span><span></span><span></span>
+              <em>~ / mcp-trino</em>
+            </div>
+<pre class="terminal__body"><span class="t-prompt">$</span> brew install txn2/tap/mcp-trino
+
+<span class="t-prompt">$</span> claude mcp add trino \
+    -e TRINO_HOST=trino.example.com \
+    -e TRINO_USER=<span class="t-ok">$USER</span> \
+    -e TRINO_PASSWORD=<span class="t-ok">$PASS</span> \
+    -e TRINO_CATALOG=hive \
+    -- mcp-trino
+<span class="t-mute">  added: trino (read-only, 1000-row cap)</span>
+
+<span class="t-prompt">$</span> claude
+<span class="t-mute"># ask: show me top 10 customers by revenue</span></pre>
+          </div>
+        </div>
+        <footer class="flagship__foot">
+          <a class="btn btn--accent" href="server/installation/">install &amp; run →</a>
+          <a class="btn" href="server/configuration/">configuration ↗</a>
+          <a class="btn" href="https://github.com/txn2/mcp-trino" aria-label="mcp-trino source on GitHub">source ↗</a>
+        </footer>
+      </article>
+
+      <article class="flagship__card flagship__card--lib">
+        <header class="flagship__head">
+          <p class="flagship__id">LIB-002 · go · <a class="flagship__url" href="library/">library docs ↗</a></p>
+          <h3 class="flagship__name">go library</h3>
+          <p class="flagship__tag">Compose a custom MCP server. Bring your own auth.</p>
+        </header>
+        <div class="flagship__body">
+          <p><code>client.New</code> returns a configured Trino handle. <code>tools.NewToolkit</code> packages the SQL operations as MCP tools. Register them on your own <em class="serif">MCPServer</em>, then attach <code>Use</code> middleware, interceptors, and transformers for redaction or audit logging. No forking required.</p>
+        </div>
+        <div class="flagship__demo">
+          <div class="terminal">
+            <div class="terminal__bar">
+              <span></span><span></span><span></span>
+              <em>~ / library</em>
+            </div>
+<pre class="terminal__body"><span class="t-prompt">$</span> go get github.com/txn2/mcp-trino
+
+<span class="t-mute">// main.go</span>
+trino, _ := client.New(client.FromEnv())
+defer trino.Close()
+
+kit := tools.NewToolkit(trino,
+    tools.DefaultConfig(),
+)
+kit.RegisterAll(srv)
+kit.Use(authMiddleware)</pre>
+          </div>
+        </div>
+        <footer class="flagship__foot">
+          <a class="btn btn--accent" href="library/quickstart/">library quickstart →</a>
+          <a class="btn" href="library/extensibility/">extensibility ↗</a>
+          <a class="btn" href="https://pkg.go.dev/github.com/txn2/mcp-trino" aria-label="mcp-trino on pkg.go.dev">pkg.go.dev ↗</a>
+        </footer>
+      </article>
+    </div>
+  </section>
+
+  {# WHAT MCP-TRINO DOES / STACK LIST #}
+  <section class="section section--stack" id="features">
+    <header class="section__head">
+      <p class="section__index">§ 02 / what it does</p>
+      <h2 class="section__title">
+        Trino as <em class="serif">tools</em>. With context.
+      </h2>
+      <p class="section__lede">
+        mcp-trino exposes Trino as a small, deliberate set of MCP tools. Each tool maps to one operation, with strict input validation, row caps, query timeouts, and clear error contracts. An optional semantic layer adds business context to the technical schema.
+      </p>
+    </header>
+
+    <ol class="stack">
+      <li class="stack__row">
+        <span class="stack__num">001</span>
+        <div class="stack__main">
+          <a class="stack__name" href="server/tools/">query, browse, describe</a>
+          <p class="stack__desc"><code>trino_query</code> for read-only SQL (SELECT, SHOW, DESCRIBE), <code>trino_browse</code> for catalog hierarchy, <code>trino_describe_table</code> for columns and samples. The read-side surface that is always safe to expose.</p>
+        </div>
+        <span class="stack__tag">tools</span>
+        <span class="stack__year" aria-hidden="true">↗</span>
+      </li>
+      <li class="stack__row">
+        <span class="stack__num">002</span>
+        <div class="stack__main">
+          <a class="stack__name" href="reference/security/">read-only by default</a>
+          <p class="stack__desc"><code>trino_query</code> rejects non-read SQL. <code>trino_execute</code> exists for write ops but is opt-in. Row caps via <code>limit</code> param (max 10000), query timeouts via <code>timeout_seconds</code>, configurable defaults per deployment.</p>
+        </div>
+        <span class="stack__tag">safety</span>
+        <span class="stack__year" aria-hidden="true">↗</span>
+      </li>
+      <li class="stack__row">
+        <span class="stack__num">003</span>
+        <div class="stack__main">
+          <a class="stack__name" href="server/multi-server/">multi-cluster</a>
+          <p class="stack__desc">Configure several Trino clusters via <code>TRINO_ADDITIONAL_CONNECTIONS</code>. Query production, staging, and a local Docker Trino from the same MCP install. <code>trino_list_connections</code> lets the AI pick.</p>
+        </div>
+        <span class="stack__tag">runtime</span>
+        <span class="stack__year" aria-hidden="true">↗</span>
+      </li>
+      <li class="stack__row">
+        <span class="stack__num">004</span>
+        <div class="stack__main">
+          <a class="stack__name" href="semantic/">semantic context</a>
+          <p class="stack__desc">Surface business descriptions, ownership, data quality, and sensitivity markers from <a href="https://datahub.com">DataHub</a>, static YAML, or a custom provider. Tables stop being opaque names; the AI sees what they mean and who owns them.</p>
+        </div>
+        <span class="stack__tag">context</span>
+        <span class="stack__year" aria-hidden="true">↗</span>
+      </li>
+      <li class="stack__row">
+        <span class="stack__num">005</span>
+        <div class="stack__main">
+          <a class="stack__name" href="reference/tools-api/#trino_explain">explain plans</a>
+          <p class="stack__desc"><code>trino_explain</code> returns LOGICAL, DISTRIBUTED, IO, or VALIDATE plans. The AI can spot full scans, join orders, and data volumes before running the query, which keeps users out of trouble.</p>
+        </div>
+        <span class="stack__tag">analyze</span>
+        <span class="stack__year" aria-hidden="true">↗</span>
+      </li>
+      <li class="stack__row">
+        <span class="stack__num">006</span>
+        <div class="stack__main">
+          <a class="stack__name" href="library/extensibility/">middleware &amp; interceptors</a>
+          <p class="stack__desc">Wrap tool execution with <code>Use</code> middleware. Block or rewrite requests with interceptors. Redact, audit, or transform results post-execution. Compose enterprise concerns without forking the toolkit.</p>
+        </div>
+        <span class="stack__tag">compose</span>
+        <span class="stack__year" aria-hidden="true">↗</span>
+      </li>
+      <li class="stack__row stack__row--more">
+        <span class="stack__num">···</span>
+        <div class="stack__main">
+          <a class="stack__name" href="ecosystem/">part of the txn2 mcp data platform</a>
+          <p class="stack__desc">Sister projects: <a href="https://mcp-s3.txn2.com">mcp-s3</a> for object storage, <a href="https://mcp-datahub.txn2.com">mcp-datahub</a> for metadata, <a href="https://mcp-data-platform.txn2.com">mcp-data-platform</a> as the catalog.</p>
+        </div>
+        <span class="stack__tag">+ ecosystem</span>
+        <span class="stack__year" aria-hidden="true">↗</span>
+      </li>
+    </ol>
+  </section>
+
+  {# CODA / sister projects, context #}
+  <section class="section section--coda">
+    <div class="coda">
+      <p class="coda__kicker">// open source</p>
+      <p class="coda__big">
+        mcp-trino is one of several open source components by <a href="https://imti.co"><em class="serif">Craig Johnston</em></a>, sponsored by <a href="https://deasil.works"><em class="serif">Deasil Works, Inc.</em></a> and <a href="https://plexara.io"><em class="serif">Plexara</em></a>. Released under the Apache 2.0 license. Built to give AI assistants a safe, composable bridge to federated SQL.
+      </p>
+      <div class="coda__cta">
+        <a class="btn btn--big" href="https://github.com/txn2/mcp-trino">github.com/txn2/mcp-trino →</a>
+        <a class="btn" href="https://txn2.com">txn2.com ↗</a>
+        <a class="btn" href="https://pkg.go.dev/github.com/txn2/mcp-trino">pkg.go.dev ↗</a>
+        <a class="btn" href="https://github.com/txn2/mcp-trino/releases">releases ↗</a>
+      </div>
+    </div>
+  </section>
+
+</main>
+{% endblock %}
+
+{# Custom homepage footer replaces Material's. Class names prefixed
+   home-footer to avoid global collision with markdown class="footer". #}
+{% block footer %}
+<footer class="home-footer">
+  <div class="home-footer__rule" aria-hidden="true"></div>
+  <div class="home-footer__inner">
+    <div class="home-footer__col">
+      <p class="home-footer__label">about</p>
+      <p class="home-footer__text">A composable MCP server for Trino with optional semantic context, by <a href="https://imti.co">Craig Johnston</a>, part of the <a href="https://txn2.com">txn2</a> open source organization, sponsored by <a href="https://deasil.works">Deasil Works, Inc.</a> and <a href="https://plexara.io">Plexara</a>.</p>
+    </div>
+    <div class="home-footer__col">
+      <p class="home-footer__label">docs</p>
+      <ul class="home-footer__links">
+        <li><a href="server/installation/">installation</a></li>
+        <li><a href="server/configuration/">configuration</a></li>
+        <li><a href="server/tools/">tools</a></li>
+        <li><a href="library/">go library</a></li>
+        <li><a href="semantic/">semantic layer</a></li>
+        <li><a href="reference/tools-api/">reference</a></li>
+        <li><a href="support/troubleshooting/">troubleshooting</a></li>
+      </ul>
+    </div>
+    <div class="home-footer__col">
+      <p class="home-footer__label">interfaces</p>
+      <ul class="home-footer__links">
+        <li><a href="server/">standalone server</a></li>
+        <li><a href="library/">go library</a></li>
+        <li><a href="https://pkg.go.dev/github.com/txn2/mcp-trino">pkg.go.dev</a></li>
+        <li><a href="ecosystem/">mcp data platform</a></li>
+      </ul>
+    </div>
+    <div class="home-footer__col">
+      <p class="home-footer__label">code</p>
+      <ul class="home-footer__links">
+        <li><a href="https://github.com/txn2/mcp-trino">github.com/txn2/mcp-trino</a></li>
+        <li><a href="https://github.com/txn2/mcp-trino/releases">releases</a></li>
+        <li><a href="https://github.com/txn2/mcp-trino/issues">issues</a></li>
+        <li><a href="https://github.com/txn2/mcp-trino/blob/main/LICENSE">apache 2.0</a></li>
+      </ul>
+    </div>
+    <div class="home-footer__col home-footer__col--meta">
+      <p class="home-footer__label">txn2 / org</p>
+      <p class="home-footer__text"><a href="https://txn2.com">txn2.com&nbsp;↗</a><br>
+      <span class="home-footer__links__sub">canonical home of the txn2 open source organization</span></p>
+      <p class="home-footer__mono">apache 2.0 license <span class="dot">·</span> <span data-clock>·· UTC</span></p>
+    </div>
+  </div>
+  <div class="home-footer__base">
+    <p>© 2025-2026 · <a href="https://txn2.com">txn2</a> · mcp-trino released under Apache 2.0.</p>
+    <p class="home-footer__base__tag"><a href="https://txn2.com">design · txn2.com&nbsp;↗</a></p>
+  </div>
+</footer>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+  // Live UTC clock for rail/footer.
+  // Guarded against duplicate registration: Material's instant-nav rehydrates
+  // the body on every navigation back to the homepage; without this guard a
+  // fresh setInterval handle leaks each visit.
+  (function () {
+    if (window.__mcpTrinoClock) {
+      window.__mcpTrinoClock.tick();
+      return;
+    }
+    function tick() {
+      var now = new Date();
+      var hh = String(now.getUTCHours()).padStart(2, '0');
+      var mm = String(now.getUTCMinutes()).padStart(2, '0');
+      var stamp = hh + ':' + mm + ' UTC';
+      document.querySelectorAll('[data-clock]').forEach(function (el) {
+        el.textContent = stamp;
+      });
+    }
+    tick();
+    var handle = setInterval(tick, 30 * 1000);
+    window.__mcpTrinoClock = { tick: tick, handle: handle };
+  })();
+</script>
+{% endblock %}
