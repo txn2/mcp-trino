@@ -87,11 +87,14 @@ func (t *Toolkit) handleDescribeTable(
 	describeOutput := buildDescribeOutput(input, info)
 
 	if input.IncludeSample {
-		sampleOutput, err := t.formatSampleData(ctx, trinoClient, input)
+		sampleRows, sampleOutput, err := t.formatSampleData(ctx, trinoClient, input)
 		if err != nil {
 			return ErrorResult(err.Error()), nil, nil
 		}
 		output += sampleOutput
+		// Also surface the sample in the structured output so clients that render
+		// only structured content receive it (#574).
+		describeOutput.Sample = sampleRows
 	}
 
 	return &mcp.CallToolResult{
@@ -191,9 +194,13 @@ func formatBasicColumns(columns []client.ColumnDef) string {
 	return sb.String()
 }
 
+// formatSampleData fetches up to 5 sample rows and returns them both as raw rows
+// (for the structured output's Sample field, #574) and as a formatted text block.
+// A failed or empty sample is best-effort: it returns nil rows and an empty
+// string without an error.
 func (t *Toolkit) formatSampleData(
 	ctx context.Context, trinoClient TrinoClient, input DescribeTableInput,
-) (string, error) {
+) (rows []map[string]any, text string, err error) {
 	sampleSQL := fmt.Sprintf("SELECT * FROM %s.%s.%s LIMIT 5",
 		client.QuoteIdentifier(input.Catalog),
 		client.QuoteIdentifier(input.Schema),
@@ -203,14 +210,14 @@ func (t *Toolkit) formatSampleData(
 
 	sample, err := trinoClient.Query(ctx, sampleSQL, sampleOpts)
 	if err != nil || len(sample.Rows) == 0 {
-		return "", nil
+		return nil, "", nil
 	}
 
 	sampleJSON, err := json.MarshalIndent(sample.Rows, "", "  ")
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal sample: %w", err)
+		return nil, "", fmt.Errorf("failed to marshal sample: %w", err)
 	}
-	return "\n\n### Sample Data\n\n```json\n" + string(sampleJSON) + "\n```", nil
+	return sample.Rows, "\n\n### Sample Data\n\n```json\n" + string(sampleJSON) + "\n```", nil
 }
 
 // formatTableSemantics formats semantic metadata for a table.
