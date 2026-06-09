@@ -13,6 +13,10 @@ import (
 	"github.com/txn2/mcp-trino/pkg/tools"
 )
 
+// defaultLocalhost is the local host the config defaults to and treats as
+// non-SSL.
+const defaultLocalhost = "localhost"
+
 // ServerConfig is a unified configuration structure for file-based config.
 // It combines client, toolkit, and extensions configuration in a single file.
 // Suitable for Kubernetes ConfigMaps, Vault, or any file-based config source.
@@ -141,7 +145,7 @@ func (d Duration) Duration() time.Duration {
 func DefaultServerConfig() ServerConfig {
 	return ServerConfig{
 		Trino: TrinoConfig{
-			Host:    "localhost",
+			Host:    defaultLocalhost,
 			Port:    8080,
 			Catalog: "memory",
 			Schema:  "default",
@@ -203,7 +207,7 @@ func (c ServerConfig) ClientConfig() client.Config {
 	if c.Trino.Host != "" {
 		cfg.Host = c.Trino.Host
 		// Default to SSL for non-localhost hosts
-		if c.Trino.Host != "localhost" && c.Trino.Host != "127.0.0.1" {
+		if c.Trino.Host != defaultLocalhost && c.Trino.Host != "127.0.0.1" {
 			cfg.SSL = true
 			cfg.Port = 443
 		}

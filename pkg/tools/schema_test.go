@@ -105,6 +105,41 @@ func TestDescribeTableInput_IncludeSample(t *testing.T) {
 	}
 }
 
+// TestHandleDescribeTable_IncludeSamplePopulatesStructured verifies #574: with
+// include_sample=true the sample rows appear in the structured output (Sample
+// field), not only in the text block, so structured-only clients surface them.
+func TestHandleDescribeTable_IncludeSamplePopulatesStructured(t *testing.T) {
+	toolkit := NewToolkit(NewMockTrinoClient(), DefaultConfig())
+
+	_, structured, err := toolkit.handleDescribeTable(context.Background(), nil, DescribeTableInput{
+		Catalog: "memory", Schema: "default", Table: "users", IncludeSample: true,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	out, ok := structured.(*DescribeTableOutput)
+	if !ok {
+		t.Fatalf("structured output type = %T, want *DescribeTableOutput", structured)
+	}
+	if len(out.Sample) != 2 {
+		t.Fatalf("structured Sample len = %d, want 2", len(out.Sample))
+	}
+	if out.Sample[0]["name"] != "Alice" {
+		t.Errorf("Sample[0][name] = %v, want Alice", out.Sample[0]["name"])
+	}
+
+	// Without include_sample, the structured Sample stays empty.
+	_, structured2, err := toolkit.handleDescribeTable(context.Background(), nil, DescribeTableInput{
+		Catalog: "memory", Schema: "default", Table: "users",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if out2, ok := structured2.(*DescribeTableOutput); !ok || len(out2.Sample) != 0 {
+		t.Errorf("Sample without include_sample = %v (type %T), want empty", structured2, structured2)
+	}
+}
+
 // --- Semantic Formatting Tests ---
 
 func TestFormatDescription(t *testing.T) {
