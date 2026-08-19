@@ -38,3 +38,6 @@ go.work.sum
 /mcp-trino
 
 NOTES_*
+# govulncheck report, written by `make security` (removed on success)
+govulncheck-report.json
+codeql-results.sarif

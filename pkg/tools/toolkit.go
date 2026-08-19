@@ -66,6 +66,9 @@ type Toolkit struct {
 	// Icon overrides (toolkit-level)
 	icons map[ToolName][]mcp.Icon
 
+	// Output schema overrides (toolkit-level)
+	outputSchemas map[ToolName]any
+
 	// Internal tracking
 	registeredTools map[ToolName]bool
 }
@@ -106,6 +109,7 @@ func newBaseToolkit(cfg Config) *Toolkit {
 		descriptions:    make(map[ToolName]string),
 		annotations:     make(map[ToolName]*mcp.ToolAnnotations),
 		icons:           make(map[ToolName][]mcp.Icon),
+		outputSchemas:   make(map[ToolName]any),
 		registeredTools: make(map[ToolName]bool),
 	}
 }

@@ -43,11 +43,12 @@ func (t *Toolkit) registerBrowseTool(server *mcp.Server, cfg *toolConfig) {
 	wrappedHandler := t.wrapHandler(ToolBrowse, baseHandler, cfg)
 
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        string(ToolBrowse),
-		Title:       t.getTitle(ToolBrowse, cfg),
-		Description: t.getDescription(ToolBrowse, cfg),
-		Annotations: t.getAnnotations(ToolBrowse, cfg),
-		Icons:       t.getIcons(ToolBrowse, cfg),
+		Name:         string(ToolBrowse),
+		Title:        t.getTitle(ToolBrowse, cfg),
+		Description:  t.getDescription(ToolBrowse, cfg),
+		Annotations:  t.getAnnotations(ToolBrowse, cfg),
+		Icons:        t.getIcons(ToolBrowse, cfg),
+		OutputSchema: t.getOutputSchema(ToolBrowse, cfg),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input BrowseInput) (*mcp.CallToolResult, *BrowseOutput, error) {
 		result, out, err := wrappedHandler(ctx, req, input)
 		if typed, ok := out.(*BrowseOutput); ok {

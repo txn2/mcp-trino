@@ -95,11 +95,21 @@ jobs:
 
       - name: Run Gosec Security Scanner
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@v2.22.0
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
           gosec ./...
 
+      # Runs the same two commands as `make security`, rather than
+      # golang/govulncheck-action. The action has no way to accept a finding,
+      # so the moment an advisory with no patched release is accepted in
+      # .govulncheck-allow.txt — the whole point of that file — `make verify`
+      # would go green here and CI would stay red forever. The allowlist has to
+      # be honoured on both sides or it is not an allowlist.
       - name: Run govulncheck
-        uses: golang/govulncheck-action@032d45514ae346b1db93c04b0c90b841c370344f # v1.1.0
-        with:
-          go-version-file: go.mod
-          repo-checkout: false
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          govulncheck -format json ./... > govulncheck-report.json || status=$?
+          if [ "${status:-0}" -ne 0 ] && [ "${status:-0}" -ne 3 ]; then
+            echo "ERROR: govulncheck failed to run (exit ${status})"
+            exit 1
+          fi
+          python3 scripts/govulncheck-gate.py govulncheck-report.json

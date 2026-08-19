@@ -49,11 +49,12 @@ func (t *Toolkit) registerDescribeTableTool(server *mcp.Server, cfg *toolConfig)
 
 	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        string(ToolDescribeTable),
-		Title:       t.getTitle(ToolDescribeTable, cfg),
-		Description: t.getDescription(ToolDescribeTable, cfg),
-		Annotations: t.getAnnotations(ToolDescribeTable, cfg),
-		Icons:       t.getIcons(ToolDescribeTable, cfg),
+		Name:         string(ToolDescribeTable),
+		Title:        t.getTitle(ToolDescribeTable, cfg),
+		Description:  t.getDescription(ToolDescribeTable, cfg),
+		Annotations:  t.getAnnotations(ToolDescribeTable, cfg),
+		Icons:        t.getIcons(ToolDescribeTable, cfg),
+		OutputSchema: t.getOutputSchema(ToolDescribeTable, cfg),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input DescribeTableInput) (*mcp.CallToolResult, *DescribeTableOutput, error) {
 		result, out, err := wrappedHandler(ctx, req, input)
 		if typed, ok := out.(*DescribeTableOutput); ok {

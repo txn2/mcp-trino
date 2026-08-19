@@ -101,11 +101,12 @@ func WithIcons(icons map[ToolName][]mcp.Icon) ToolkitOption {
 
 // toolConfig holds per-registration configuration for a tool.
 type toolConfig struct {
-	middlewares []ToolMiddleware
-	title       *string
-	description *string
-	annotations *mcp.ToolAnnotations
-	icons       []mcp.Icon
+	middlewares  []ToolMiddleware
+	title        *string
+	description  *string
+	annotations  *mcp.ToolAnnotations
+	icons        []mcp.Icon
+	outputSchema any
 }
 
 // ToolOption configures a single tool during registration.
@@ -229,5 +230,51 @@ func WithSemanticProvider(provider semantic.Provider) ToolkitOption {
 func WithSemanticCache(cfg semantic.CacheConfig) ToolkitOption {
 	return func(t *Toolkit) {
 		t.semanticCacheConfig = &cfg
+	}
+}
+
+// WithOutputSchemas sets custom output schemas for multiple tools at the toolkit
+// level. These override the default schemas but are themselves overridden by
+// per-registration WithOutputSchema calls.
+//
+// A schema must be a value that JSON-marshals to a JSON Schema object with
+// "type": "object" — typically a map[string]any or json.RawMessage.
+//
+// Declare every slice-backed property as admitting null, as the example below
+// does for "rows". A nil Go slice marshals to null, and the SDK validates
+// structured output even for error results, so a bare "array" turns every
+// failed call into a protocol error that discards the tool's own message.
+//
+// Example:
+//
+//	toolkit := tools.NewToolkit(client, cfg,
+//	    tools.WithOutputSchemas(map[tools.ToolName]any{
+//	        tools.ToolQuery: map[string]any{
+//	            "type": "object",
+//	            "properties": map[string]any{
+//	                "rows": map[string]any{"type": []string{"array", "null"}},
+//	            },
+//	        },
+//	    }),
+//	)
+func WithOutputSchemas(schemas map[ToolName]any) ToolkitOption {
+	return func(t *Toolkit) {
+		for name, schema := range schemas {
+			t.outputSchemas[name] = schema
+		}
+	}
+}
+
+// WithOutputSchema sets a custom output schema for a single tool registration.
+// Use with RegisterWith for per-registration output schema override.
+//
+// Example:
+//
+//	toolkit.RegisterWith(server, tools.ToolQuery,
+//	    tools.WithOutputSchema(map[string]any{"type": "object"}),
+//	)
+func WithOutputSchema(schema any) ToolOption {
+	return func(tc *toolConfig) {
+		tc.outputSchema = schema
 	}
 }

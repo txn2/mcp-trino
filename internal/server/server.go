@@ -113,11 +113,13 @@ func New(opts Options) (*mcp.Server, *multiserver.Manager, error) {
 				WatchInterval: 30 * time.Second, // Enable hot-reload
 			})
 			if err != nil {
-				//nolint:gosec // G706: value from operator-controlled env var
+				// #nosec G706 -- semanticFile is SEMANTIC_FILE, set by the operator
+				// running this process, not by a request. Logging it back is the
+				// point: the operator needs to see which path failed to load.
 				log.Printf("Warning: Failed to load semantic file %s: %v", semanticFile, err)
 			} else {
 				semanticProvider = provider
-				//nolint:gosec // G706: value from operator-controlled env var
+				// #nosec G706 -- operator-controlled env var; see above.
 				log.Printf("Loaded semantic metadata from %s", semanticFile)
 			}
 		}

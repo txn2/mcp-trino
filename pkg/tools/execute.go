@@ -52,11 +52,12 @@ func (t *Toolkit) registerExecuteTool(server *mcp.Server, cfg *toolConfig) {
 
 	// Register with MCP using typed handler that calls wrapped handler
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        string(ToolExecute),
-		Title:       t.getTitle(ToolExecute, cfg),
-		Description: t.getDescription(ToolExecute, cfg),
-		Annotations: t.getAnnotations(ToolExecute, cfg),
-		Icons:       t.getIcons(ToolExecute, cfg),
+		Name:         string(ToolExecute),
+		Title:        t.getTitle(ToolExecute, cfg),
+		Description:  t.getDescription(ToolExecute, cfg),
+		Annotations:  t.getAnnotations(ToolExecute, cfg),
+		Icons:        t.getIcons(ToolExecute, cfg),
+		OutputSchema: t.getOutputSchema(ToolExecute, cfg),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input ExecuteInput) (*mcp.CallToolResult, *QueryOutput, error) {
 		result, out, err := wrappedHandler(ctx, req, input)
 		if typed, ok := out.(*QueryOutput); ok {

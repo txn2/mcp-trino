@@ -73,11 +73,12 @@ func (t *Toolkit) registerQueryTool(server *mcp.Server, cfg *toolConfig) {
 
 	// Register with MCP using typed handler that calls wrapped handler
 	mcp.AddTool(server, &mcp.Tool{
-		Name:        string(ToolQuery),
-		Title:       t.getTitle(ToolQuery, cfg),
-		Description: t.getDescription(ToolQuery, cfg),
-		Annotations: t.getAnnotations(ToolQuery, cfg),
-		Icons:       t.getIcons(ToolQuery, cfg),
+		Name:         string(ToolQuery),
+		Title:        t.getTitle(ToolQuery, cfg),
+		Description:  t.getDescription(ToolQuery, cfg),
+		Annotations:  t.getAnnotations(ToolQuery, cfg),
+		Icons:        t.getIcons(ToolQuery, cfg),
+		OutputSchema: t.getOutputSchema(ToolQuery, cfg),
 	}, func(ctx context.Context, req *mcp.CallToolRequest, input QueryInput) (*mcp.CallToolResult, *QueryOutput, error) {
 		result, out, err := wrappedHandler(ctx, req, input)
 		if typed, ok := out.(*QueryOutput); ok {
