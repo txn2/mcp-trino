@@ -20,6 +20,8 @@ Annotations can be overridden at the toolkit or per-registration level. See [Ext
 
 All tools return typed structured output alongside the human-readable text response. This enables programmatic access to results without parsing text. Output types are documented in each tool's section below.
 
+Each tool advertises an explicit JSON Schema for its structured output. The schemas are open — no top-level `required` list and no `additionalProperties: false` — so a host that composes mcp-trino and adds keys to `structuredContent` still produces results that validate. Schemas can be overridden at the toolkit or per-registration level. See [Extensibility: Advertised Output Schemas](../library/extensibility.md#advertised-output-schemas).
+
 ---
 
 ## trino_query

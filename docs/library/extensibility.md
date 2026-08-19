@@ -550,6 +550,61 @@ Tool handlers return `(*mcp.CallToolResult, *OutputType, error)`. The second ret
 // }
 ```
 
+### Advertised Output Schemas
+
+Every tool advertises an explicit JSON Schema (2020-12) for its structured output. The schemas are declared by hand rather than inferred from the Go output structs, and they are deliberately **open**: no top-level `required` list and no `additionalProperties: false`.
+
+That matters when mcp-trino is composed into a larger server. A host that adds keys to `structuredContent` after the handler returns — an error envelope, a call reference, a trace ID — produces a result that still validates against what the tool advertised, so a schema-validating client does not reject it. Properties backed by a Go slice admit `null` as well as an array, because a nil slice marshals to `null`.
+
+Read the built-in default for any tool:
+
+```go
+schema := tools.DefaultOutputSchema(tools.ToolQuery)
+// map[string]any{"type": "object", "properties": {...}}
+```
+
+#### Toolkit-Level Overrides
+
+Set output schemas for multiple tools at construction time with `WithOutputSchemas`:
+
+```go
+toolkit := tools.NewToolkit(trinoClient, cfg,
+    tools.WithOutputSchemas(map[tools.ToolName]any{
+        tools.ToolQuery: map[string]any{
+            "type": "object",
+            "properties": map[string]any{
+                "rows":       map[string]any{"type": []string{"array", "null"}},
+                "trace_id":   map[string]any{"type": "string"},
+            },
+        },
+    }),
+)
+```
+
+#### Per-Registration Overrides
+
+Set the output schema for a single tool at registration time with `WithOutputSchema` via `RegisterWith`:
+
+```go
+toolkit.RegisterWith(server, tools.ToolQuery,
+    tools.WithOutputSchema(map[string]any{"type": "object"}),
+)
+```
+
+A schema may be any value that JSON-marshals to a JSON Schema object with `"type": "object"` — a `map[string]any`, a `json.RawMessage`, or a `*jsonschema.Schema`. The MCP SDK validates every result against the schema the tool advertises, so an override narrower than what the handler emits turns those calls into protocol errors that discard the result.
+
+Error results are the trap here, not successful ones. When a handler returns an error result with no typed output, the SDK validates the zero value of the output struct — whose slice fields are all `null`. An override that declares `"rows"` as a bare `"array"` therefore breaks *every* failed call, deterministically, while successful calls keep working. Declare slice-backed properties as `[]string{"array", "null"}`.
+
+#### Priority Chain
+
+```
+per-registration (WithOutputSchema)
+        ↓ fallback
+toolkit-level (WithOutputSchemas)
+        ↓ fallback
+built-in default (DefaultOutputSchema)
+```
+
 ---
 
 ## Built-in Extensions
