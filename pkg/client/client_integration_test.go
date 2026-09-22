@@ -4,6 +4,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strconv"
 	"testing"
@@ -421,4 +422,87 @@ func TestIntegration_Query_ExactValues(t *testing.T) {
 	if got := raw.Rows[0]["amount"]; got != "1.50" {
 		t.Errorf("raw decimal: got %#v, want \"1.50\"", got)
 	}
+}
+
+// TestIntegration_QueryStream covers #69: QueryStream reads a result a row at
+// a time, with no cap unless a limit is given, and stops when ctx is cancelled.
+func TestIntegration_QueryStream(t *testing.T) {
+	client := setupIntegrationClient(t)
+	defer client.Close()
+
+	ctx := context.Background()
+	count, err := client.Query(ctx, "SELECT count(*) AS n FROM tpch.tiny.lineitem", DefaultQueryOptions())
+	if err != nil {
+		t.Fatalf("count query failed: %v", err)
+	}
+	want, ok := count.Rows[0]["n"].(int64)
+	if !ok || want <= 1000 {
+		t.Fatalf("expected more rows than Query's default limit, got %#v", count.Rows[0]["n"])
+	}
+
+	t.Run("no limit reads every row", func(t *testing.T) {
+		cur, err := client.QueryStream(ctx, "SELECT orderkey, linenumber FROM tpch.tiny.lineitem", QueryOptions{})
+		if err != nil {
+			t.Fatalf("QueryStream failed: %v", err)
+		}
+		defer func() { _ = cur.Close() }()
+
+		if len(cur.Columns()) != 2 {
+			t.Fatalf("columns before Next: got %+v", cur.Columns())
+		}
+		var n int64
+		for cur.Next() {
+			n++
+		}
+		if err := cur.Err(); err != nil {
+			t.Fatalf("iteration failed: %v", err)
+		}
+		if n != want || cur.Stats().Truncated {
+			t.Errorf("got %d rows (truncated %v), want %d untruncated", n, cur.Stats().Truncated, want)
+		}
+	})
+
+	t.Run("limit truncates", func(t *testing.T) {
+		cur, err := client.QueryStream(ctx, "SELECT orderkey FROM tpch.tiny.lineitem", QueryOptions{Limit: 10})
+		if err != nil {
+			t.Fatalf("QueryStream failed: %v", err)
+		}
+		defer func() { _ = cur.Close() }()
+
+		n := 0
+		for cur.Next() {
+			n++
+		}
+		if n != 10 || !cur.Stats().Truncated || cur.Err() != nil {
+			t.Errorf("got %d rows, truncated %v, err %v; want 10, true, nil", n, cur.Stats().Truncated, cur.Err())
+		}
+	})
+
+	t.Run("cancelling ctx ends the stream", func(t *testing.T) {
+		cctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		cur, err := client.QueryStream(cctx, "SELECT orderkey FROM tpch.sf1.lineitem", QueryOptions{})
+		if err != nil {
+			t.Fatalf("QueryStream failed: %v", err)
+		}
+		defer func() { _ = cur.Close() }()
+
+		if !cur.Next() {
+			t.Fatalf("expected a first row, err %v", cur.Err())
+		}
+		cancel()
+
+		n := 1
+		for cur.Next() {
+			n++
+		}
+		if !errors.Is(cur.Err(), context.Canceled) {
+			t.Errorf("Err after cancel: got %v, want context.Canceled", cur.Err())
+		}
+		// tpch.sf1.lineitem holds about six million rows.
+		if n >= 1_000_000 {
+			t.Errorf("read %d rows after cancelling; the stream did not stop", n)
+		}
+		t.Logf("read %d rows before the cancelled stream ended", n)
+	})
 }

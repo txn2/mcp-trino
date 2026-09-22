@@ -147,117 +147,31 @@ func (p *queryProgressUpdater) QueryID() string {
 	return p.queryID
 }
 
-// Query executes a SQL query and returns the results.
+// Query executes a SQL query and returns the results, buffered. It reads at
+// most opts.Limit rows (1000 when unset); use QueryStream for a result too
+// large to hold in memory.
 func (c *Client) Query(ctx context.Context, sqlQuery string, opts QueryOptions) (*QueryResult, error) {
-	start := time.Now()
-
-	// Apply timeout
-	timeout := c.config.Timeout
-	if opts.Timeout > 0 {
-		timeout = opts.Timeout
-	}
-	ctx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
-
-	// Apply limit if not already in query
-	limit := opts.Limit
-	if limit <= 0 {
-		limit = 1000
+	if opts.Limit <= 0 {
+		opts.Limit = 1000
 	}
 
-	// Set up progress updater to capture query ID
-	progressUpdater := &queryProgressUpdater{}
-
-	// Execute query with progress callback to capture query ID.
-	// The progress callback is a Trino-specific feature. If the driver doesn't
-	// support it (e.g., when using sqlmock for testing), fall back to a simple query.
-	rows, err := c.db.QueryContext(ctx, sqlQuery,
-		sql.Named("X-Trino-Progress-Callback", trino.ProgressUpdater(progressUpdater)),
-		sql.Named("X-Trino-Progress-Callback-Period", 100*time.Millisecond),
-	)
+	cur, err := c.QueryStream(ctx, sqlQuery, opts)
 	if err != nil {
-		// Check if the error is due to unsupported argument type (e.g., when using sqlmock).
-		// In that case, retry without the progress callback.
-		if strings.Contains(err.Error(), "unsupported type") {
-			rows, err = c.db.QueryContext(ctx, sqlQuery)
-			if err != nil {
-				return nil, fmt.Errorf("query failed: %w", err)
-			}
-			progressUpdater = nil // Clear so we don't try to get QueryID
-		} else {
-			return nil, fmt.Errorf("query failed: %w", err)
-		}
+		return nil, err
 	}
-	defer func() { _ = rows.Close() }()
+	defer func() { _ = cur.Close() }()
 
-	// Get column info
-	columnTypes, err := rows.ColumnTypes()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get column types: %w", err)
-	}
-
-	columns := make([]ColumnInfo, len(columnTypes))
-	for i, ct := range columnTypes {
-		nullable, _ := ct.Nullable()
-		columns[i] = ColumnInfo{
-			Name:     ct.Name(),
-			Type:     ct.DatabaseTypeName(),
-			Nullable: nullable,
-		}
-		if precision, scale, ok := ct.DecimalSize(); ok {
-			columns[i].Precision, columns[i].Scale = precision, scale
-		}
-	}
-
-	// Scan rows
 	result := &QueryResult{
-		Columns: columns,
+		Columns: cur.Columns(),
 		Rows:    make([]map[string]any, 0),
 	}
-
-	rowCount := 0
-	truncated := false
-
-	for rows.Next() {
-		if rowCount >= limit {
-			truncated = true
-			break
-		}
-
-		// Create scan destinations
-		values := make([]any, len(columns))
-		valuePtrs := make([]any, len(columns))
-		for i := range values {
-			valuePtrs[i] = &values[i]
-		}
-
-		if err := rows.Scan(valuePtrs...); err != nil {
-			return nil, fmt.Errorf("failed to scan row: %w", err)
-		}
-
-		// Convert to map
-		row := make(map[string]any)
-		for i, col := range columns {
-			row[col.Name] = resultValue(values[i], opts.RawValues)
-		}
-		result.Rows = append(result.Rows, row)
-		rowCount++
+	for cur.Next() {
+		result.Rows = append(result.Rows, cur.Row())
 	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("row iteration error: %w", err)
+	if err := cur.Err(); err != nil {
+		return nil, err
 	}
-
-	stats := QueryStats{
-		RowCount:     rowCount,
-		DurationMs:   time.Since(start).Milliseconds(),
-		Truncated:    truncated,
-		LimitApplied: limit,
-	}
-	if progressUpdater != nil {
-		stats.QueryID = progressUpdater.QueryID()
-	}
-	result.Stats = stats
+	result.Stats = cur.Stats()
 
 	return result, nil
 }
