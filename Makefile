@@ -268,15 +268,20 @@ verify-gates: ## Everything verify runs except the sentinel write (used by verif
 	@echo "=== All checks passed ==="
 
 verify-sentinel: ## Write the pre-commit gate sentinel (run only after the gates pass)
-	@# The short SHA-256 of the working-tree diff (staged + unstaged) at the moment
-	@# the gates passed. The pre-commit review gate compares this hash to the live
-	@# diff at commit time — if they match, this run is proof the checks passed on
-	@# the exact code being committed. Hash computation MUST stay byte-identical to
-	@# compute_diff_hash() in ~/.claude/hooks/review-gate.sh, or the gate rejects
-	@# every commit.
+	@# The id of a tree built from the working copy at the moment the gates
+	@# passed. The pre-commit review gate recomputes it at commit time — if they
+	@# match, this run is proof the checks passed on the exact code being
+	@# committed. It is a tree id rather than a hash of `git diff` because a diff
+	@# does not mention an untracked file; a tree built with `git add -A` does.
+	@# Hash computation MUST stay byte-identical to compute_diff_hash() in
+	@# ~/.claude/hooks/review-gate.sh, or the gate rejects every commit.
 	@mkdir -p .claude
-	@{ git diff --cached HEAD 2>/dev/null; git diff 2>/dev/null; } \
-		| shasum -a 256 | cut -c1-16 > $(VERIFY_SENTINEL)
+	@dir=$$(mktemp -d); \
+		git read-tree --index-output=$$dir/index HEAD 2>/dev/null; \
+		GIT_INDEX_FILE=$$dir/index git add -A 2>/dev/null; \
+		GIT_INDEX_FILE=$$dir/index git write-tree 2>/dev/null \
+			| cut -c1-16 > $(VERIFY_SENTINEL); \
+		rm -rf $$dir
 	@echo "Wrote $(VERIFY_SENTINEL) (gate sentinel)"
 
 verify-release: ## Full verify plus CodeQL and mutation testing (pre-tag)

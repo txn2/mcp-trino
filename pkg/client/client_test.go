@@ -170,6 +170,11 @@ func TestConvertValue(t *testing.T) {
 			input:    time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC),
 			expected: "2024-01-15T10:30:00Z",
 		},
+		{
+			name:     "time value keeps fractional seconds",
+			input:    time.Date(2024, 5, 1, 12, 34, 56, 789123000, time.UTC),
+			expected: "2024-05-01T12:34:56.789123Z",
+		},
 	}
 
 	for _, tt := range tests {

@@ -535,3 +535,62 @@ func TestNewWithDB(t *testing.T) {
 		t.Errorf("expected Catalog 'testcatalog', got %q", returnedCfg.Catalog)
 	}
 }
+
+func TestClient_Query_RawValuesAndPrecision(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("failed to create mock: %v", err)
+	}
+	defer db.Close()
+	client := NewWithDB(db, Config{Host: "localhost", Port: 8080, User: "test", Timeout: 30 * time.Second})
+
+	ts := time.Date(2024, 5, 1, 12, 34, 56, 789123000, time.UTC)
+	newRows := func() *sqlmock.Rows {
+		return mock.NewRowsWithColumnDefinition(
+			mock.NewColumn("amount").OfType("DECIMAL", "").WithPrecisionAndScale(12, 2),
+			mock.NewColumn("at").OfType("TIMESTAMP", ts).WithPrecisionAndScale(6, 0),
+			mock.NewColumn("blob").OfType("VARBINARY", []byte{}),
+		).AddRow("12.34", ts, []byte("123"))
+	}
+
+	t.Run("raw values are the driver's own", func(t *testing.T) {
+		mock.ExpectQuery("SELECT").WillReturnRows(newRows())
+		result, err := client.Query(context.Background(), "SELECT 1", QueryOptions{RawValues: true})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		row := result.Rows[0]
+		if got, ok := row["at"].(time.Time); !ok || !got.Equal(ts) {
+			t.Errorf("expected time.Time %v, got %#v", ts, row["at"])
+		}
+		if got, ok := row["blob"].([]byte); !ok || string(got) != "123" {
+			t.Errorf("expected []byte 123, got %#v", row["blob"])
+		}
+		if result.Columns[0].Precision != 12 || result.Columns[0].Scale != 2 {
+			t.Errorf("expected decimal(12,2), got precision %d scale %d",
+				result.Columns[0].Precision, result.Columns[0].Scale)
+		}
+		if result.Columns[1].Precision != 6 {
+			t.Errorf("expected timestamp(6), got precision %d", result.Columns[1].Precision)
+		}
+	})
+
+	t.Run("without raw values the JSON-friendly forms are kept", func(t *testing.T) {
+		mock.ExpectQuery("SELECT").WillReturnRows(newRows())
+		result, err := client.Query(context.Background(), "SELECT 1", DefaultQueryOptions())
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		row := result.Rows[0]
+		if row["at"] != "2024-05-01T12:34:56.789123Z" {
+			t.Errorf("expected RFC3339Nano text, got %#v", row["at"])
+		}
+		if row["blob"] != float64(123) {
+			t.Errorf("expected the JSON-parsed bytes, got %#v", row["blob"])
+		}
+	})
+
+	if err := mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("unmet expectations: %v", err)
+	}
+}

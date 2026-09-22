@@ -78,6 +78,13 @@ type ColumnInfo struct {
 	Name     string `json:"name"`
 	Type     string `json:"type"`
 	Nullable bool   `json:"nullable"`
+	// Precision is a DECIMAL's precision, or the fractional-second digits of a
+	// TIME or TIMESTAMP, when the type declares one. Type is the bare name
+	// ("DECIMAL", "TIMESTAMP") for a scalar, so without this a decimal(12,2)
+	// and a decimal(38,0) are indistinguishable.
+	Precision int64 `json:"precision,omitempty"`
+	// Scale is a DECIMAL's scale.
+	Scale int64 `json:"scale,omitempty"`
 }
 
 // QueryStats contains execution statistics.
@@ -102,6 +109,13 @@ type QueryOptions struct {
 
 	// Schema overrides the default schema for this query.
 	Schema string
+
+	// RawValues returns each value as the driver produced it -- time.Time for
+	// a date, time or timestamp, []byte for a varbinary -- rather than the
+	// JSON-friendly form the result otherwise carries. A caller writing the
+	// values to a typed file needs them exact: the JSON-friendly form of a
+	// varbinary is a guess at what its bytes mean.
+	RawValues bool
 }
 
 // DefaultQueryOptions returns default query options.
@@ -190,6 +204,9 @@ func (c *Client) Query(ctx context.Context, sqlQuery string, opts QueryOptions) 
 			Type:     ct.DatabaseTypeName(),
 			Nullable: nullable,
 		}
+		if precision, scale, ok := ct.DecimalSize(); ok {
+			columns[i].Precision, columns[i].Scale = precision, scale
+		}
 	}
 
 	// Scan rows
@@ -221,7 +238,7 @@ func (c *Client) Query(ctx context.Context, sqlQuery string, opts QueryOptions) 
 		// Convert to map
 		row := make(map[string]any)
 		for i, col := range columns {
-			row[col.Name] = convertValue(values[i])
+			row[col.Name] = resultValue(values[i], opts.RawValues)
 		}
 		result.Rows = append(result.Rows, row)
 		rowCount++
@@ -440,6 +457,15 @@ func QuoteIdentifier(name string) string {
 	return `"` + escaped + `"`
 }
 
+// resultValue is the value a result row carries: the driver's own when the
+// caller asked for raw values, the JSON-friendly form otherwise.
+func resultValue(v any, raw bool) any {
+	if raw {
+		return v
+	}
+	return convertValue(v)
+}
+
 // convertValue converts database values to JSON-friendly types.
 func convertValue(v any) any {
 	if v == nil {
@@ -455,7 +481,9 @@ func convertValue(v any) any {
 		}
 		return string(val)
 	case time.Time:
-		return val.Format(time.RFC3339)
+		// RFC3339Nano writes the fractional seconds a TIMESTAMP(3) or (6)
+		// carries, and writes none for a value that has none.
+		return val.Format(time.RFC3339Nano)
 	default:
 		return val
 	}

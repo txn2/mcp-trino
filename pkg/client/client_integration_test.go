@@ -164,7 +164,7 @@ func TestIntegration_Query_SimpleSelect(t *testing.T) {
 		t.Errorf("Expected second column name 'greeting', got %s", result.Columns[1].Name)
 	}
 
-	t.Logf("Query result: %d columns, %d rows, took %v", len(result.Columns), len(result.Rows), result.Stats.Duration)
+	t.Logf("Query result: %d columns, %d rows, took %dms", len(result.Columns), len(result.Rows), result.Stats.DurationMs)
 }
 
 func TestIntegration_Query_WithLimit(t *testing.T) {
@@ -367,5 +367,58 @@ func TestIntegration_QueryTimeout(t *testing.T) {
 		t.Logf("Query with tiny timeout returned error (expected): %v", err)
 	} else {
 		t.Log("Query with tiny timeout succeeded (also acceptable if very fast)")
+	}
+}
+
+// TestIntegration_Query_ExactValues covers #94: a query's values and declared
+// types reach the caller exactly, on the rendered path and with RawValues.
+func TestIntegration_Query_ExactValues(t *testing.T) {
+	client := setupIntegrationClient(t)
+	defer client.Close()
+
+	ctx := context.Background()
+	const sql = `SELECT TIMESTAMP '2024-05-01 12:34:56.789123' AS ts,
+		CAST(1.5 AS DECIMAL(12,2)) AS amount,
+		X'0001FF' AS blob`
+	// The driver places a zoneless TIMESTAMP in the process's local zone.
+	wantTS := time.Date(2024, 5, 1, 12, 34, 56, 789123000, time.Local)
+
+	rendered, err := client.Query(ctx, sql, DefaultQueryOptions())
+	if err != nil {
+		t.Fatalf("rendered query failed: %v", err)
+	}
+	raw, err := client.Query(ctx, sql, QueryOptions{Limit: 1, RawValues: true})
+	if err != nil {
+		t.Fatalf("raw query failed: %v", err)
+	}
+
+	for _, r := range []*QueryResult{rendered, raw} {
+		if len(r.Columns) != 3 || len(r.Rows) != 1 {
+			t.Fatalf("got %d columns and %d rows, want 3 and 1", len(r.Columns), len(r.Rows))
+		}
+		ts, amount := r.Columns[0], r.Columns[1]
+		if ts.Precision != 6 {
+			t.Errorf("timestamp precision: got %d, want 6", ts.Precision)
+		}
+		if amount.Precision != 12 || amount.Scale != 2 {
+			t.Errorf("decimal: got (%d,%d), want (12,2)", amount.Precision, amount.Scale)
+		}
+	}
+
+	if got := rendered.Rows[0]["ts"]; got != wantTS.Format(time.RFC3339Nano) {
+		t.Errorf("rendered timestamp: got %#v", got)
+	}
+	if got := rendered.Rows[0]["blob"]; got != "\x00\x01\xff" {
+		t.Errorf("rendered varbinary: got %#v, want the text form", got)
+	}
+
+	if got, ok := raw.Rows[0]["ts"].(time.Time); !ok || !got.Equal(wantTS) {
+		t.Errorf("raw timestamp: got %#v, want %v", raw.Rows[0]["ts"], wantTS)
+	}
+	if got, ok := raw.Rows[0]["blob"].([]byte); !ok || string(got) != "\x00\x01\xff" {
+		t.Errorf("raw varbinary: got %#v, want []byte{0x00, 0x01, 0xff}", raw.Rows[0]["blob"])
+	}
+	if got := raw.Rows[0]["amount"]; got != "1.50" {
+		t.Errorf("raw decimal: got %#v, want \"1.50\"", got)
 	}
 }
