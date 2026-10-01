@@ -351,10 +351,11 @@ func TestConfig_DSN_DriverParse(t *testing.T) {
 			config: Config{Host: "::1", Port: 8080, User: "admin", Source: "test"},
 		},
 		{
+			// SSL is set because trino-go-client rejects a password over plain http.
 			name: "values needing escapes",
 			config: Config{
-				Host: "localhost", Port: 8080, User: "admin", Password: "p@ss/w&rd?#",
-				Source: "my app", Catalog: "a&b", Schema: "c=d",
+				Host: "localhost", Port: 8443, User: "admin", Password: "p@ss/w&rd?#",
+				SSL: true, SSLVerify: true, Source: "my app", Catalog: "a&b", Schema: "c=d",
 			},
 			wantCatalog: "a&b",
 			wantSchema:  "c=d",
@@ -474,6 +475,17 @@ func TestConfig_Validate(t *testing.T) {
 				Port: 1,
 				User: "admin",
 			},
+			wantError: false,
+		},
+		{
+			name:      "password without SSL",
+			config:    Config{Host: "localhost", Port: 8080, User: "admin", Password: "secret"},
+			wantError: true,
+			errMsg:    "password authentication requires SSL (set SSL or TRINO_SSL=true)",
+		},
+		{
+			name:      "password with SSL",
+			config:    Config{Host: "trino.example.com", Port: 443, User: "admin", Password: "secret", SSL: true},
 			wantError: false,
 		},
 	}

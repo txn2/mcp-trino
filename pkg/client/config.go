@@ -186,5 +186,10 @@ func (c Config) Validate() error {
 	if c.Port <= 0 || c.Port > 65535 {
 		return fmt.Errorf("port must be between 1 and 65535")
 	}
+	// The driver rejects a password over plain http, but only when the first
+	// connection opens; checking here surfaces it at New instead of first query.
+	if c.Password != "" && !c.SSL {
+		return fmt.Errorf("password authentication requires SSL (set SSL or TRINO_SSL=true)")
+	}
 	return nil
 }

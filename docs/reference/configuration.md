@@ -239,6 +239,8 @@ SSL is automatically enabled for remote hosts:
 
 Override with explicit `TRINO_SSL` setting.
 
+A password requires SSL. A configuration that sets a password with SSL disabled fails validation, because the Trino driver refuses to send a password over plain HTTP.
+
 ---
 
 ## Toolkit Configuration (Go Library)
