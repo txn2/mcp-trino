@@ -104,10 +104,14 @@ type QueryOptions struct {
 	// Timeout is the query timeout. Uses client default if not set.
 	Timeout time.Duration
 
-	// Catalog overrides the default catalog for this query.
+	// Catalog overrides the session catalog for this query. Setting it
+	// also replaces the session schema with Schema, so an empty Schema
+	// leaves the query with no session schema.
 	Catalog string
 
-	// Schema overrides the default schema for this query.
+	// Schema overrides the session schema for this query. Without Catalog
+	// it applies within Config.Catalog, and the query fails if that is
+	// empty too.
 	Schema string
 
 	// RawValues returns each value as the driver produced it -- time.Time for

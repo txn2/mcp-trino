@@ -506,3 +506,41 @@ func TestIntegration_QueryStream(t *testing.T) {
 		t.Logf("read %d rows before the cancelled stream ended", n)
 	})
 }
+
+// TestIntegration_SessionCatalogSchema checks the session catalog and schema
+// Trino reports for the configured values and for per-query overrides.
+func TestIntegration_SessionCatalogSchema(t *testing.T) {
+	client := setupIntegrationClient(t)
+	defer client.Close()
+
+	tests := []struct {
+		name                    string
+		opts                    QueryOptions
+		wantCatalog, wantSchema any
+	}{
+		{name: "configured", wantCatalog: "memory", wantSchema: "default"},
+		{name: "catalog and schema override", opts: QueryOptions{Catalog: "system", Schema: "runtime"}, wantCatalog: "system", wantSchema: "runtime"},
+		{name: "catalog override clears schema", opts: QueryOptions{Catalog: "system"}, wantCatalog: "system", wantSchema: nil},
+		{name: "schema override", opts: QueryOptions{Schema: "information_schema"}, wantCatalog: "memory", wantSchema: "information_schema"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := client.Query(context.Background(), "SELECT current_catalog AS c, current_schema AS s", tt.opts)
+			if err != nil {
+				t.Fatalf("Query failed: %v", err)
+			}
+			if len(result.Rows) != 1 {
+				t.Fatalf("Expected 1 row, got %d", len(result.Rows))
+			}
+			row := result.Rows[0]
+			if row["c"] != tt.wantCatalog || row["s"] != tt.wantSchema {
+				t.Errorf("session = %v/%v, want %v/%v", row["c"], row["s"], tt.wantCatalog, tt.wantSchema)
+			}
+		})
+	}
+
+	// An unqualified table name resolves against the session schema.
+	if _, err := client.Query(context.Background(), "SELECT count(*) FROM tables", QueryOptions{Schema: "information_schema"}); err != nil {
+		t.Errorf("unqualified table in session schema: %v", err)
+	}
+}

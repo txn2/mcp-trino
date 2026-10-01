@@ -3,6 +3,8 @@ package client
 
 import (
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"time"
@@ -129,33 +131,48 @@ func applyOptionsEnv(cfg Config) Config {
 	return cfg
 }
 
-// DSN returns the data source name for the Trino driver.
+// DSN returns the data source name for the Trino driver. The driver reads the
+// session catalog and schema only from the query string, never from the path,
+// and sends them as X-Trino-Catalog and X-Trino-Schema on every query. The
+// schema is set only with a catalog: Trino rejects a session schema without one.
 func (c Config) DSN() string {
 	scheme := "http"
 	if c.SSL {
 		scheme = "https"
 	}
 
-	auth := c.User
+	u := url.URL{
+		Scheme: scheme,
+		User:   url.User(c.User),
+		Host:   net.JoinHostPort(unbracket(c.Host), strconv.Itoa(c.Port)),
+	}
 	if c.Password != "" {
-		auth = c.User + ":" + c.Password
+		u.User = url.UserPassword(c.User, c.Password)
 	}
 
-	dsn := fmt.Sprintf("%s://%s@%s:%d", scheme, auth, c.Host, c.Port)
-
+	query := url.Values{}
+	query.Set("source", c.Source)
 	if c.Catalog != "" {
-		dsn += "/" + c.Catalog
+		query.Set("catalog", c.Catalog)
+		if c.Schema != "" {
+			query.Set("schema", c.Schema)
+		}
 	}
-	if c.Schema != "" && c.Catalog != "" {
-		dsn += "/" + c.Schema
-	}
-
-	dsn += "?source=" + c.Source
 	if c.SSL && !c.SSLVerify {
-		dsn += "&sslVerify=false"
+		query.Set("sslVerify", "false")
 	}
+	u.RawQuery = query.Encode()
 
-	return dsn
+	return u.String()
+}
+
+// unbracket strips the brackets from an IPv6 literal written as "[::1]", which
+// net.JoinHostPort would otherwise bracket a second time.
+func unbracket(host string) string {
+	if len(host) > 1 && host[0] == '[' && host[len(host)-1] == ']' {
+		return host[1 : len(host)-1]
+	}
+	return host
 }
 
 // Validate checks if the configuration is valid.
