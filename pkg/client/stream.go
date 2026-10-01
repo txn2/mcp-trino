@@ -10,6 +10,13 @@ import (
 	"github.com/trinodb/trino-go-client/trino"
 )
 
+// Session headers the Trino driver sends for a named query argument; a
+// per-query value replaces the connection's.
+const (
+	trinoCatalogHeader = "X-Trino-Catalog"
+	trinoSchemaHeader  = "X-Trino-Schema"
+)
+
 // RowCursor yields a query's rows one at a time, holding only the current
 // row in memory. It is not safe for concurrent use. The caller must Close it.
 type RowCursor struct {
@@ -33,11 +40,17 @@ type RowCursor struct {
 // QueryStream executes sqlQuery and returns a cursor over its rows, so a
 // result is read incrementally rather than buffered whole. The cursor honors
 // opts.RawValues and opts.Timeout; the timeout bounds the whole stream, not
-// each row. When positive, opts.Limit caps the rows read; unlike Query, zero
-// or negative means no cap. Canceling ctx ends iteration, and Err then
-// reports the cancellation.
+// each row. The session catalog and schema follow opts.Catalog and
+// opts.Schema for this query only, as QueryOptions describes. When positive,
+// opts.Limit caps the rows read; unlike Query, zero or negative means no cap.
+// Canceling ctx ends iteration, and Err then reports the cancellation.
 func (c *Client) QueryStream(ctx context.Context, sqlQuery string, opts QueryOptions) (*RowCursor, error) {
 	start := time.Now()
+
+	session, err := c.sessionArgs(opts)
+	if err != nil {
+		return nil, err
+	}
 
 	timeout := c.config.Timeout
 	if opts.Timeout > 0 {
@@ -45,7 +58,7 @@ func (c *Client) QueryStream(ctx context.Context, sqlQuery string, opts QueryOpt
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 
-	rows, progress, err := c.openRows(ctx, sqlQuery)
+	rows, progress, err := c.openRows(ctx, sqlQuery, session)
 	if err != nil {
 		cancel()
 		return nil, err
@@ -75,22 +88,43 @@ func (c *Client) QueryStream(ctx context.Context, sqlQuery string, opts QueryOpt
 	return cur, nil
 }
 
-// openRows runs the query with a progress callback that captures the Trino
-// query ID. A driver that rejects the callback argument (sqlmock, in tests)
-// gets the query without it, and the returned updater is nil.
-func (c *Client) openRows(ctx context.Context, sqlQuery string) (*sql.Rows, *queryProgressUpdater, error) {
+// sessionArgs returns the per-query session headers for opts' catalog and
+// schema overrides; the connection already sends the configured ones. A
+// catalog override also replaces the schema, cleared when opts.Schema is
+// empty, because the configured schema belongs to the configured catalog.
+func (c *Client) sessionArgs(opts QueryOptions) ([]any, error) {
+	if opts.Catalog != "" {
+		return []any{
+			sql.Named(trinoCatalogHeader, opts.Catalog),
+			sql.Named(trinoSchemaHeader, opts.Schema),
+		}, nil
+	}
+	if opts.Schema == "" {
+		return nil, nil
+	}
+	if c.config.Catalog == "" {
+		return nil, fmt.Errorf("schema %q needs a catalog: set QueryOptions.Catalog or Config.Catalog", opts.Schema)
+	}
+	return []any{sql.Named(trinoSchemaHeader, opts.Schema)}, nil
+}
+
+// openRows runs the query with session and a progress callback that captures
+// the Trino query ID. A driver that rejects the callback argument (sqlmock, in
+// tests) gets the query with session alone, and the returned updater is nil.
+func (c *Client) openRows(ctx context.Context, sqlQuery string, session []any) (*sql.Rows, *queryProgressUpdater, error) {
 	progress := &queryProgressUpdater{}
-	rows, err := c.db.QueryContext(ctx, sqlQuery,
+	args := append([]any{
 		sql.Named("X-Trino-Progress-Callback", trino.ProgressUpdater(progress)),
 		sql.Named("X-Trino-Progress-Callback-Period", 100*time.Millisecond),
-	)
+	}, session...)
+	rows, err := c.db.QueryContext(ctx, sqlQuery, args...)
 	if err == nil {
 		return rows, progress, nil
 	}
 	if !strings.Contains(err.Error(), "unsupported type") {
 		return nil, nil, fmt.Errorf("query failed: %w", err)
 	}
-	rows, err = c.db.QueryContext(ctx, sqlQuery)
+	rows, err = c.db.QueryContext(ctx, sqlQuery, session...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("query failed: %w", err)
 	}
