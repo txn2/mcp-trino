@@ -1,11 +1,32 @@
 package tools
 
+import "github.com/txn2/mcp-trino/pkg/client"
+
 // QueryOutput defines the structured output of the trino_query tool.
 type QueryOutput struct {
 	Columns  []QueryColumn    `json:"columns"`
 	Rows     []map[string]any `json:"rows"`
 	RowCount int              `json:"row_count"`
 	Stats    QueryStats       `json:"stats"`
+
+	// Error classifies the failure when the query failed. It is absent on
+	// success, and on a failure that was not the query's: a rejected input,
+	// a cancellation.
+	Error *QueryError `json:"error,omitempty"`
+}
+
+// QueryErrorCode is the Code of every QueryError.
+const QueryErrorCode = "trino_query_failed"
+
+// QueryError is the classification of a failed query, as client.Classify
+// reports it, in a trino_query or trino_execute error result.
+type QueryError struct {
+	Code      string                       `json:"code"`
+	Category  client.ErrorCategory         `json:"category"`
+	Retryable bool                         `json:"retryable"`
+	Message   string                       `json:"message"`
+	Trino     *client.TrinoErrorDetail     `json:"trino"`
+	Transport *client.TransportErrorDetail `json:"transport"`
 }
 
 // QueryColumn describes a column in the query result.
