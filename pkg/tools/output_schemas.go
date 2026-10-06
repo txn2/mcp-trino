@@ -118,6 +118,41 @@ func queryOutputSchema() map[string]any {
 					"duration_ms":   map[string]any{"type": "integer"},
 				},
 			},
+			"error": queryErrorSchema(),
+		},
+	}
+}
+
+// queryErrorSchema returns the schema for QueryError, present only on a
+// failed query's error result. The category and kind properties are plain
+// strings, not enums, to keep the open posture defaultOutputSchemas describes; their
+// values are the client.ErrorCategory and client.TransportKind constants.
+func queryErrorSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"code":      map[string]any{"type": "string"},
+			"category":  map[string]any{"type": "string"},
+			"retryable": map[string]any{"type": "boolean"},
+			"message":   map[string]any{"type": "string"},
+			"trino": map[string]any{
+				"type": []string{"object", "null"},
+				"properties": map[string]any{
+					"error_type":  map[string]any{"type": "string"},
+					"error_name":  map[string]any{"type": "string"},
+					"error_code":  map[string]any{"type": "integer"},
+					"sql_state":   map[string]any{"type": "string"},
+					"http_status": map[string]any{"type": "integer"},
+				},
+			},
+			"transport": map[string]any{
+				"type": []string{"object", "null"},
+				"properties": map[string]any{
+					"kind":        map[string]any{"type": "string"},
+					"http_status": map[string]any{"type": "integer"},
+					"detail":      map[string]any{"type": "string"},
+				},
+			},
 		},
 	}
 }

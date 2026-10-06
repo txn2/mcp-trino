@@ -148,7 +148,7 @@ func (t *Toolkit) handleQuery(ctx context.Context, _ *mcp.CallToolRequest, input
 
 	result, err := trinoClient.Query(ctx, sql, opts)
 	if err != nil {
-		return ErrorResult(fmt.Sprintf("Query failed: %v", err)), nil, nil
+		return ErrorResult(fmt.Sprintf("Query failed: %v", err)), failedQueryOutput(ctx, err), nil
 	}
 
 	// Send progress notification: formatting results
@@ -207,4 +207,28 @@ func buildQueryOutput(r *client.QueryResult) QueryOutput {
 			DurationMs:   r.Stats.DurationMs,
 		},
 	}
+}
+
+// failedQueryOutput returns the structured output for a query that failed
+// with err, carrying its classification in Error. It returns nil, leaving the
+// output as it was before classification existed, when the call's own context
+// ended (the caller canceled or its deadline passed, which Classify cannot
+// tell from a query timeout) and when Classify reports err as a cancellation.
+// The result is untyped so that case is a nil interface, not a typed nil.
+func failedQueryOutput(ctx context.Context, err error) any {
+	if ctx.Err() != nil {
+		return nil
+	}
+	class, ok := client.Classify(err)
+	if !ok {
+		return nil
+	}
+	return &QueryOutput{Error: &QueryError{
+		Code:      QueryErrorCode,
+		Category:  class.Category,
+		Retryable: class.Retryable,
+		Message:   class.Message,
+		Trino:     class.Trino,
+		Transport: class.Transport,
+	}}
 }

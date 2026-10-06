@@ -97,6 +97,8 @@ id,name,created_at
 }
 ```
 
+A failed query's error result also carries an `error` object, alongside zero-valued result fields. See [Error Response Format](#error-response-format).
+
 ---
 
 ## trino_explain
@@ -348,20 +350,52 @@ If not specified, the default connection is used.
 
 ### Error Response Format
 
-All errors follow this format:
+An error result has `isError: true` and a text content block with a human-readable message.
+
+When Trino fails to run a statement, `trino_query` and `trino_execute` also put a classification of the failure in `structuredContent.error`. The text content keeps the same message (`Query failed: ...` or `Execution failed: ...`). The other `QueryOutput` fields are present with zero values (`columns` and `rows` are `null`, `row_count` is `0`), so check `isError` rather than reading an empty result as zero rows.
 
 ```json
 {
+  "columns": null,
+  "rows": null,
+  "row_count": 0,
+  "stats": {"row_count": 0, "truncated": false, "duration_ms": 0},
   "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable error message",
-    "details": {
-      "sql": "SELECT * FROM nonexistent",
-      "trino_error_code": 1
-    }
+    "code": "trino_query_failed",
+    "category": "upstream_unavailable",
+    "retryable": true,
+    "message": "EXTERNAL: The connection attempt failed.",
+    "trino": {"error_type": "EXTERNAL", "error_name": "JDBC_ERROR", "error_code": 67108864, "http_status": 200},
+    "transport": null
   }
 }
 ```
+
+| Field | Meaning |
+|-------|---------|
+| `category` | `upstream_unavailable` (Trino, a source behind it, or the network failed), `client_input` (the statement is wrong), or `internal` (anything else) |
+| `retryable` | Whether the same statement is expected to succeed if run again later |
+| `message` | Trino's message when Trino reported one, otherwise the error text |
+| `trino` | The error Trino reported (`error_type`, `error_name`, `error_code`, `sql_state` when sent, `http_status`), or `null` |
+| `transport` | For a failure before Trino reported an error: `kind` (`timeout`, `connection_refused`, `connection_reset`, `dns`, `network`, `http_status`), `http_status` for the last kind, and `detail`. Otherwise `null` |
+
+`structuredContent.error` is absent when the failure was not the query's: a rejected or missing argument, a cancelled query, or a call whose own context ended. `client.Classify` in `pkg/client` applies the same classification to any error the client returns.
+
+How failures are classified:
+
+| Failure | Category | Retryable |
+|---------|----------|-----------|
+| Deadline exceeded, connection refused or reset, DNS failure, other network error, HTTP 429/502/503/504 | `upstream_unavailable` | yes |
+| Other HTTP status with no Trino error (401, a redirect) | `internal` | no |
+| `USER_ERROR` | `client_input` | no |
+| `INSUFFICIENT_RESOURCES` | `upstream_unavailable` | yes |
+| `INTERNAL_ERROR` naming a node or transport failure (`SERVER_SHUTTING_DOWN`, `SERVER_STARTING_UP`, `NO_NODES_AVAILABLE`, `REMOTE_HOST_GONE`, `REMOTE_TASK_ERROR`, `REMOTE_TASK_FAILED`, `ABANDONED_TASK`, `PAGE_TRANSPORT_ERROR`, `PAGE_TRANSPORT_TIMEOUT`, `TOO_MANY_REQUESTS_FAILED`) | `upstream_unavailable` | yes |
+| Other `INTERNAL_ERROR` | `internal` | no |
+| `EXTERNAL` from a source that could not be reached | `upstream_unavailable` | yes |
+| `EXTERNAL` from a source that rejected the statement | `client_input` | no |
+| Other `EXTERNAL` | `upstream_unavailable` | no |
+
+An `EXTERNAL` error is decided by its SQLSTATE class when one is present (`08` is unreachable; `22`, `23` and `42` are rejected). Trino servers send `sqlState` as null, so in practice the decision comes from the Java exception types in the failure's cause chain: a `java.net` connection exception or a `java.sql` connection exception means unreachable, and `SQLDataException`, `SQLIntegrityConstraintViolationException` or `SQLSyntaxErrorException` means rejected. PostgreSQL's "The connection attempt failed." message also counts as unreachable. When both kinds appear in the chain, the rejection wins.
 
 ---
 

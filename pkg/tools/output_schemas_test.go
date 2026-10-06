@@ -554,7 +554,11 @@ func assertPropertiesCoverStruct(t *testing.T, schema map[string]any, rt reflect
 			continue
 		}
 
-		switch ft := field.Type; ft.Kind() {
+		ft := field.Type
+		if ft.Kind() == reflect.Pointer {
+			ft = ft.Elem()
+		}
+		switch ft.Kind() {
 		case reflect.Struct:
 			assertPropertiesCoverStruct(t, prop, ft, path+"."+name)
 		case reflect.Slice:

@@ -120,7 +120,7 @@ func (t *Toolkit) handleExecute(ctx context.Context, _ *mcp.CallToolRequest, inp
 
 	result, err := trinoClient.Query(ctx, sql, opts)
 	if err != nil {
-		return ErrorResult(fmt.Sprintf("Execution failed: %v", err)), nil, nil
+		return ErrorResult(fmt.Sprintf("Execution failed: %v", err)), failedQueryOutput(ctx, err), nil
 	}
 
 	// Send progress notification: formatting results
