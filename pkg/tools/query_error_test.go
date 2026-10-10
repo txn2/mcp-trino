@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/trinodb/trino-go-client/trino"
@@ -77,6 +78,10 @@ func TestQueryFailure_StructuredErrorOverMCP(t *testing.T) {
 	})
 	deadline := fmt.Errorf("query failed: %w", &trino.ErrQueryFailed{Reason: fmt.Errorf(
 		"Get \"http://trino/v1/statement/executing/q1/t/112\": %w", context.DeadlineExceeded)})
+	acceptedTimeout := &client.QueryError{
+		QueryID: "20261009_000000_00001_runng", Accepted: true, Elapsed: 120 * time.Second,
+		CancelRequested: true, CancelConfirmed: true, Err: deadline,
+	}
 
 	tests := []struct {
 		name       string
@@ -96,7 +101,8 @@ func TestQueryFailure_StructuredErrorOverMCP(t *testing.T) {
 					"error_type": "USER_ERROR", "error_name": "TABLE_NOT_FOUND",
 					"error_code": float64(46), "http_status": float64(200),
 				},
-				"transport": nil,
+				"transport":         nil,
+				"statement_timeout": nil,
 			},
 		},
 		{
@@ -110,6 +116,21 @@ func TestQueryFailure_StructuredErrorOverMCP(t *testing.T) {
 					"kind":   "timeout",
 					"detail": "Get \"http://trino/v1/statement/executing/q1/t/112\": context deadline exceeded",
 				},
+				"statement_timeout": nil,
+			},
+		},
+		{
+			name: "trino_execute, deadline after the coordinator accepted it", tool: ToolExecute,
+			sql: "CREATE TABLE t AS SELECT * FROM big", err: acceptedTimeout, textPrefix: "Execution failed: ",
+			want: map[string]any{
+				"code": QueryErrorCode, "category": "client_input", "retryable": false,
+				"message":   acceptedTimeout.Error(),
+				"trino":     nil,
+				"transport": nil,
+				"statement_timeout": map[string]any{
+					"elapsed_ms": float64(120000), "cancel_requested": true, "cancel_confirmed": true,
+				},
+				"query_id": "20261009_000000_00001_runng",
 			},
 		},
 	}

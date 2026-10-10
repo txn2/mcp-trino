@@ -544,3 +544,39 @@ func TestIntegration_SessionCatalogSchema(t *testing.T) {
 		t.Errorf("unqualified table in session schema: %v", err)
 	}
 }
+
+// TestIntegration_StatementTimeoutCancelsQuery covers #109: a statement the
+// coordinator accepted and was still running when its timeout passed reports
+// its query ID and a confirmed cancel, and the coordinator shows it canceled.
+func TestIntegration_StatementTimeoutCancelsQuery(t *testing.T) {
+	client := setupIntegrationClient(t)
+	defer client.Close()
+
+	ctx := context.Background()
+	table := "memory.default.timeout_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	// Counting tpch.sf1000.lineitem runs for minutes on a single node.
+	_, err := client.Query(ctx, "CREATE TABLE "+table+" AS SELECT count(*) AS c FROM tpch.sf1000.lineitem",
+		QueryOptions{Timeout: 2 * time.Second})
+
+	var qe *QueryError
+	if !errors.As(err, &qe) {
+		t.Fatalf("error %v (%T) is not a *QueryError", err, err)
+	}
+	if !qe.Accepted || qe.QueryID == "" || !qe.CancelConfirmed {
+		t.Fatalf("QueryError %+v, want an accepted query with a confirmed cancel", qe)
+	}
+	class, ok := Classify(err)
+	if !ok || class.StatementTimeout == nil || class.Category != CategoryClientInput || class.Retryable {
+		t.Errorf("Classify = %+v, want a non-retryable client_input statement timeout", class)
+	}
+
+	// #nosec G202 -- the query ID comes from the coordinator, not user input
+	res, err := client.Query(ctx, "SELECT state, error_code FROM system.runtime.queries WHERE query_id = '"+qe.QueryID+"'",
+		QueryOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Rows) != 1 || res.Rows[0]["state"] != "FAILED" || res.Rows[0]["error_code"] != "USER_CANCELED" {
+		t.Errorf("coordinator reports %v for %s, want FAILED with USER_CANCELED", res.Rows, qe.QueryID)
+	}
+}

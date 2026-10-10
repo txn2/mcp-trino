@@ -39,6 +39,15 @@ func TestNew_InvalidConfig(t *testing.T) {
 				User: "admin",
 			},
 		},
+		{
+			// Passes Validate, but the DSN it builds is not a URL.
+			name: "host the driver cannot parse",
+			config: Config{
+				Host: "bad%zzhost",
+				Port: 8080,
+				User: "admin",
+			},
+		},
 	}
 
 	for _, tt := range tests {

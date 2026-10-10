@@ -153,6 +153,15 @@ func queryErrorSchema() map[string]any {
 					"detail":      map[string]any{"type": "string"},
 				},
 			},
+			"statement_timeout": map[string]any{
+				"type": []string{"object", "null"},
+				"properties": map[string]any{
+					"elapsed_ms":       map[string]any{"type": "integer"},
+					"cancel_requested": map[string]any{"type": "boolean"},
+					"cancel_confirmed": map[string]any{"type": "boolean"},
+				},
+			},
+			"query_id": map[string]any{"type": "string"},
 		},
 	}
 }

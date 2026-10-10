@@ -27,6 +27,7 @@ type RowCursor struct {
 	limit    int
 	start    time.Time
 	progress *queryProgressUpdater
+	tracker  *queryTracker
 
 	values    []any
 	valuePtrs []any
@@ -57,11 +58,13 @@ func (c *Client) QueryStream(ctx context.Context, sqlQuery string, opts QueryOpt
 		timeout = opts.Timeout
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
+	tracker := &queryTracker{}
+	ctx = withQueryTracker(ctx, tracker)
 
 	rows, progress, err := c.openRows(ctx, sqlQuery, session)
 	if err != nil {
 		cancel()
-		return nil, err
+		return nil, newQueryError(err, tracker, progress, start)
 	}
 
 	columns, err := resultColumns(rows)
@@ -79,6 +82,7 @@ func (c *Client) QueryStream(ctx context.Context, sqlQuery string, opts QueryOpt
 		limit:     max(opts.Limit, 0),
 		start:     start,
 		progress:  progress,
+		tracker:   tracker,
 		values:    make([]any, len(columns)),
 		valuePtrs: make([]any, len(columns)),
 	}
@@ -111,6 +115,7 @@ func (c *Client) sessionArgs(opts QueryOptions) ([]any, error) {
 // openRows runs the query with session and a progress callback that captures
 // the Trino query ID. A driver that rejects the callback argument (sqlmock, in
 // tests) gets the query with session alone, and the returned updater is nil.
+// The updater is returned with an error too, holding any ID it captured.
 func (c *Client) openRows(ctx context.Context, sqlQuery string, session []any) (*sql.Rows, *queryProgressUpdater, error) {
 	progress := &queryProgressUpdater{}
 	args := append([]any{
@@ -122,7 +127,7 @@ func (c *Client) openRows(ctx context.Context, sqlQuery string, session []any) (
 		return rows, progress, nil
 	}
 	if !strings.Contains(err.Error(), "unsupported type") {
-		return nil, nil, fmt.Errorf("query failed: %w", err)
+		return nil, progress, fmt.Errorf("query failed: %w", err)
 	}
 	rows, err = c.db.QueryContext(ctx, sqlQuery, session...)
 	if err != nil {
@@ -191,13 +196,14 @@ func (cur *RowCursor) Next() bool {
 }
 
 // advance moves the driver to its next row, recording an iteration error when
-// that is why there is none.
+// that is why there is none. The driver's rows are closed by the time Next
+// returns false, so a cancel the driver sent has been answered.
 func (cur *RowCursor) advance() bool {
 	if cur.rows.Next() {
 		return true
 	}
 	if err := cur.rows.Err(); err != nil {
-		cur.err = fmt.Errorf("row iteration error: %w", err)
+		cur.err = newQueryError(fmt.Errorf("row iteration error: %w", err), cur.tracker, cur.progress, cur.start)
 	}
 	return false
 }
