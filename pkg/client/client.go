@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -24,7 +25,7 @@ func New(cfg Config) (*Client, error) {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
 
-	db, err := sql.Open("trino", cfg.DSN())
+	db, err := openDB(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open connection: %w", err)
 	}
@@ -38,6 +39,27 @@ func New(cfg Config) (*Client, error) {
 		db:     db,
 		config: cfg,
 	}, nil
+}
+
+// openDB opens the Trino driver on cfg.DSN() with an HTTP client whose
+// transport records each query's ID and cancel outcome (trackingTransport).
+// The driver reads no TLS option from the DSN (it ignores the sslVerify key
+// DSN writes), so it would use the default transport itself. TLS options must
+// go on this transport, via trino.Config.TLSConfig: the driver rejects an
+// HTTPClient combined with SSLVerification or SSL certificates.
+func openDB(cfg Config) (*sql.DB, error) {
+	dsnConfig, err := trino.ParseDSN(cfg.DSN())
+	if err != nil {
+		return nil, err
+	}
+	dsnConfig.HTTPClient = &http.Client{
+		Transport: &trackingTransport{base: http.DefaultTransport},
+	}
+	connector, err := trino.NewConnector(dsnConfig)
+	if err != nil {
+		return nil, err
+	}
+	return sql.OpenDB(connector), nil
 }
 
 // NewWithDB creates a new client with an existing database connection.

@@ -65,9 +65,31 @@ type ErrorClass struct {
 	Trino *TrinoErrorDetail `json:"trino"`
 
 	// Transport describes a failure that happened before Trino could report
-	// an error. It is nil when Trino reported one, and for errors that are
-	// neither.
+	// an error. It is nil when Trino reported one, for a statement timeout,
+	// and for errors that are neither.
 	Transport *TransportErrorDetail `json:"transport"`
+
+	// StatementTimeout describes a statement the coordinator accepted and was
+	// still running when its deadline passed. It is nil for any other failure.
+	StatementTimeout *StatementTimeoutDetail `json:"statement_timeout"`
+
+	// QueryID is the ID the coordinator assigned to the statement, when the
+	// error carries one (a *QueryError the coordinator accepted).
+	QueryID string `json:"query_id,omitempty"`
+}
+
+// StatementTimeoutDetail describes a statement stopped by its deadline after
+// the coordinator accepted it.
+type StatementTimeoutDetail struct {
+	// ElapsedMs is how long the call ran until the failure was reported,
+	// including the cancel request.
+	ElapsedMs int64 `json:"elapsed_ms"`
+	// CancelRequested reports whether a cancel was sent to the coordinator.
+	CancelRequested bool `json:"cancel_requested"`
+	// CancelConfirmed reports whether the coordinator confirmed the cancel.
+	// When a cancel was requested and not confirmed, the statement may still
+	// be running. The driver sends no cancel for a query it saw finish.
+	CancelConfirmed bool `json:"cancel_confirmed"`
 }
 
 // TrinoErrorDetail is the error a Trino server reported for a query.
@@ -148,19 +170,47 @@ var (
 
 // Classify reports what kind of failure err is, and whether the same query is
 // expected to succeed if run again. It understands the errors Client returns,
-// which wrap trino-go-client's *trino.ErrQueryFailed.
+// which are a *QueryError wrapping trino-go-client's *trino.ErrQueryFailed.
+//
+// A deadline that passed after the coordinator accepted the statement (a
+// *QueryError with Accepted set) is a statement timeout: client_input, not
+// retryable, with StatementTimeout set, because the same statement is expected
+// to run as long again. A deadline before the coordinator accepted the
+// statement is a transport timeout.
 //
 // The second result is false when err is nil or a cancellation
 // (trino.ErrQueryCancelled or context.Canceled): a canceled query did not
 // fail, and the caller already knows why it stopped. Classify cannot tell a
 // deadline on the caller's own context from a query timeout, since both
-// surface as context.DeadlineExceeded and Classify reports a timeout. A caller
-// that holds the context should check ctx.Err() before classifying.
+// surface as context.DeadlineExceeded. A caller that holds the context should
+// check ctx.Err() before classifying.
 func Classify(err error) (ErrorClass, bool) {
 	if err == nil || errors.Is(err, trino.ErrQueryCancelled) || errors.Is(err, context.Canceled) {
 		return ErrorClass{}, false
 	}
 
+	var queryErr *QueryError
+	if errors.As(err, &queryErr) && queryErr.Accepted && errors.Is(err, context.DeadlineExceeded) {
+		return ErrorClass{
+			Category: CategoryClientInput,
+			Message:  err.Error(),
+			StatementTimeout: &StatementTimeoutDetail{
+				ElapsedMs:       queryErr.Elapsed.Milliseconds(),
+				CancelRequested: queryErr.CancelRequested,
+				CancelConfirmed: queryErr.CancelConfirmed,
+			},
+			QueryID: queryErr.QueryID,
+		}, true
+	}
+	class := classify(err)
+	if queryErr != nil {
+		class.QueryID = queryErr.QueryID
+	}
+	return class, true
+}
+
+// classify decides a failure that is not a statement timeout.
+func classify(err error) ErrorClass {
 	var queryFailed *trino.ErrQueryFailed
 	hasQueryFailed := errors.As(err, &queryFailed)
 
@@ -177,7 +227,7 @@ func Classify(err error) (ErrorClass, bool) {
 		if hasQueryFailed {
 			class.Trino.HTTPStatus = queryFailed.StatusCode
 		}
-		return class, true
+		return class
 	}
 
 	detail := err.Error()
@@ -195,7 +245,7 @@ func Classify(err error) (ErrorClass, bool) {
 			HTTPStatus: queryFailed.StatusCode,
 			Detail:     detail,
 		}
-		return class, true
+		return class
 	}
 
 	if kind, ok := transportKind(err); ok {
@@ -203,7 +253,7 @@ func Classify(err error) (ErrorClass, bool) {
 		class.Retryable = true
 		class.Transport = &TransportErrorDetail{Kind: kind, Detail: detail}
 	}
-	return class, true
+	return class
 }
 
 // classifyTrino decides the category of an error Trino reported.

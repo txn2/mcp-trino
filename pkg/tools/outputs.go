@@ -27,6 +27,9 @@ type QueryError struct {
 	Message   string                       `json:"message"`
 	Trino     *client.TrinoErrorDetail     `json:"trino"`
 	Transport *client.TransportErrorDetail `json:"transport"`
+
+	StatementTimeout *client.StatementTimeoutDetail `json:"statement_timeout"`
+	QueryID          string                         `json:"query_id,omitempty"`
 }
 
 // QueryColumn describes a column in the query result.

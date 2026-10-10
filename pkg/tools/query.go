@@ -230,5 +230,8 @@ func failedQueryOutput(ctx context.Context, err error) any {
 		Message:   class.Message,
 		Trino:     class.Trino,
 		Transport: class.Transport,
+
+		StatementTimeout: class.StatementTimeout,
+		QueryID:          class.QueryID,
 	}}
 }

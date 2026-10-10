@@ -366,7 +366,9 @@ When Trino fails to run a statement, `trino_query` and `trino_execute` also put 
     "retryable": true,
     "message": "EXTERNAL: The connection attempt failed.",
     "trino": {"error_type": "EXTERNAL", "error_name": "JDBC_ERROR", "error_code": 67108864, "http_status": 200},
-    "transport": null
+    "transport": null,
+    "statement_timeout": null,
+    "query_id": "20261009_164512_00042_x7k2p"
   }
 }
 ```
@@ -378,6 +380,8 @@ When Trino fails to run a statement, `trino_query` and `trino_execute` also put 
 | `message` | Trino's message when Trino reported one, otherwise the error text |
 | `trino` | The error Trino reported (`error_type`, `error_name`, `error_code`, `sql_state` when sent, `http_status`), or `null` |
 | `transport` | For a failure before Trino reported an error: `kind` (`timeout`, `connection_refused`, `connection_reset`, `dns`, `network`, `http_status`), `http_status` for the last kind, and `detail`. Otherwise `null` |
+| `statement_timeout` | For a statement the coordinator accepted and was still running when the timeout passed: `elapsed_ms` (until the failure was reported, including the cancel request), `cancel_requested` (a cancel was sent to the coordinator) and `cancel_confirmed` (the coordinator confirmed it; a requested cancel that is not confirmed means the statement may still be running). Otherwise `null` |
+| `query_id` | The ID the coordinator assigned to the statement. Absent when it assigned none before the failure |
 
 `structuredContent.error` is absent when the failure was not the query's: a rejected or missing argument, a cancelled query, or a call whose own context ended. `client.Classify` in `pkg/client` applies the same classification to any error the client returns.
 
@@ -385,7 +389,8 @@ How failures are classified:
 
 | Failure | Category | Retryable |
 |---------|----------|-----------|
-| Deadline exceeded, connection refused or reset, DNS failure, other network error, HTTP 429/502/503/504 | `upstream_unavailable` | yes |
+| Timeout after the coordinator accepted the statement | `client_input` | no |
+| Timeout before the coordinator accepted the statement, connection refused or reset, DNS failure, other network error, HTTP 429/502/503/504 | `upstream_unavailable` | yes |
 | Other HTTP status with no Trino error (401, a redirect) | `internal` | no |
 | `USER_ERROR` | `client_input` | no |
 | `INSUFFICIENT_RESOURCES` | `upstream_unavailable` | yes |
@@ -394,6 +399,8 @@ How failures are classified:
 | `EXTERNAL` from a source that could not be reached | `upstream_unavailable` | yes |
 | `EXTERNAL` from a source that rejected the statement | `client_input` | no |
 | Other `EXTERNAL` | `upstream_unavailable` | no |
+
+A timeout on an accepted statement is reported as `client_input`, not a transport failure, because the same statement is expected to run as long again; `transport` is `null` and `statement_timeout` is set. The driver cancels the statement on the coordinator when the timeout passes, and `cancel_confirmed` reports whether that cancel succeeded. A timeout before the coordinator answered the submission is a `transport` failure of kind `timeout`: the statement most likely never reached the coordinator, though one whose answer was lost in transit may have started.
 
 An `EXTERNAL` error is decided by its SQLSTATE class when one is present (`08` is unreachable; `22`, `23` and `42` are rejected). Trino servers send `sqlState` as null, so in practice the decision comes from the Java exception types in the failure's cause chain: a `java.net` connection exception or a `java.sql` connection exception means unreachable, and `SQLDataException`, `SQLIntegrityConstraintViolationException` or `SQLSyntaxErrorException` means rejected. PostgreSQL's "The connection attempt failed." message also counts as unreachable. When both kinds appear in the chain, the rejection wins.
 
