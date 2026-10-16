@@ -1,13 +1,11 @@
 module github.com/txn2/mcp-trino
 
-go 1.26.0
-
-toolchain go1.26.9
+go 1.27
 
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/modelcontextprotocol/go-sdk v1.8.0
-	github.com/trinodb/trino-go-client v1.0.0
+	github.com/trinodb/trino-go-client v1.3.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
