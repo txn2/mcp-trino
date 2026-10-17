@@ -4,6 +4,7 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"strconv"
@@ -421,6 +422,65 @@ func TestIntegration_Query_ExactValues(t *testing.T) {
 	}
 	if got := raw.Rows[0]["amount"]; got != "1.50" {
 		t.Errorf("raw decimal: got %#v, want \"1.50\"", got)
+	}
+}
+
+// TestIntegration_Query_NestedValues covers #113: a ROW carries its field
+// values, and a DATE or TIMESTAMP inside an ARRAY, MAP or ROW carries the text
+// Trino sent rather than a time in the client's local zone. The values are
+// those mcp-trino returned with trino-go-client v0.337.0.
+func TestIntegration_Query_NestedValues(t *testing.T) {
+	client := setupIntegrationClient(t)
+	defer client.Close()
+
+	tests := []struct {
+		expr string
+		want string
+	}{
+		{`CAST(ROW(1, 'two', 3.5e0) AS ROW(a BIGINT, b VARCHAR, c DOUBLE))`, `[1,"two",3.5]`},
+		{`ROW(1, 'x')`, `[1,"x"]`},
+		{`CAST(NULL AS ROW(a BIGINT))`, `null`},
+		{`ARRAY[DATE '2026-10-16']`, `["2026-10-16"]`},
+		// Midnight does not exist in America/Santiago on this date.
+		{`ARRAY[DATE '2026-09-06']`, `["2026-09-06"]`},
+		{`ARRAY[TIMESTAMP '2026-10-16 12:34:56.123']`, `["2026-10-16 12:34:56.123"]`},
+		{`ARRAY[TIMESTAMP '2026-10-16 12:34:56.100']`, `["2026-10-16 12:34:56.100"]`},
+		{`ARRAY[CAST(TIMESTAMP '2026-10-16 12:34:56' AS TIMESTAMP(0))]`, `["2026-10-16 12:34:56"]`},
+		{`ARRAY[CAST(TIMESTAMP '2026-10-16 12:34:56.123456' AS TIMESTAMP(6))]`, `["2026-10-16 12:34:56.123456"]`},
+		{`MAP(ARRAY['k'], ARRAY[TIMESTAMP '2026-10-16 12:34:56.123'])`, `{"k":"2026-10-16 12:34:56.123"}`},
+		{`MAP(ARRAY['k'], ARRAY[DATE '2026-10-16'])`, `{"k":"2026-10-16"}`},
+		{`CAST(ROW(DATE '2026-10-16', TIMESTAMP '2026-10-16 12:34:56.123') AS ROW(d DATE, ts TIMESTAMP(3)))`,
+			`["2026-10-16","2026-10-16 12:34:56.123"]`},
+		{`ARRAY[TIMESTAMP '2026-10-16 12:34:56.123 UTC']`, `["2026-10-16 12:34:56.123 UTC"]`},
+		{`ARRAY[TIMESTAMP '2026-10-16 12:34:56.123 +05:30']`, `["2026-10-16 12:34:56.123 +05:30"]`},
+		{`ARRAY[TIMESTAMP '2026-10-16 12:34:56.123 America/New_York']`, `["2026-10-16 12:34:56.123 America/New_York"]`},
+		{`ARRAY[TIME '12:34:56.123']`, `["12:34:56.123"]`},
+		{`ARRAY[TIME '12:34:56.123 +05:30']`, `["12:34:56.123+05:30"]`},
+		{`ARRAY[X'0001FF']`, `["AAH/"]`},
+		{`ARRAY[nan(), infinity(), -infinity(), 1.5e0]`, `["NaN","Infinity","-Infinity",1.5]`},
+		{`CAST(ROW(nan()) AS ROW(r REAL))`, `["NaN"]`},
+		{`ARRAY[ARRAY[DATE '2026-10-16']]`, `[["2026-10-16"]]`},
+		{`ARRAY[CAST(ROW(DATE '2026-10-16') AS ROW(d DATE))]`, `[["2026-10-16"]]`},
+		{`CAST(ROW(ARRAY[DATE '2026-10-16'], MAP(ARRAY['k'], ARRAY[DATE '2026-10-17'])) AS ROW("Odd Name" ARRAY(DATE), m MAP(VARCHAR, DATE)))`,
+			`[["2026-10-16"],{"k":"2026-10-17"}]`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.expr, func(t *testing.T) {
+			result, err := client.Query(context.Background(), "SELECT "+tt.expr+" AS v", DefaultQueryOptions())
+			if err != nil {
+				t.Fatalf("query failed: %v", err)
+			}
+			if len(result.Rows) != 1 {
+				t.Fatalf("got %d rows, want 1", len(result.Rows))
+			}
+			got, err := json.Marshal(result.Rows[0]["v"])
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+			if string(got) != tt.want {
+				t.Errorf("got %s, want %s", got, tt.want)
+			}
+		})
 	}
 }
 

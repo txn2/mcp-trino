@@ -27,7 +27,7 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
-          version: v2.11.4
+          version: v2.14.0
           args: --timeout=5m
 
   test:
@@ -95,7 +95,7 @@ jobs:
 
       - name: Run Gosec Security Scanner
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.29.1-0.20261015133444-707f2271f665
           gosec ./...
 
       # Runs the same two commands as `make security`, rather than
@@ -106,7 +106,7 @@ jobs:
       # be honoured on both sides or it is not an allowlist.
       - name: Run govulncheck
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
           govulncheck -format json ./... > govulncheck-report.json || status=$?
           if [ "${status:-0}" -ne 0 ] && [ "${status:-0}" -ne 3 ]; then
             echo "ERROR: govulncheck failed to run (exit ${status})"

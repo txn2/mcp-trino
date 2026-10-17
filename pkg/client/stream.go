@@ -23,6 +23,7 @@ type RowCursor struct {
 	rows     *sql.Rows
 	cancel   context.CancelFunc
 	columns  []ColumnInfo
+	types    []*valueType
 	raw      bool
 	limit    int
 	start    time.Time
@@ -78,6 +79,7 @@ func (c *Client) QueryStream(ctx context.Context, sqlQuery string, opts QueryOpt
 		rows:      rows,
 		cancel:    cancel,
 		columns:   columns,
+		types:     make([]*valueType, len(columns)),
 		raw:       opts.RawValues,
 		limit:     max(opts.Limit, 0),
 		start:     start,
@@ -88,6 +90,7 @@ func (c *Client) QueryStream(ctx context.Context, sqlQuery string, opts QueryOpt
 	}
 	for i := range cur.values {
 		cur.valuePtrs[i] = &cur.values[i]
+		cur.types[i] = parseValueType(columns[i].Type)
 	}
 	return cur, nil
 }
@@ -188,7 +191,7 @@ func (cur *RowCursor) Next() bool {
 
 	row := make(map[string]any, len(cur.columns))
 	for i, col := range cur.columns {
-		row[col.Name] = resultValue(cur.values[i], cur.raw)
+		row[col.Name] = resultValue(cur.values[i], cur.types[i], cur.raw)
 	}
 	cur.row = row
 	cur.rowCount++

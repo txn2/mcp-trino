@@ -27,9 +27,12 @@ GOVULN_REPORT=govulncheck-report.json
 #   GOLANGCI_LINT_VERSION -> the `version:` input of golangci-lint-action
 #   GOSEC_VERSION         -> the `go install ...gosec@` line in the security job
 #   GOVULNCHECK_VERSION   -> the `go install ...govulncheck@` line in the same job
-GOLANGCI_LINT_VERSION := v2.11.4
-GOSEC_VERSION := v2.28.0
-GOVULNCHECK_VERSION := v1.1.4
+GOLANGCI_LINT_VERSION := v2.14.0
+# gosec is pinned to a commit on master: v2.29.0, the latest release, cannot
+# load packages built by Go 1.27.2 (securego/gosec#1771, export data version 5).
+# TODO: move to the first release after v2.29.0 that includes this commit.
+GOSEC_VERSION := v2.29.1-0.20261015133444-707f2271f665
+GOVULNCHECK_VERSION := v1.9.0
 
 # Coverage gates. COVERAGE_MIN mirrors codecov.yml's project target and
 # PATCH_COVERAGE_MIN its patch target, so a diff that codecov would reject
@@ -117,14 +120,18 @@ fmt: ## Format code
 
 security: ## Run gosec + govulncheck (fail-closed)
 	@echo "Running gosec..."
-	gosec -quiet ./...
+	@# Not -quiet: with it, gosec exits 0 when it cannot load a package, so a
+	@# scan that analyzed nothing passes. CI runs it the same way.
+	@# GOOS=linux in both scans: CI runs on Linux, and a darwin scan never
+	@# analyzes Linux-only files (govulncheck v1.1.4 panicked on one in CI).
+	GOOS=linux gosec ./...
 	@echo "Running govulncheck..."
 	@# govulncheck exits 3 when our code calls a vulnerable symbol, whether or
 	@# not a fixed version exists, and has no way to accept a finding. The gate
 	@# judges the report against .govulncheck-allow.txt, where an accepted
 	@# advisory carries the reason it is accepted and expires the moment a fix
 	@# ships or the advisory stops being reported.
-	@govulncheck -format json ./... > $(GOVULN_REPORT) 2>/dev/null; \
+	@GOOS=linux govulncheck -format json ./... > $(GOVULN_REPORT) 2>/dev/null; \
 	status=$$?; \
 	if [ $$status -ne 0 ] && [ $$status -ne 3 ]; then \
 		echo "ERROR: govulncheck failed to run (exit $$status)"; \
@@ -191,8 +198,7 @@ tools-check: ## Verify local tool versions match the CI pins
 	if ! command -v gosec > /dev/null 2>&1; then \
 		missing="$$missing  gosec: go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION)\n"; \
 	else \
-		v=$$(gosec --version 2>&1 | grep -oE 'Version: v?[0-9]+\.[0-9]+\.[0-9]+' | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
-		case "$$v" in v*) ;; *) v="v$$v";; esac; \
+		v=$$(go version -m $$(command -v gosec) 2>/dev/null | awk '$$1=="mod" && $$2=="github.com/securego/gosec/v2" {print $$3}'); \
 		if [ "$$v" != "$(GOSEC_VERSION)" ]; then \
 			mismatch="$$mismatch  gosec: have $$v, want $(GOSEC_VERSION) — go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION)\n"; \
 		fi; \

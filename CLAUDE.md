@@ -53,7 +53,7 @@ Announcing work as ready without steps 2 and 3 is the failure mode this section 
    - **Total coverage** must be >=82% (`COVERAGE_MIN`, mirrors `codecov.yml`'s project target) — hard gate
    - **Patch coverage** — changed lines vs `main` must be >=80% (`PATCH_COVERAGE_MIN`, mirrors codecov's patch target), via `scripts/patch-coverage.sh`
    - Linting (`golangci-lint run` + `go vet`)
-   - Security (`gosec -quiet ./...` + `govulncheck`, whose report is judged against `.govulncheck-allow.txt` by `scripts/govulncheck-gate.py`: an advisory with no patched release may be accepted with a written reason, and the gate fails when an accepted advisory gains a fix or stops being reported)
+   - Security (`gosec ./...` + `govulncheck`, whose report is judged against `.govulncheck-allow.txt` by `scripts/govulncheck-gate.py`: an advisory with no patched release may be accepted with a written reason, and the gate fails when an accepted advisory gains a fix or stops being reported)
    - Dead code analysis (advisory — exported library API is an expected false positive here)
    - `go build ./...` + `go mod verify`, and a GoReleaser dry-run
    - All checks must pass locally before considering code "tested"

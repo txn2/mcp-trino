@@ -141,6 +141,13 @@ type QueryOptions struct {
 	// JSON-friendly form the result otherwise carries. A caller writing the
 	// values to a typed file needs them exact: the JSON-friendly form of a
 	// varbinary is a guess at what its bytes mean.
+	//
+	// Raw, a ROW is a trino.Row and the elements of an ARRAY, MAP or ROW are
+	// typed as the driver decodes them. Otherwise a ROW is the array of its
+	// field values, and a value inside a container is the text Trino sent
+	// for it, so a nested DATE is "2026-10-16" in any client zone. A nested
+	// TIMESTAMP whose wall clock does not exist in the session zone, during a
+	// daylight-saving gap, is the exception: the driver has already moved it.
 	RawValues bool
 }
 
@@ -398,12 +405,13 @@ func QuoteIdentifier(name string) string {
 }
 
 // resultValue is the value a result row carries: the driver's own when the
-// caller asked for raw values, the JSON-friendly form otherwise.
-func resultValue(v any, raw bool) any {
+// caller asked for raw values, the JSON-friendly form of a value of type t
+// otherwise.
+func resultValue(v any, t *valueType, raw bool) any {
 	if raw {
 		return v
 	}
-	return convertValue(v)
+	return t.render(v)
 }
 
 // convertValue converts database values to JSON-friendly types.

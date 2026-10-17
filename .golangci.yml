@@ -119,6 +119,11 @@ linters:
       - linters:
           - goconst
         path: pkg/tools/explain\.go
+      # JSON Schema literals: "type", "object", "string" and property names
+      # repeat by nature, and the schemas are the advertised wire contract.
+      - linters:
+          - goconst
+        path: pkg/tools/output_schemas\.go
       - path: (.+)\.go$
         text: 'unusedwrite: unused write to field'
     paths:

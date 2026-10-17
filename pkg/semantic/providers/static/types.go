@@ -98,7 +98,7 @@ func (t *TableEntry) toTableContext() *semantic.TableContext {
 		},
 		Description:      t.Description,
 		CustomProperties: t.CustomProperties,
-		Source:           "static",
+		Source:           ProviderName,
 	}
 
 	// Convert owners
@@ -122,7 +122,7 @@ func (t *TableEntry) toTableContext() *semantic.TableContext {
 			ctx.Tags[i] = semantic.Tag{
 				Name:        tag.Name,
 				Description: tag.Description,
-				Source:      "static",
+				Source:      ProviderName,
 			}
 		}
 	}
@@ -133,7 +133,7 @@ func (t *TableEntry) toTableContext() *semantic.TableContext {
 		for i, urn := range t.GlossaryTerms {
 			ctx.GlossaryTerms[i] = semantic.GlossaryTerm{
 				URN:    urn,
-				Source: "static",
+				Source: ProviderName,
 			}
 		}
 	}
@@ -160,7 +160,7 @@ func (c *ColumnEntry) toColumnContext(table semantic.TableIdentifier, columnName
 		Description:      c.Description,
 		IsSensitive:      c.Sensitive,
 		SensitivityLevel: c.SensitivityLevel,
-		Source:           "static",
+		Source:           ProviderName,
 	}
 
 	// Convert tags
@@ -169,7 +169,7 @@ func (c *ColumnEntry) toColumnContext(table semantic.TableIdentifier, columnName
 		for i, tagName := range c.Tags {
 			ctx.Tags[i] = semantic.Tag{
 				Name:   tagName,
-				Source: "static",
+				Source: ProviderName,
 			}
 		}
 	}
@@ -180,7 +180,7 @@ func (c *ColumnEntry) toColumnContext(table semantic.TableIdentifier, columnName
 		for i, urn := range c.GlossaryTerms {
 			ctx.GlossaryTerms[i] = semantic.GlossaryTerm{
 				URN:    urn,
-				Source: "static",
+				Source: ProviderName,
 			}
 		}
 	}
@@ -195,6 +195,6 @@ func (g *GlossaryEntry) toGlossaryTerm() *semantic.GlossaryTerm {
 		Name:         g.Name,
 		Definition:   g.Definition,
 		RelatedTerms: g.RelatedTerms,
-		Source:       "static",
+		Source:       ProviderName,
 	}
 }
