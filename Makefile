@@ -28,7 +28,10 @@ GOVULN_REPORT=govulncheck-report.json
 #   GOSEC_VERSION         -> the `go install ...gosec@` line in the security job
 #   GOVULNCHECK_VERSION   -> the `go install ...govulncheck@` line in the same job
 GOLANGCI_LINT_VERSION := v2.14.0
-GOSEC_VERSION := v2.28.0
+# gosec is pinned to a commit on master: v2.29.0, the latest release, cannot
+# load packages built by Go 1.27.2 (securego/gosec#1771, export data version 5).
+# TODO: move to the first release after v2.29.0 that includes this commit.
+GOSEC_VERSION := v2.29.1-0.20261015133444-707f2271f665
 GOVULNCHECK_VERSION := v1.1.4
 
 # Coverage gates. COVERAGE_MIN mirrors codecov.yml's project target and
@@ -117,7 +120,9 @@ fmt: ## Format code
 
 security: ## Run gosec + govulncheck (fail-closed)
 	@echo "Running gosec..."
-	gosec -quiet ./...
+	@# Not -quiet: with it, gosec exits 0 when it cannot load a package, so a
+	@# scan that analyzed nothing passes. CI runs it the same way.
+	gosec ./...
 	@echo "Running govulncheck..."
 	@# govulncheck exits 3 when our code calls a vulnerable symbol, whether or
 	@# not a fixed version exists, and has no way to accept a finding. The gate
@@ -191,8 +196,7 @@ tools-check: ## Verify local tool versions match the CI pins
 	if ! command -v gosec > /dev/null 2>&1; then \
 		missing="$$missing  gosec: go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION)\n"; \
 	else \
-		v=$$(gosec --version 2>&1 | grep -oE 'Version: v?[0-9]+\.[0-9]+\.[0-9]+' | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9]+' | head -1); \
-		case "$$v" in v*) ;; *) v="v$$v";; esac; \
+		v=$$(go version -m $$(command -v gosec) 2>/dev/null | awk '$$1=="mod" && $$2=="github.com/securego/gosec/v2" {print $$3}'); \
 		if [ "$$v" != "$(GOSEC_VERSION)" ]; then \
 			mismatch="$$mismatch  gosec: have $$v, want $(GOSEC_VERSION) — go install github.com/securego/gosec/v2/cmd/gosec@$(GOSEC_VERSION)\n"; \
 		fi; \
