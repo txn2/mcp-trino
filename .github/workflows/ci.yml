@@ -106,7 +106,7 @@ jobs:
       # be honoured on both sides or it is not an allowlist.
       - name: Run govulncheck
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+          go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
           govulncheck -format json ./... > govulncheck-report.json || status=$?
           if [ "${status:-0}" -ne 0 ] && [ "${status:-0}" -ne 3 ]; then
             echo "ERROR: govulncheck failed to run (exit ${status})"
