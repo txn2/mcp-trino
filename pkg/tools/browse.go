@@ -100,7 +100,7 @@ func (t *Toolkit) browseCatalogs(
 
 	output := "## Available Catalogs\n\n"
 	for _, catalog := range catalogs {
-		output += fmt.Sprintf("- `%s`\n", catalog)
+		output += fmt.Sprintf("- %#q\n", catalog)
 	}
 	output += fmt.Sprintf("\n*%d catalogs found*", len(catalogs))
 
@@ -125,9 +125,9 @@ func (t *Toolkit) browseSchemas(
 		return ErrorResult(fmt.Sprintf("Failed to list schemas: %v", err)), nil, nil
 	}
 
-	output := fmt.Sprintf("## Schemas in `%s`\n\n", catalog)
+	output := fmt.Sprintf("## Schemas in %#q\n\n", catalog)
 	for _, schema := range schemas {
-		output += fmt.Sprintf("- `%s`\n", schema)
+		output += fmt.Sprintf("- %#q\n", schema)
 	}
 	output += fmt.Sprintf("\n*%d schemas found*", len(schemas))
 
@@ -174,7 +174,7 @@ func (t *Toolkit) browseTables(
 	}
 
 	for _, name := range tableNames {
-		output += fmt.Sprintf("- `%s`\n", name)
+		output += fmt.Sprintf("- %#q\n", name)
 	}
 	output += fmt.Sprintf("\n*%d tables found*", len(tableNames))
 

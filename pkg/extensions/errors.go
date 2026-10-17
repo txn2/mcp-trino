@@ -9,6 +9,9 @@ import (
 	"github.com/txn2/mcp-trino/pkg/tools"
 )
 
+// permissionHint is the hint for every kind of permission error.
+const permissionHint = "Hint: Check your Trino user permissions for this operation."
+
 // ErrorEnricher adds helpful hints to error messages.
 // This improves the AI experience by suggesting next steps when errors occur.
 type ErrorEnricher struct {
@@ -26,9 +29,9 @@ func NewErrorEnricher() *ErrorEnricher {
 			"does not exist":    "Hint: Verify the object name and use trino_browse to explore available objects.",
 
 			// Permission errors
-			"access denied":     "Hint: Check your Trino user permissions for this operation.",
-			"permission denied": "Hint: Check your Trino user permissions for this operation.",
-			"not authorized":    "Hint: Check your Trino user permissions for this operation.",
+			"access denied":     permissionHint,
+			"permission denied": permissionHint,
+			"not authorized":    permissionHint,
 
 			// Query errors
 			"syntax error":     "Hint: Check your SQL syntax. Trino uses ANSI SQL with some extensions.",

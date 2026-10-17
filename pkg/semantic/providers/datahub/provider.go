@@ -13,6 +13,9 @@ import (
 // ProviderName is the name returned by Provider.Name().
 const ProviderName = "datahub"
 
+// urnVariable names the GraphQL variable that carries an entity's URN.
+const urnVariable = "urn"
+
 // Provider implements semantic.Provider for DataHub.
 type Provider struct {
 	client   *Client
@@ -45,7 +48,7 @@ func (p *Provider) GetTableContext(ctx context.Context, table semantic.TableIden
 	urn := buildDatasetURN(table, p.platform, p.env)
 
 	var resp datasetResponse
-	if err := p.client.Execute(ctx, getDatasetQuery, map[string]any{"urn": urn}, &resp); err != nil {
+	if err := p.client.Execute(ctx, getDatasetQuery, map[string]any{urnVariable: urn}, &resp); err != nil {
 		return nil, fmt.Errorf("failed to get dataset: %w", err)
 	}
 
@@ -73,7 +76,7 @@ func (p *Provider) GetColumnsContext(ctx context.Context, table semantic.TableId
 	urn := buildDatasetURN(table, p.platform, p.env)
 
 	var resp schemaResponse
-	if err := p.client.Execute(ctx, getSchemaQuery, map[string]any{"urn": urn}, &resp); err != nil {
+	if err := p.client.Execute(ctx, getSchemaQuery, map[string]any{urnVariable: urn}, &resp); err != nil {
 		return nil, fmt.Errorf("failed to get schema: %w", err)
 	}
 
@@ -114,7 +117,7 @@ func (p *Provider) GetLineage(
 	}
 
 	variables := map[string]any{
-		"urn":       urn,
+		urnVariable: urn,
 		"direction": dhDirection,
 	}
 	if maxDepth > 0 {
@@ -163,7 +166,7 @@ func (p *Provider) GetLineage(
 // GetGlossaryTerm implements semantic.Provider.
 func (p *Provider) GetGlossaryTerm(ctx context.Context, urn string) (*semantic.GlossaryTerm, error) {
 	var resp glossaryTermResponse
-	if err := p.client.Execute(ctx, getGlossaryTermQuery, map[string]any{"urn": urn}, &resp); err != nil {
+	if err := p.client.Execute(ctx, getGlossaryTermQuery, map[string]any{urnVariable: urn}, &resp); err != nil {
 		return nil, fmt.Errorf("failed to get glossary term: %w", err)
 	}
 

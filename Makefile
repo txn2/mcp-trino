@@ -27,7 +27,7 @@ GOVULN_REPORT=govulncheck-report.json
 #   GOLANGCI_LINT_VERSION -> the `version:` input of golangci-lint-action
 #   GOSEC_VERSION         -> the `go install ...gosec@` line in the security job
 #   GOVULNCHECK_VERSION   -> the `go install ...govulncheck@` line in the same job
-GOLANGCI_LINT_VERSION := v2.11.4
+GOLANGCI_LINT_VERSION := v2.14.0
 GOSEC_VERSION := v2.28.0
 GOVULNCHECK_VERSION := v1.1.4
 

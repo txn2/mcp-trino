@@ -1,0 +1,262 @@
+{
+  "columns": [
+    {
+      "name": "r",
+      "type": "row(a bigint, b varchar, c double)",
+      "typeSignature": {
+        "rawType": "row",
+        "arguments": [
+          {
+            "kind": "NAMED_TYPE",
+            "value": {
+              "fieldName": {
+                "name": "a"
+              },
+              "typeSignature": {
+                "rawType": "bigint",
+                "arguments": []
+              }
+            }
+          },
+          {
+            "kind": "NAMED_TYPE",
+            "value": {
+              "fieldName": {
+                "name": "b"
+              },
+              "typeSignature": {
+                "rawType": "varchar",
+                "arguments": [
+                  {
+                    "kind": "LONG",
+                    "value": 2147483647
+                  }
+                ]
+              }
+            }
+          },
+          {
+            "kind": "NAMED_TYPE",
+            "value": {
+              "fieldName": {
+                "name": "c"
+              },
+              "typeSignature": {
+                "rawType": "double",
+                "arguments": []
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "dates",
+      "type": "array(date)",
+      "typeSignature": {
+        "rawType": "array",
+        "arguments": [
+          {
+            "kind": "TYPE",
+            "value": {
+              "rawType": "date",
+              "arguments": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ts",
+      "type": "array(timestamp(3))",
+      "typeSignature": {
+        "rawType": "array",
+        "arguments": [
+          {
+            "kind": "TYPE",
+            "value": {
+              "rawType": "timestamp",
+              "arguments": [
+                {
+                  "kind": "LONG",
+                  "value": 3
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "m",
+      "type": "map(varchar(1), timestamp(3))",
+      "typeSignature": {
+        "rawType": "map",
+        "arguments": [
+          {
+            "kind": "TYPE",
+            "value": {
+              "rawType": "varchar",
+              "arguments": [
+                {
+                  "kind": "LONG",
+                  "value": 1
+                }
+              ]
+            }
+          },
+          {
+            "kind": "TYPE",
+            "value": {
+              "rawType": "timestamp",
+              "arguments": [
+                {
+                  "kind": "LONG",
+                  "value": 3
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "odd",
+      "type": "row(\"Odd Name\" date, b array(varbinary))",
+      "typeSignature": {
+        "rawType": "row",
+        "arguments": [
+          {
+            "kind": "NAMED_TYPE",
+            "value": {
+              "fieldName": {
+                "name": "Odd Name"
+              },
+              "typeSignature": {
+                "rawType": "date",
+                "arguments": []
+              }
+            }
+          },
+          {
+            "kind": "NAMED_TYPE",
+            "value": {
+              "fieldName": {
+                "name": "b"
+              },
+              "typeSignature": {
+                "rawType": "array",
+                "arguments": [
+                  {
+                    "kind": "TYPE",
+                    "value": {
+                      "rawType": "varbinary",
+                      "arguments": []
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "tz",
+      "type": "array(timestamp(3) with time zone)",
+      "typeSignature": {
+        "rawType": "array",
+        "arguments": [
+          {
+            "kind": "TYPE",
+            "value": {
+              "rawType": "timestamp with time zone",
+              "arguments": [
+                {
+                  "kind": "LONG",
+                  "value": 3
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "t",
+      "type": "array(time(3) with time zone)",
+      "typeSignature": {
+        "rawType": "array",
+        "arguments": [
+          {
+            "kind": "TYPE",
+            "value": {
+              "rawType": "time with time zone",
+              "arguments": [
+                {
+                  "kind": "LONG",
+                  "value": 3
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "nr",
+      "type": "row(a bigint)",
+      "typeSignature": {
+        "rawType": "row",
+        "arguments": [
+          {
+            "kind": "NAMED_TYPE",
+            "value": {
+              "fieldName": {
+                "name": "a"
+              },
+              "typeSignature": {
+                "rawType": "bigint",
+                "arguments": []
+              }
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "data": [
+    [
+      [
+        1,
+        "two",
+        3.5
+      ],
+      [
+        "2026-10-16",
+        null
+      ],
+      [
+        "2026-10-16 12:34:56.100"
+      ],
+      {
+        "k": "2026-10-16 12:34:56.123"
+      },
+      [
+        "2026-10-16",
+        [
+          "AAH/"
+        ]
+      ],
+      [
+        "2026-10-16 12:34:56.123 America/New_York",
+        "2026-10-16 12:34:56.123 +05:30"
+      ],
+      [
+        "12:34:56.123+00:00",
+        "12:34:56.123+05:30"
+      ],
+      null
+    ]
+  ]
+}
