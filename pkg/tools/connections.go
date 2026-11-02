@@ -32,13 +32,7 @@ type ConnectionInfoOutput struct {
 //
 //nolint:dupl // Each tool registration requires distinct types for type-safe handlers.
 func (t *Toolkit) registerListConnectionsTool(server *mcp.Server, cfg *toolConfig) {
-	// Create the base handler
-	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
-		return t.handleListConnections(ctx, req)
-	}
-
-	// Wrap with middleware if configured
-	wrappedHandler := t.wrapHandler(ToolListConnections, baseHandler, cfg)
+	wrappedHandler := t.handlerFor(ToolListConnections, cfg)
 
 	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{

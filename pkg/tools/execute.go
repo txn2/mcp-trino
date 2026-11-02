@@ -38,17 +38,7 @@ type ExecuteInput struct {
 //
 //nolint:dupl // Each tool registration requires distinct types for type-safe handlers.
 func (t *Toolkit) registerExecuteTool(server *mcp.Server, cfg *toolConfig) {
-	// Create the base handler
-	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
-		executeInput, ok := input.(ExecuteInput)
-		if !ok {
-			return ErrorResult("internal error: invalid input type"), nil, nil
-		}
-		return t.handleExecute(ctx, req, executeInput)
-	}
-
-	// Wrap with middleware if configured
-	wrappedHandler := t.wrapHandler(ToolExecute, baseHandler, cfg)
+	wrappedHandler := t.handlerFor(ToolExecute, cfg)
 
 	// Register with MCP using typed handler that calls wrapped handler
 	mcp.AddTool(server, &mcp.Tool{
