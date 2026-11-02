@@ -26,17 +26,7 @@ type ExplainInput struct {
 //
 //nolint:dupl // Each tool registration requires distinct types for type-safe handlers.
 func (t *Toolkit) registerExplainTool(server *mcp.Server, cfg *toolConfig) {
-	// Create the base handler
-	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
-		explainInput, ok := input.(ExplainInput)
-		if !ok {
-			return ErrorResult("internal error: invalid input type"), nil, nil
-		}
-		return t.handleExplain(ctx, req, explainInput)
-	}
-
-	// Wrap with middleware if configured
-	wrappedHandler := t.wrapHandler(ToolExplain, baseHandler, cfg)
+	wrappedHandler := t.handlerFor(ToolExplain, cfg)
 
 	// Register with MCP using typed handler that calls wrapped handler
 	mcp.AddTool(server, &mcp.Tool{

@@ -59,17 +59,7 @@ type QueryInput struct {
 //
 //nolint:dupl // Each tool registration requires distinct types for type-safe handlers.
 func (t *Toolkit) registerQueryTool(server *mcp.Server, cfg *toolConfig) {
-	// Create the base handler
-	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
-		queryInput, ok := input.(QueryInput)
-		if !ok {
-			return ErrorResult("internal error: invalid input type"), nil, nil
-		}
-		return t.handleQuery(ctx, req, queryInput)
-	}
-
-	// Wrap with middleware if configured
-	wrappedHandler := t.wrapHandler(ToolQuery, baseHandler, cfg)
+	wrappedHandler := t.handlerFor(ToolQuery, cfg)
 
 	// Register with MCP using typed handler that calls wrapped handler
 	mcp.AddTool(server, &mcp.Tool{

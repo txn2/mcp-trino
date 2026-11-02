@@ -153,11 +153,7 @@ func (t *Toolkit) Register(server *mcp.Server, names ...ToolName) {
 //	    tools.WithPerToolMiddleware(rateLimiter),
 //	)
 func (t *Toolkit) RegisterWith(server *mcp.Server, name ToolName, opts ...ToolOption) {
-	cfg := &toolConfig{}
-	for _, opt := range opts {
-		opt(cfg)
-	}
-	t.registerTool(server, name, cfg)
+	t.registerTool(server, name, newToolConfig(opts))
 }
 
 // registerTool is the internal registration method.
@@ -215,9 +211,9 @@ func (t *Toolkit) InterceptSQL(ctx context.Context, sql string, toolName ToolNam
 // Returns the original handler if no middleware is configured (zero overhead).
 func (t *Toolkit) wrapHandler(
 	name ToolName,
-	handler func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error),
+	handler handlerFunc,
 	cfg *toolConfig,
-) func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
+) handlerFunc {
 	// Collect all applicable middlewares
 	var allMiddlewares []ToolMiddleware
 	allMiddlewares = append(allMiddlewares, t.middlewares...)           // Global

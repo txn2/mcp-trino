@@ -41,6 +41,25 @@ type Config struct {
 
 	// Source identifies this client to Trino. Default: "mcp-trino".
 	Source string
+
+	// RequestRetryTimeout bounds how long trino-go-client retries a single
+	// HTTP request: a refused, reset or timed-out connection, or a 429, 502,
+	// 503 or 504 response, is retried with backoff until this much time has
+	// passed or RequestRetryMaxAttempts is reached, whichever comes first.
+	// Zero uses the driver's default (trino.DefaultRequestRetryTimeout, two
+	// minutes); negative values are rejected by Validate.
+	//
+	// With an unreachable coordinator, a query fails after roughly this long
+	// (or at the query timeout, if that is shorter) instead of at once. The
+	// limit is checked between attempts, so one slow attempt (a connect that
+	// hangs until the transport's dial timeout) can carry the call past it.
+	RequestRetryTimeout time.Duration
+
+	// RequestRetryMaxAttempts bounds how many times trino-go-client sends a
+	// single HTTP request, the first send included; 1 disables retries. Zero
+	// uses the driver's default (trino.DefaultRequestRetryMaxAttempts, 20);
+	// negative values are rejected by Validate.
+	RequestRetryMaxAttempts int
 }
 
 // DefaultConfig returns a Config with sensible defaults.
@@ -161,6 +180,12 @@ func (c Config) DSN() string {
 	if c.SSL && !c.SSLVerify {
 		query.Set("sslVerify", "false")
 	}
+	if c.RequestRetryTimeout > 0 {
+		query.Set("request_retry_timeout", c.RequestRetryTimeout.String())
+	}
+	if c.RequestRetryMaxAttempts > 0 {
+		query.Set("request_retry_max_attempts", strconv.Itoa(c.RequestRetryMaxAttempts))
+	}
 	u.RawQuery = query.Encode()
 
 	return u.String()
@@ -185,6 +210,12 @@ func (c Config) Validate() error {
 	}
 	if c.Port <= 0 || c.Port > 65535 {
 		return fmt.Errorf("port must be between 1 and 65535")
+	}
+	if c.RequestRetryTimeout < 0 {
+		return fmt.Errorf("request retry timeout must not be negative")
+	}
+	if c.RequestRetryMaxAttempts < 0 {
+		return fmt.Errorf("request retry max attempts must not be negative")
 	}
 	// The driver rejects a password over plain http, but only when the first
 	// connection opens; checking here surfaces it at New instead of first query.

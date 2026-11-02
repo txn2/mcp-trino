@@ -32,15 +32,7 @@ type BrowseInput struct {
 //
 //nolint:dupl // Each tool registration requires distinct types for type-safe handlers.
 func (t *Toolkit) registerBrowseTool(server *mcp.Server, cfg *toolConfig) {
-	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
-		browseInput, ok := input.(BrowseInput)
-		if !ok {
-			return ErrorResult("internal error: invalid input type"), nil, nil
-		}
-		return t.handleBrowse(ctx, req, browseInput)
-	}
-
-	wrappedHandler := t.wrapHandler(ToolBrowse, baseHandler, cfg)
+	wrappedHandler := t.handlerFor(ToolBrowse, cfg)
 
 	mcp.AddTool(server, &mcp.Tool{
 		Name:         string(ToolBrowse),

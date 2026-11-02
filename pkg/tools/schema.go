@@ -35,17 +35,7 @@ type DescribeTableInput struct {
 //
 //nolint:dupl // Each tool registration requires distinct types for type-safe handlers.
 func (t *Toolkit) registerDescribeTableTool(server *mcp.Server, cfg *toolConfig) {
-	// Create the base handler
-	baseHandler := func(ctx context.Context, req *mcp.CallToolRequest, input any) (*mcp.CallToolResult, any, error) {
-		describeInput, ok := input.(DescribeTableInput)
-		if !ok {
-			return ErrorResult("internal error: invalid input type"), nil, nil
-		}
-		return t.handleDescribeTable(ctx, req, describeInput)
-	}
-
-	// Wrap with middleware if configured
-	wrappedHandler := t.wrapHandler(ToolDescribeTable, baseHandler, cfg)
+	wrappedHandler := t.handlerFor(ToolDescribeTable, cfg)
 
 	// Register with MCP
 	mcp.AddTool(server, &mcp.Tool{

@@ -607,6 +607,43 @@ built-in default (DefaultOutputSchema)
 
 ---
 
+## Calling a Tool Without Registering It
+
+`Toolkit.Call` runs a built-in tool's handler with the same chain a registered
+call runs, without adding the tool to an `mcp.Server`. Use it to publish a tool
+under your own name, or to route calls for several engines through one tool
+and hand the Trino calls to mcp-trino:
+
+```go
+mcp.AddTool(server, &mcp.Tool{Name: "sql_query", /* ... */},
+    func(ctx context.Context, req *mcp.CallToolRequest, in SQLQueryInput) (*mcp.CallToolResult, *tools.QueryOutput, error) {
+        result, out, err := toolkit.Call(ctx, req, tools.ToolQuery, tools.QueryInput{
+            SQL:        in.SQL,
+            Connection: in.Connection,
+        })
+        typed, _ := out.(*tools.QueryOutput)
+        return result, typed, err
+    })
+```
+
+`Call` runs, in order: global, per-tool and per-call middleware `Before` hooks
+(per-call middleware is passed as `tools.WithPerToolMiddleware` options), the
+handler with its query interceptors, the `After` hooks in reverse, then the
+result transformers. Middleware, interceptors and transformers see the built-in
+`ToolName` (`trino_query` above), not the name you published.
+
+- `input` must be the tool's input type passed by value (`QueryInput`,
+  `ExecuteInput`, `ExplainInput`, `BrowseInput`, `DescribeTableInput`,
+  `ListConnectionsInput`). Any other type, or an unknown `ToolName`, returns an
+  error result before any middleware runs.
+- `Call` does not validate input against the tool's input schema or fill in
+  schema defaults, and it does not put the output into `StructuredContent`;
+  the SDK does both for the tool you register.
+- Options that only shape an advertised tool (`WithTitle`, `WithDescription`,
+  `WithAnnotation`, `WithIcon`, `WithOutputSchema`) have no effect on `Call`.
+
+---
+
 ## Built-in Extensions
 
 mcp-trino includes ready-to-use extensions:

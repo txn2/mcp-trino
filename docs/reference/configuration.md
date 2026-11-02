@@ -291,10 +291,36 @@ cfg := client.Config{
     SSLVerify: true,
     Timeout:   120 * time.Second,
     Source:    "my-app",
+
+    // Optional: bound trino-go-client's per-request retries.
+    RequestRetryTimeout:     10 * time.Second,
+    RequestRetryMaxAttempts: 3,
 }
 
 trinoClient, err := client.New(cfg)
 ```
+
+### Request Retries
+
+trino-go-client retries each HTTP request it sends when the connection is
+refused, reset or times out, or the coordinator answers 429, 502, 503 or 504.
+It backs off between attempts and stops at whichever limit is reached first:
+
+| Field | Type | Default (zero) | Description |
+|-------|------|----------------|-------------|
+| `RequestRetryTimeout` | Duration | 2m (`trino.DefaultRequestRetryTimeout`) | How long one request is retried |
+| `RequestRetryMaxAttempts` | int | 20 (`trino.DefaultRequestRetryMaxAttempts`) | How many times one request is sent, the first included; `1` disables retries |
+
+Zero keeps the driver's default; a negative value fails `Validate`. These are
+library fields only; no environment variable sets them.
+
+With the defaults, a query to a coordinator that is down is retried for up to
+two minutes, so it fails at the query timeout (120s by default) with
+`context deadline exceeded` rather than at once with `connection refused`. Set
+lower limits to fail sooner. The timeout is checked between attempts, so one
+slow attempt, such as a connect that hangs until the dial timeout, can run past
+it. Connections in a multi-server configuration inherit both values from the
+primary connection.
 
 Or from environment:
 
