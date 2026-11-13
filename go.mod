@@ -7,7 +7,7 @@ toolchain go1.27.3
 require (
 	github.com/DATA-DOG/go-sqlmock v1.5.2
 	github.com/modelcontextprotocol/go-sdk v1.8.0
-	github.com/trinodb/trino-go-client v1.4.1
+	github.com/trinodb/trino-go-client v1.5.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
