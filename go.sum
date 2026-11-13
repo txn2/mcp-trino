@@ -49,8 +49,8 @@ github.com/stretchr/testify v1.8.0/go.mod h1:yNjHg4UonilssWZ8iaSj1OCr/vHnekPRkoO
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
-github.com/trinodb/trino-go-client v1.4.1 h1:3Q9Q2g3MghR2QC0OOLgvhq4pHsPrOZQ//cJ0tQ4xOOw=
-github.com/trinodb/trino-go-client v1.4.1/go.mod h1:xXaYKgarrr6C8/giUfoyVaTMGAJnFFT5sw7Qj7cE4fE=
+github.com/trinodb/trino-go-client v1.5.0 h1:XOfFC/2B834b9aLrq4He2gIJJK9rhg+VNUkRphI6Pj4=
+github.com/trinodb/trino-go-client v1.5.0/go.mod h1:xXaYKgarrr6C8/giUfoyVaTMGAJnFFT5sw7Qj7cE4fE=
 github.com/yosida95/uritemplate/v3 v3.0.2 h1:Ed3Oyj9yrmi9087+NczuL5BwkIc4wvTb5zIM+UJPGz4=
 github.com/yosida95/uritemplate/v3 v3.0.2/go.mod h1:ILOh0sOhIJR3+L/8afwt/kE++YT040gmv5BQTMR2HP4=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
